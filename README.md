@@ -34,3 +34,14 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Green Campus: Supabase setup
+
+Env vars (copy `.env.example` to `.env.local`): `NEXT_PUBLIC_SUPABASE_URL`,
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` (server only).
+
+Local DB: `npx supabase start` (needs Docker). Without Docker, create a second
+free Supabase project to use as the test project (spec 4.4) and point
+`.env.local` at it when running integration tests.
+
+Tests: `npm test`.
