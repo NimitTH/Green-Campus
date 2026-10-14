@@ -1,5 +1,5 @@
 begin;
-select plan(29);
+select plan(30);
 
 -- fixtures (plain inserts; run as superuser, RLS does not apply)
 insert into auth.users (id, email) values
@@ -79,8 +79,11 @@ select throws_ok($$insert into public.ledger_entries (student_id, kind, points, 
   values ('00000000-0000-0000-0000-0000000000a1', 'bonus', 5, 0)$$,
   '23514', null, 'ledger kind outside the 4 values rejected');
 select throws_ok($$insert into public.ledger_entries (student_id, kind, points, carbon_kg)
-  values ('00000000-0000-0000-0000-0000000000a1', 'earn', -5, 1)$$,
+  values ('00000000-0000-0000-0000-0000000000a1', 'earn', -1, 1)$$,
   '23514', null, 'earn with negative points rejected');
+select lives_ok($$insert into public.ledger_entries (student_id, kind, points, carbon_kg)
+  values ('00000000-0000-0000-0000-0000000000a1', 'earn', 0, 0.5)$$,
+  'earn with zero points accepted');
 select throws_ok($$insert into public.ledger_entries (student_id, kind, points, carbon_kg)
   values ('00000000-0000-0000-0000-0000000000a1', 'redeem', 5, 0)$$,
   '23514', null, 'redeem with positive points rejected');

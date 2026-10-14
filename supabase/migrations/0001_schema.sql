@@ -215,7 +215,7 @@ create table public.ledger_entries (
   note text,
   created_by uuid references public.profiles (id) on delete set null,
   created_at timestamptz not null default now(),
-  check (kind <> 'earn' or points > 0),
+  check (kind <> 'earn' or points >= 0),
   check (kind <> 'redeem' or points < 0),
   check (kind <> 'refund' or points > 0),
   check (kind not in ('redeem', 'refund') or carbon_kg = 0)
