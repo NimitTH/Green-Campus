@@ -45,7 +45,11 @@ export function safeNextPath(next: string | null | undefined, fallback = "/dashb
     return fallback;
   }
   if (url.origin !== base) return fallback;
-  return `${url.pathname}${url.search}${url.hash}`;
+  const out = `${url.pathname}${url.search}${url.hash}`;
+  // Dot segments can normalise to "//host" (e.g. "/a/..//evil"), which browsers treat as
+  // protocol-relative. Reject instead of collapsing slashes.
+  if (!out.startsWith("/") || out.startsWith("//")) return fallback;
+  return out;
 }
 
 export function loginPathFor(nextPath: string): string {

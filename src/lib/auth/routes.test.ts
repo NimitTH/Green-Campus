@@ -47,7 +47,8 @@ describe("safeNextPath", () => {
     "falls back for %s",
     (n) => expect(safeNextPath(n)).toBe("/dashboard"),
   );
-  it.each(["/\t/evil.example", "/\n/evil.example", "/\t\\evil.example", "/\r/evil.example", "/ /evil.example", "/\\evil.example", "/x\\..\\\\evil.example"])(
+  it.each(["/\t/evil.example", "/\n/evil.example", "/\t\\evil.example", "/\r/evil.example", "/ /evil.example", "/\\evil.example", "/x\\..\\\\evil.example",
+    "/a/..//evil.example", "/..//evil.example", "/.//evil.example", "/%2e%2e//evil", "/a/%2e%2e//evil.example"])(
     "blocks tab/newline/backslash open redirect %j",
     (n) => expect(safeNextPath(n)).toBe("/dashboard"),
   );
@@ -59,6 +60,22 @@ describe("safeNextPath", () => {
   });
   it("normalises dot segments without leaving the site", () => {
     expect(safeNextPath("/staff/../dashboard?x=1#h")).toBe("/dashboard?x=1#h");
+  });
+  it("never returns anything but a single-slash same-site path or the fallback", () => {
+    const inputs = [
+      "/a/..//evil.example", "/..//evil.example", "/.//evil.example", "/%2e%2e//evil",
+      "/a/%2e%2e//evil.example", "/\t/evil.example", "/\n/evil.example", "/\t\\evil.example",
+      "/\r/evil.example", "/ /evil.example", "//evil.example", "/\\evil.example",
+      "https://evil.example", "/%09/evil.example", "/%2f/evil.example", "/staff/../dashboard",
+      "/dashboard?next=//evil", "/staff#//evil", "/./staff", "/a/b/../../..//evil", "/\u0000/x",
+    ];
+    const FALLBACK = "/fallback-marker";
+    for (const input of inputs) {
+      const out = safeNextPath(input, FALLBACK);
+      if (out === FALLBACK) continue;
+      expect(out, input).toMatch(/^\/(?!\/)/);
+      expect(out, input).not.toMatch(/[\\\x00-\x1F\x7F]/);
+    }
   });
   it("uses the given fallback", () => {
     expect(safeNextPath(null, "/reset-password")).toBe("/reset-password");
