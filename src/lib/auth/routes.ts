@@ -29,10 +29,23 @@ export function isAdminRole(role: Role | null | undefined): boolean {
  * ?next= cannot send the user to another site.
  */
 export function safeNextPath(next: string | null | undefined, fallback = "/dashboard"): string {
-  if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) {
+  if (!next || !next.startsWith("/") || next.startsWith("//") || next.includes("\\")) {
     return fallback;
   }
-  return next;
+  // Browsers and URL parsers strip tabs/newlines, so "/\t/evil.example" would become
+  // "//evil.example". Reject control characters and whitespace outright.
+  if (/[\x00-\x1F\x7F\s]/.test(next)) return fallback;
+
+  // Second layer: resolve against a dummy origin and require it to stay there.
+  const base = "http://x.invalid";
+  let url: URL;
+  try {
+    url = new URL(next, base);
+  } catch {
+    return fallback;
+  }
+  if (url.origin !== base) return fallback;
+  return `${url.pathname}${url.search}${url.hash}`;
 }
 
 export function loginPathFor(nextPath: string): string {

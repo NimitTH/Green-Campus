@@ -47,6 +47,19 @@ describe("safeNextPath", () => {
     "falls back for %s",
     (n) => expect(safeNextPath(n)).toBe("/dashboard"),
   );
+  it.each(["/\t/evil.example", "/\n/evil.example", "/\t\\evil.example", "/\r/evil.example", "/ /evil.example", "/\\evil.example", "/x\\..\\\\evil.example"])(
+    "blocks tab/newline/backslash open redirect %j",
+    (n) => expect(safeNextPath(n)).toBe("/dashboard"),
+  );
+  it("keeps an encoded tab as a same-origin path", () => {
+    const result = safeNextPath("/%09/evil.example");
+    expect(result.startsWith("/")).toBe(true);
+    expect(result.startsWith("//")).toBe(false);
+    expect(new URL(result, "https://app.example").origin).toBe("https://app.example");
+  });
+  it("normalises dot segments without leaving the site", () => {
+    expect(safeNextPath("/staff/../dashboard?x=1#h")).toBe("/dashboard?x=1#h");
+  });
   it("uses the given fallback", () => {
     expect(safeNextPath(null, "/reset-password")).toBe("/reset-password");
   });
