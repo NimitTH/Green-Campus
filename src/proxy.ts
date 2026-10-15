@@ -1,11 +1,16 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { rootAuthRedirect } from "@/lib/auth/email-links";
 import { isProtectedPath } from "@/lib/auth/routes";
 
 // Proxy (Next 16 replacement for middleware): refreshes the Supabase session cookie and
 // sends anonymous visitors of /dashboard and /staff/** to /login. Role checks (staff,
 // admin) live in server components via the DAL (src/lib/auth/dal.ts), not here.
 export async function proxy(request: NextRequest) {
+  // Email link that fell back to the site root ("/?code=..."): hand it to the callback.
+  const rootRedirect = rootAuthRedirect(request.nextUrl.pathname, request.nextUrl.searchParams);
+  if (rootRedirect) return NextResponse.redirect(new URL(rootRedirect, request.nextUrl.origin));
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(

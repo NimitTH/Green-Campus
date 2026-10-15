@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { isAdminRole, isStaffRole, loginPathFor, toRole, type Role } from "./routes";
 
@@ -18,6 +19,10 @@ export type CurrentUser = {
 type ProfileRow = { role: string; full_name: string; display_name: string | null };
 
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
+  // Supabase reads the clock (token expiry) after cookies are available. With
+  // cacheComponents + partial prefetching that happens during a runtime prerender, where
+  // Date.now() is not allowed; connection() makes everything below request-time only.
+  await connection();
   const supabase = await createServerClient();
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return null;

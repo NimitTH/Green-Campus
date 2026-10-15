@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
+import { emailRedirectUrl, resolveSiteOrigin } from "./email-links";
 import {
   authErrorMessage,
   hasErrors,
@@ -35,11 +36,13 @@ function rawText(formData: FormData, key: string): string {
 
 async function siteOrigin(): Promise<string> {
   const h = await headers();
-  const origin = h.get("origin");
-  if (origin) return origin;
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-  return `${proto}://${host}`;
+  return resolveSiteOrigin({
+    configured: process.env.NEXT_PUBLIC_SITE_URL,
+    origin: h.get("origin"),
+    forwardedHost: h.get("x-forwarded-host"),
+    host: h.get("host"),
+    forwardedProto: h.get("x-forwarded-proto"),
+  });
 }
 
 export async function signIn(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
@@ -73,7 +76,7 @@ export async function signUp(_prev: AuthFormState, formData: FormData): Promise<
     password,
     options: {
       data: { full_name: fullName },
-      emailRedirectTo: `${await siteOrigin()}/auth/callback?next=/dashboard`,
+      emailRedirectTo: emailRedirectUrl(await siteOrigin(), "signup"),
     },
   });
   if (error) return { error: authErrorMessage(error.code), values };
@@ -103,7 +106,7 @@ export async function requestPasswordReset(
 
   const supabase = await createServerClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${await siteOrigin()}/auth/callback?next=/reset-password`,
+    redirectTo: emailRedirectUrl(await siteOrigin(), "reset"),
   });
   if (error && (error.code === "over_email_send_rate_limit" || error.code === "over_request_rate_limit")) {
     return { error: authErrorMessage(error.code), values: { email } };
