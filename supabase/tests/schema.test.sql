@@ -5,9 +5,11 @@ select plan(30);
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000000a1', 'student1@example.test'),
   ('00000000-0000-0000-0000-0000000000b1', 'teacher1@example.test');
+-- handle_new_user (0002) already created these profiles; set the fixture values.
 insert into public.profiles (id, role, full_name) values
   ('00000000-0000-0000-0000-0000000000a1', 'student', 'Student One'),
-  ('00000000-0000-0000-0000-0000000000b1', 'teacher', 'Teacher One');
+  ('00000000-0000-0000-0000-0000000000b1', 'teacher', 'Teacher One')
+on conflict (id) do update set role = excluded.role, full_name = excluded.full_name;
 insert into public.waste_categories (id, name, points_per_kg, carbon_kg_per_kg, source_note) values
   ('00000000-0000-0000-0000-0000000000c1', 'plastic', 10, 1.5, 'test');
 insert into public.activities (id, title, starts_at, ends_at, status, type, requires_code, unit_points, created_by) values
@@ -111,8 +113,9 @@ select throws_ok($$insert into public.cart_items (student_id, reward_id, qty)
   values ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-000000000a01', 2)$$,
   '23505', null, 'duplicate cart item rejected');
 
--- 23: role check
-select throws_ok($$update public.profiles set role = 'superuser' where id = '00000000-0000-0000-0000-0000000000a1'$$,
+-- 23: role check (insert for an id with no auth user: the CHECK fires before the FK)
+select throws_ok($$insert into public.profiles (id, role, full_name)
+  values ('00000000-0000-0000-0000-0000000000a9', 'superuser', 'Bad Role')$$,
   '23514', null, 'invalid role rejected');
 
 -- 24: updated_at trigger
