@@ -2,7 +2,7 @@
 -- Values and sources: docs/carbon-sources.md. Rows come from 0003_waste_categories.sql;
 -- this file adds no fixtures, so it sees exactly the migrated rows.
 begin;
-select plan(7);
+select plan(8);
 
 -- 1-2: exactly the four groups
 select is((select count(*) from public.waste_categories), 4::bigint,
@@ -22,7 +22,7 @@ select is((select count(*) from public.waste_categories
             where points_per_kg < 0 or carbon_kg_per_kg < 0),
   0::bigint, 'points_per_kg and carbon_kg_per_kg are >= 0');
 
--- 5-6: a row is either a labelled estimate or a named TGO source with a URL
+-- 5-7: a row is either a labelled estimate or a named TGO source with a URL
 select is((select count(*) from public.waste_categories
             where source_note not like 'ค่าประมาณ:%'
               and source_note not like '%อบก%'
@@ -32,8 +32,12 @@ select is((select count(*) from public.waste_categories
             where source_note not like 'ค่าประมาณ:%'
               and source_note not like '%https://%'),
   0::bigint, 'TGO-sourced rows include a URL');
+select is((select count(*) from public.waste_categories
+            where source_note not like 'ค่าประมาณ:%'
+              and source_note !~ '25[0-9][0-9]'),
+  0::bigint, 'TGO-sourced rows name the document year (B.E. 25xx)');
 
--- 7: the agreed values (docs/carbon-sources.md)
+-- 8: the agreed values (docs/carbon-sources.md)
 select set_eq(
   $$select name, points_per_kg, carbon_kg_per_kg from public.waste_categories$$,
   $$values ('พลาสติก'::text, 10, 1.0310::numeric),
