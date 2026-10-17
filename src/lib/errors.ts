@@ -9,7 +9,7 @@ const MESSAGES: Record<string, string> = {
   activity_not_open: "กิจกรรมนี้ยังไม่เปิดรับหรือปิดรับแล้ว เลือกกิจกรรมอื่นที่เปิดอยู่",
   activity_ended: "กิจกรรมนี้สิ้นสุดแล้ว เข้าร่วมไม่ได้",
   already_joined: "คุณเข้าร่วมกิจกรรมนี้แล้ว",
-  activity_has_submissions: "ลบกิจกรรมที่มีผลส่งแล้วไม่ได้ ให้เปลี่ยนสถานะเป็นปิดแทน",
+  activity_has_submissions: "ลบไม่ได้ เพราะมีผู้ส่งผลแล้ว ให้ปิดกิจกรรมแทน",
 };
 
 function isKnownCode(code: string): boolean {

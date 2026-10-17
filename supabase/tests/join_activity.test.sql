@@ -4,7 +4,7 @@
 -- Business errors are raised with the bare code as the message (SQLSTATE P0001);
 -- auth errors (not_authenticated, not_student) use SQLSTATE 42501.
 begin;
-select plan(34);
+select plan(38);
 
 -- ids
 --   s1 student ...1101   s2 student ...1102   t1 teacher ...1201   ad admin ...1301
@@ -55,7 +55,7 @@ select throws_ok($$select public.join_activity('00000000-0000-0000-0000-00000000
   '42501', 'not_authenticated', 'join without a signed-in user fails');
 reset role;
 
--- 7-21: student s1 ---------------------------------------------------------
+-- 7-22: student s1 ---------------------------------------------------------
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000001101","role":"authenticated"}', true);
 
@@ -97,10 +97,13 @@ select throws_ok($$insert into public.activities (title, starts_at, ends_at, typ
 update public.activities set title = 'hacked' where id = '00000000-0000-0000-0000-000000001501';
 select is((select title from public.activities where id = '00000000-0000-0000-0000-000000001501'),
   'Open act', 'student cannot update activities (0 rows updated)');
+delete from public.activities where id = '00000000-0000-0000-0000-000000001504';
+select is((select count(*) from public.activities where id = '00000000-0000-0000-0000-000000001504'),
+  1::bigint, 'student cannot delete activities (0 rows deleted)');
 
 reset role;
 
--- 22-24: closed / back-to-draft visibility of a joined activity -----------
+-- 23-25: closed / back-to-draft visibility of a joined activity -----------
 update public.activities set status = 'closed' where id = '00000000-0000-0000-0000-000000001501';
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000001101","role":"authenticated"}', true);
@@ -119,7 +122,7 @@ select is((select count(*) from public.activities where id = '00000000-0000-0000
   0::bigint, 'joined student cannot see the activity after staff move it back to draft');
 reset role;
 
--- 25-31: teacher t1 --------------------------------------------------------
+-- 26-35: teacher t1 --------------------------------------------------------
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000001201","role":"authenticated"}', true);
 
@@ -139,23 +142,29 @@ select is((select count(*) from public.participations where activity_id in
   ('00000000-0000-0000-0000-000000001501', '00000000-0000-0000-0000-000000001505',
    '00000000-0000-0000-0000-000000001506')),
   3::bigint, 'teacher sees all participations');
-delete from public.activities where id = '00000000-0000-0000-0000-000000001506';
+-- R17: teachers may delete activities, except ones with submissions.
+select throws_ok($$delete from public.activities where id = '00000000-0000-0000-0000-000000001505'$$,
+  '23503', 'activity_has_submissions', 'teacher cannot delete an activity with submissions');
+select lives_ok($$delete from public.activities where id = '00000000-0000-0000-0000-000000001506'$$,
+  'teacher deletes an activity that has participants but no submissions');
 select is((select count(*) from public.activities where id = '00000000-0000-0000-0000-000000001506'),
-  1::bigint, 'teacher cannot delete activities (0 rows deleted, admin only)');
+  0::bigint, 'activity deleted by teacher');
+select is((select count(*) from public.participations
+            where activity_id = '00000000-0000-0000-0000-000000001506'),
+  0::bigint, 'participations of a deleted activity are removed with it');
 
 reset role;
 
--- 32-34: admin ad ---------------------------------------------------------
+-- 36-38: admin ad ---------------------------------------------------------
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000001301","role":"authenticated"}', true);
 
 select throws_ok($$delete from public.activities where id = '00000000-0000-0000-0000-000000001505'$$,
-  '23503', 'activity_has_submissions', 'activity with submissions cannot be deleted');
-select lives_ok($$delete from public.activities where id = '00000000-0000-0000-0000-000000001506'$$,
-  'admin deletes an activity that has participants but no submissions');
-select is((select count(*) from public.participations
-            where activity_id = '00000000-0000-0000-0000-000000001506'),
-  0::bigint, 'participations of a deleted activity are removed with it');
+  '23503', 'activity_has_submissions', 'admin cannot delete an activity with submissions');
+select lives_ok($$delete from public.activities where id = '00000000-0000-0000-0000-000000001507'$$,
+  'admin deletes an activity without submissions');
+select is((select count(*) from public.activities where id = '00000000-0000-0000-0000-000000001507'),
+  0::bigint, 'activity deleted by admin');
 
 reset role;
 

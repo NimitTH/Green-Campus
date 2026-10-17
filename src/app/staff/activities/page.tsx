@@ -6,6 +6,7 @@ import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { requireStaff } from "@/lib/auth/dal";
 import { statusLabelTh, typeLabelTh } from "@/lib/activities/labels";
 import { listActivitiesForStaff } from "@/lib/activities/queries";
+import { DeleteActivityButton } from "./_components/delete-activity-button";
 
 export const metadata: Metadata = { title: "จัดการกิจกรรม | Green Campus" };
 
@@ -56,13 +57,16 @@ async function ActivityList() {
                 {a.is_offsite ? <Badge>นอกโรงเรียน</Badge> : null}
               </div>
             </div>
-            <Link
-              href={`/staff/activities/${a.id}/edit`}
-              aria-label={`แก้ไข ${a.title}`}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-900"
-            >
-              แก้ไข
-            </Link>
+            <div className="flex flex-wrap items-start gap-2">
+              <Link
+                href={`/staff/activities/${a.id}/edit`}
+                aria-label={`แก้ไข ${a.title}`}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-900"
+              >
+                แก้ไข
+              </Link>
+              <DeleteActivityButton activityId={a.id} title={a.title} />
+            </div>
           </div>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             <ActivityDates startsAt={a.starts_at} endsAt={a.ends_at} />

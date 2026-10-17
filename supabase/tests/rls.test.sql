@@ -2,7 +2,7 @@
 -- Actors are impersonated with `set local role <role>` plus request.jwt.claims;
 -- `reset role` returns to the superuser test session between actors.
 begin;
-select plan(76);
+select plan(79);
 
 -- ids
 --   s1 student with full_name metadata      ...0101
@@ -80,7 +80,7 @@ update public.profiles set role = 'admin' where id = '00000000-0000-0000-0000-00
 select is((select role from public.profiles where id = '00000000-0000-0000-0000-000000000201'),
   'teacher', 'teacher role stored');
 
--- 14-45: student s1 -------------------------------------------------------
+-- 14-46: student s1 -------------------------------------------------------
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000101","role":"authenticated"}', true);
 
@@ -135,6 +135,9 @@ select is((select count(*) from public.waste_categories where id = '00000000-000
 select throws_ok($$insert into public.activities (title, starts_at, ends_at, type)
   values ('X', now(), now() + interval '1 day', 'fixed')$$,
   '42501', null, 'student cannot create activities');
+delete from public.activities where id = '00000000-0000-0000-0000-000000000501';
+select is((select count(*) from public.activities where id = '00000000-0000-0000-0000-000000000501'),
+  1::bigint, 'student cannot delete activities (0 rows deleted)');
 select throws_ok($$insert into public.waste_categories (name, points_per_kg, carbon_kg_per_kg)
   values ('rls-test-x', 1, 1)$$,
   '42501', null, 'student cannot create waste_categories');
@@ -155,13 +158,13 @@ select throws_ok($$delete from public.ledger_entries$$,
 
 reset role;
 
--- 46-47: effects checked as superuser
+-- 47-48: effects checked as superuser
 select is((select display_name from public.profiles where id = '00000000-0000-0000-0000-000000000102'),
   'student2', 'student cannot rename another student (0 rows updated)');
 select ok((select read_at is not null from public.notifications where id = '00000000-0000-0000-0000-000000000901'),
   'notification marked read');
 
--- 48-49: protect_profile_columns trigger on its own (column privilege lifted
+-- 49-50: protect_profile_columns trigger on its own (column privilege lifted
 -- inside this rolled-back transaction so the trigger is what rejects)
 grant update (role, is_demo) on public.profiles to authenticated;
 set local role authenticated;
@@ -175,7 +178,7 @@ select throws_ok($$update public.profiles set is_demo = true where id = '0000000
 reset role;
 revoke update (role, is_demo) on public.profiles from authenticated;
 
--- 50-63: teacher t1 -------------------------------------------------------
+-- 51-66: teacher t1 -------------------------------------------------------
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000201","role":"authenticated"}', true);
 
@@ -202,9 +205,13 @@ select lives_ok($$insert into public.activities (id, title, starts_at, ends_at, 
   'teacher can create activity');
 select lives_ok($$update public.activities set title = 'แก้แล้ว' where id = '00000000-0000-0000-0000-000000000502'$$,
   'teacher can edit activity');
-delete from public.activities where id = '00000000-0000-0000-0000-000000000502';
-select is((select count(*) from public.activities where id = '00000000-0000-0000-0000-000000000502'),
-  1::bigint, 'teacher cannot delete activity (0 rows deleted)');
+-- R17: teachers may delete activities, except ones with submissions.
+select lives_ok($$delete from public.activities where id = '00000000-0000-0000-0000-000000000503'$$,
+  'teacher can delete an activity without results');
+select is((select count(*) from public.activities where id = '00000000-0000-0000-0000-000000000503'),
+  0::bigint, 'activity deleted by teacher');
+select throws_ok($$delete from public.activities where id = '00000000-0000-0000-0000-000000000501'$$,
+  '23503', null, 'teacher cannot delete activity that has results');
 update public.waste_categories set points_per_kg = 999 where id = '00000000-0000-0000-0000-000000000401';
 select is((select points_per_kg from public.waste_categories where id = '00000000-0000-0000-0000-000000000401'),
   10, 'teacher cannot edit waste_categories (0 rows updated)');
@@ -217,7 +224,7 @@ select is((select count(*) from public.notifications), 0::bigint, 'teacher does 
 
 reset role;
 
--- 64-72: admin ad ---------------------------------------------------------
+-- 67-75: admin ad ---------------------------------------------------------
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000301","role":"authenticated"}', true);
 
@@ -241,7 +248,7 @@ select throws_ok($$insert into public.submissions (activity_id, student_id)
 
 reset role;
 
--- 73-76: anon -------------------------------------------------------------
+-- 76-79: anon -------------------------------------------------------------
 set local role anon;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 

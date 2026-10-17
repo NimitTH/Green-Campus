@@ -7,6 +7,7 @@ import { getActivity } from "@/lib/activities/queries";
 import { activityToInput } from "@/lib/activities/validation";
 import { isUuid } from "@/lib/uuid";
 import { ActivityForm } from "../../_components/activity-form";
+import { DeleteActivityButton } from "../../_components/delete-activity-button";
 
 export const metadata: Metadata = { title: "แก้ไขกิจกรรม | Green Campus" };
 
@@ -28,5 +29,18 @@ async function EditActivity({ params }: { params: Promise<{ id: string }> }) {
   if (!isUuid(id)) notFound();
   const activity = await getActivity(id);
   if (!activity) notFound();
-  return <ActivityForm initial={activityToInput(activity)} id={activity.id} />;
+  return (
+    <>
+      <ActivityForm initial={activityToInput(activity)} id={activity.id} />
+      <section aria-labelledby="delete-heading" className="mt-10 border-t border-gray-200 pt-6 dark:border-gray-800">
+        <h2 id="delete-heading" className="mb-2 font-semibold">
+          ลบกิจกรรม
+        </h2>
+        <p className="mb-3 text-sm text-gray-600 dark:text-gray-400">
+          ลบได้เฉพาะกิจกรรมที่ยังไม่มีผู้ส่งผล ถ้ามีผลแล้วให้เปลี่ยนสถานะเป็นปิดแทน
+        </p>
+        <DeleteActivityButton activityId={activity.id} title={activity.title} />
+      </section>
+    </>
+  );
 }

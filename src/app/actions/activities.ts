@@ -2,7 +2,7 @@
 
 import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth/dal";
+import { getCurrentUser, requireStaff } from "@/lib/auth/dal";
 import { isStaffRole } from "@/lib/auth/routes";
 import {
   isActivityInputShape,
@@ -134,4 +134,40 @@ export type JoinFormState = JoinActivityResult | undefined;
 /** useActionState wrapper for the join button (hidden input "activityId"). */
 export async function joinActivityForm(_prev: JoinFormState, formData: FormData): Promise<JoinFormState> {
   return joinActivity(text(formData, "activityId"));
+}
+
+export type DeleteActivityResult = { ok: true; error?: undefined } | { ok: false; error: string };
+
+/**
+ * Delete an activity (teacher or admin, ruling R17). The database refuses activities with
+ * submissions (23503 activity_has_submissions); participations are removed with it.
+ */
+export async function deleteActivity(activityId: string): Promise<DeleteActivityResult> {
+  await requireStaff("/staff/activities");
+  if (!isUuid(activityId)) return { ok: false, error: NOT_FOUND };
+
+  const supabase = await createServerClient();
+  const { data, error } = await supabase.from("activities").delete().eq("id", activityId).select("id");
+  if (error) {
+    const code = errorCodeFromDb(error);
+    if (!code) console.error("deleteActivity failed", error.code, error.message);
+    return { ok: false, error: errorMessageTh(code) };
+  }
+  if (!data || data.length === 0) return { ok: false, error: NOT_FOUND };
+
+  revalidatePath("/staff/activities");
+  revalidatePath("/activities");
+  return { ok: true };
+}
+
+export type DeleteActivityFormState = DeleteActivityResult | undefined;
+
+/** useActionState wrapper for the delete confirmation (hidden input "activityId"). */
+export async function deleteActivityForm(
+  _prev: DeleteActivityFormState,
+  formData: FormData,
+): Promise<DeleteActivityFormState> {
+  const result = await deleteActivity(text(formData, "activityId"));
+  if (!result.ok) return result;
+  redirect("/staff/activities");
 }

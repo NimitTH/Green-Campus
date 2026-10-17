@@ -19,6 +19,15 @@ describe("errorMessageTh", () => {
   });
 });
 
+describe("activity delete blocked (trigger activity_has_submissions)", () => {
+  it("maps to the Thai 'close it instead' message", () => {
+    expect(errorMessageTh("activity_has_submissions")).toBe("ลบไม่ได้ เพราะมีผู้ส่งผลแล้ว ให้ปิดกิจกรรมแทน");
+  });
+  it("is recognised in a database error", () => {
+    expect(errorCodeFromDb({ message: "activity_has_submissions" })).toBe("activity_has_submissions");
+  });
+});
+
 describe("errorCodeFromDb", () => {
   it("returns the code when the message is exactly a known code", () => {
     expect(errorCodeFromDb({ message: "already_joined" })).toBe("already_joined");
