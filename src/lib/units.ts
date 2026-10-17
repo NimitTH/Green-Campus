@@ -65,7 +65,7 @@ export function estimateWaste(items: { grams: number; rates: Rates }[]): {
   if (!Array.isArray(items)) {
     throw new TypeError("items must be an array");
   }
-  let pointsNumerator = 0n; // sum(grams * pointsPerKg), exact integer arithmetic
+  let pointsNumerator = 0; // sum(grams * pointsPerKg); every step guarded to stay an exact safe integer
   let carbonMilliKg = 0; // sum(grams * carbonKgPerKg) == carbon in milli-kg
   for (const item of items) {
     if (item === null || typeof item !== "object" || item.rates === null || typeof item.rates !== "object") {
@@ -75,11 +75,19 @@ export function estimateWaste(items: { grams: number; rates: Rates }[]): {
     assertNonNegativeInteger(grams, "grams");
     assertNonNegativeInteger(rates.pointsPerKg, "pointsPerKg");
     assertNonNegativeFinite(rates.carbonKgPerKg, "carbonKgPerKg");
-    pointsNumerator += BigInt(grams) * BigInt(rates.pointsPerKg);
+    const product = grams * rates.pointsPerKg;
+    if (!Number.isSafeInteger(product)) {
+      throw new RangeError("estimate is too large");
+    }
+    pointsNumerator += product;
+    if (!Number.isSafeInteger(pointsNumerator)) {
+      throw new RangeError("estimate is too large");
+    }
     carbonMilliKg += grams * rates.carbonKgPerKg;
   }
-  const points = Number(pointsNumerator / BigInt(GRAMS_PER_KG));
-  if (!Number.isSafeInteger(points) || !Number.isFinite(carbonMilliKg)) {
+  // Integer division on a safe integer (no float division, no BigInt: tsconfig target is ES2017).
+  const points = (pointsNumerator - (pointsNumerator % GRAMS_PER_KG)) / GRAMS_PER_KG;
+  if (!Number.isFinite(carbonMilliKg)) {
     throw new RangeError("estimate is too large");
   }
   // toPrecision(12) strips binary drift (e.g. 1.4999999999999998) before rounding half up.

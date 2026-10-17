@@ -22,7 +22,7 @@ describe("toGrams", () => {
 
   it("returns integers despite float noise in kg * 1000", () => {
     // 0.0015 * 1000 and 0.29 * 1000 are not exact in binary floating point.
-    expect(Number.isInteger(toGrams(0.0015, 0))).toBe(true);
+    expect(toGrams(0.0015, 0)).toBe(2); // 0.0015 * 1000 === 1.5 in doubles
     expect(toGrams(0.29, 0)).toBe(290);
     expect(toGrams(1.1, 0)).toBe(1100);
     expect(toGrams(0.57, 2)).toBe(770);
@@ -133,6 +133,14 @@ describe("estimateWaste", () => {
     expect(estimateWaste([{ grams: 1_000_000_000, rates: rates(1_000_000) }]).points).toBe(
       1_000_000_000_000,
     );
+  });
+
+  it("throws RangeError when the points sum would exceed the safe integer range", () => {
+    // single product 1e9 * 1e8 = 1e17 > MAX_SAFE_INTEGER
+    expect(() => estimateWaste([{ grams: 1_000_000_000, rates: rates(100_000_000) }])).toThrow(RangeError);
+    // each product is safe (~5e15) but the running sum overflows
+    const big = { grams: 500_000_000, rates: rates(10_000_000) };
+    expect(() => estimateWaste([big, big])).toThrow(RangeError);
   });
 
   it.each([-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])("rejects invalid grams %s", (grams) => {
