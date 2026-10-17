@@ -4,7 +4,7 @@
 -- Business errors are raised with the bare code as the message (SQLSTATE P0001);
 -- auth errors (not_authenticated, not_student) use SQLSTATE 42501.
 begin;
-select plan(32);
+select plan(34);
 
 -- ids
 --   s1 student ...1101   s2 student ...1102   t1 teacher ...1201   ad admin ...1301
@@ -100,15 +100,26 @@ select is((select title from public.activities where id = '00000000-0000-0000-00
 
 reset role;
 
--- 22: a joined activity stays visible after it closes ---------------------
+-- 22-24: closed / back-to-draft visibility of a joined activity -----------
 update public.activities set status = 'closed' where id = '00000000-0000-0000-0000-000000001501';
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000001101","role":"authenticated"}', true);
 select is((select count(*) from public.activities where id = '00000000-0000-0000-0000-000000001501'),
   1::bigint, 'student still sees a joined activity after it is closed');
 reset role;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000001102","role":"authenticated"}', true);
+select is((select count(*) from public.activities where id = '00000000-0000-0000-0000-000000001501'),
+  0::bigint, 'student who never joined cannot see the closed activity');
+reset role;
+update public.activities set status = 'draft' where id = '00000000-0000-0000-0000-000000001501';
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000001101","role":"authenticated"}', true);
+select is((select count(*) from public.activities where id = '00000000-0000-0000-0000-000000001501'),
+  0::bigint, 'joined student cannot see the activity after staff move it back to draft');
+reset role;
 
--- 23-29: teacher t1 --------------------------------------------------------
+-- 25-31: teacher t1 --------------------------------------------------------
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000001201","role":"authenticated"}', true);
 
@@ -134,7 +145,7 @@ select is((select count(*) from public.activities where id = '00000000-0000-0000
 
 reset role;
 
--- 30-32: admin ad ---------------------------------------------------------
+-- 32-34: admin ad ---------------------------------------------------------
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000001301","role":"authenticated"}', true);
 

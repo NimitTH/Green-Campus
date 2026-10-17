@@ -2,7 +2,7 @@ import { loadEnvConfig } from "@next/env";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 // Test-only admin access to the LOCAL Supabase stack (service key from .env.local).
-// Never print the keys. Refuses non-local URLs unless E2E_ALLOW_REMOTE=1.
+// Never print the keys. Always refuses non-local Supabase URLs.
 
 export type Role = "student" | "teacher" | "admin";
 export type TestUser = { id: string; email: string; password: string; role: Role };
@@ -18,7 +18,7 @@ function admin(): SupabaseClient {
     throw new Error("e2e: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY must be set in .env.local");
   }
   const host = new URL(url).hostname;
-  if (host !== "127.0.0.1" && host !== "localhost" && process.env.E2E_ALLOW_REMOTE !== "1") {
+  if (host !== "127.0.0.1" && host !== "localhost") {
     throw new Error(`e2e: refusing to create test users on non-local Supabase (${host})`);
   }
   client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
@@ -47,11 +47,14 @@ export async function createConfirmedUser(role: Role, label: string): Promise<Te
 
 export async function deleteUsers(users: (TestUser | undefined)[]): Promise<void> {
   for (const user of users) {
-    if (user) await admin().auth.admin.deleteUser(user.id);
+    if (!user) continue;
+    const { error } = await admin().auth.admin.deleteUser(user.id);
+    if (error) console.warn(`e2e cleanup: deleteUser ${user.email} failed: ${error.message}`);
   }
 }
 
 /** Remove activities created by a test (participations cascade, 0004). */
 export async function deleteActivitiesByTitle(title: string): Promise<void> {
-  await admin().from("activities").delete().eq("title", title);
+  const { error } = await admin().from("activities").delete().eq("title", title);
+  if (error) console.warn(`e2e cleanup: delete activity "${title}" failed: ${error.message}`);
 }

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { isStaffRole } from "@/lib/auth/routes";
 import {
+  isActivityInputShape,
   validateActivity,
   type ActivityFieldErrors,
   type ActivityInput,
@@ -25,6 +26,8 @@ export type SaveActivityResult =
 
 /** Create (no id) or update (id) an activity. Staff only. */
 export async function saveActivity(input: ActivityInput & { id?: string }): Promise<SaveActivityResult> {
+  // Reachable by direct POST with any payload: check the shape before touching it.
+  if (!isActivityInputShape(input)) return { error: GENERIC_ERROR_TH };
   const user = await getCurrentUser();
   if (!user || !isStaffRole(user.role)) return { error: STAFF_ONLY };
 

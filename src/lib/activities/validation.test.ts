@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   activityToInput,
   defaultRequiresCode,
+  isActivityInputShape,
   validateActivity,
   type ActivityInput,
 } from "./validation";
@@ -179,5 +180,28 @@ describe("activityToInput", () => {
       maxPerSubmission: "2.5",
     });
     expect(validateActivity(i).ok).toBe(true);
+  });
+});
+
+describe("isActivityInputShape", () => {
+  it("accepts a well-formed input, with or without id and requiresCode", () => {
+    expect(isActivityInputShape(input())).toBe(true);
+    expect(isActivityInputShape({ ...input(), id: "x", requiresCode: true })).toBe(true);
+    const { requiresCode: _drop, ...noCode } = input();
+    void _drop;
+    expect(isActivityInputShape(noCode)).toBe(true);
+  });
+  it.each([null, undefined, "x", 5, [], new Date()])("rejects non-plain-object %j", (value) => {
+    expect(isActivityInputShape(value)).toBe(false);
+  });
+  it("rejects wrong field types", () => {
+    expect(isActivityInputShape({ ...input(), title: 5 })).toBe(false);
+    expect(isActivityInputShape({ ...input(), unitPoints: 10 })).toBe(false);
+    expect(isActivityInputShape({ ...input(), isOffsite: "on" })).toBe(false);
+    expect(isActivityInputShape({ ...input(), requiresCode: "yes" })).toBe(false);
+    expect(isActivityInputShape({ ...input(), id: 1 })).toBe(false);
+    const { title: _t, ...missing } = input();
+    void _t;
+    expect(isActivityInputShape(missing)).toBe(false);
   });
 });

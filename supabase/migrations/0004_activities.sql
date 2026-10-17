@@ -2,7 +2,7 @@
 -- Spec 5 (activities, participations), 6.3 (join window), 7 (join_activity), 8.1 (RLS).
 --
 -- * Students read activities that are 'open' plus the ones they joined (a joined
---   activity stays visible after it is closed). Staff read all. Staff insert/update;
+--   activity stays visible after it is closed, but not if staff move it back to draft). Staff read all. Staff insert/update;
 --   admin deletes (policies from 0002, unchanged except SELECT).
 -- * An activity that has submissions can never be deleted (close it instead): a BEFORE
 --   DELETE trigger raises SQLSTATE 23503 'activity_has_submissions'. Participations and
@@ -17,11 +17,14 @@ create policy activities_select on public.activities
   using (
     status = 'open'
     or (select public.is_staff())
-    or exists (
-      select 1
-      from public.participations p
-      where p.activity_id = activities.id
-        and p.student_id = (select auth.uid())
+    or (
+      status <> 'draft'
+      and exists (
+        select 1
+        from public.participations p
+        where p.activity_id = activities.id
+          and p.student_id = (select auth.uid())
+      )
     )
   );
 

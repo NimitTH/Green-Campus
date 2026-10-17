@@ -69,6 +69,36 @@ export function defaultRequiresCode(type: string): boolean {
   return type === "waste";
 }
 
+const STRING_FIELDS = [
+  "title",
+  "description",
+  "location",
+  "startsAt",
+  "endsAt",
+  "status",
+  "type",
+  "unitPoints",
+  "unitCarbonKg",
+  "maxPerSubmission",
+] as const;
+
+/**
+ * Runtime shape check for saveActivity input (Server Actions can be POSTed directly with
+ * any payload): a plain object, string fields are strings, isOffsite is a boolean,
+ * requiresCode is boolean/null/undefined, id is string/undefined.
+ */
+export function isActivityInputShape(value: unknown): value is ActivityInput & { id?: string } {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const proto = Object.getPrototypeOf(value);
+  if (proto !== Object.prototype && proto !== null) return false;
+  const v = value as Record<string, unknown>;
+  if (!STRING_FIELDS.every((key) => typeof v[key] === "string")) return false;
+  if (typeof v.isOffsite !== "boolean") return false;
+  if (v.requiresCode !== undefined && v.requiresCode !== null && typeof v.requiresCode !== "boolean") return false;
+  if (v.id !== undefined && typeof v.id !== "string") return false;
+  return true;
+}
+
 const DECIMAL_RE = /^\d+(?:\.(\d+))?$/;
 
 type Parsed = { kind: "empty" } | { kind: "bad" } | { kind: "ok"; value: number; decimals: number };
