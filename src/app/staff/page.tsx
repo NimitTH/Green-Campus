@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import { requireStaff } from "@/lib/auth/dal";
 import { PageSkeleton } from "../_components/page-skeleton";
@@ -27,6 +28,17 @@ async function StaffHome() {
         </div>
         <SignOutButton />
       </div>
+      <nav aria-label="เมนูครู" className="mb-4 grid gap-3 sm:grid-cols-2">
+        <Link
+          href="/staff/activities"
+          className="block rounded-2xl border border-gray-200 p-4 font-semibold hover:border-green-600 dark:border-gray-800"
+        >
+          จัดการกิจกรรม
+          <span className="block text-sm font-normal text-gray-600 dark:text-gray-400">
+            สร้าง แก้ไข เปิด/ปิดกิจกรรม
+          </span>
+        </Link>
+      </nav>
       <section className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-gray-600 dark:border-gray-700 dark:text-gray-400">
         ยังไม่มีข้อมูล
       </section>

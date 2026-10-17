@@ -4,7 +4,7 @@ import { rootAuthRedirect } from "@/lib/auth/email-links";
 import { isProtectedPath } from "@/lib/auth/routes";
 
 // Proxy (Next 16 replacement for middleware): refreshes the Supabase session cookie and
-// sends anonymous visitors of /dashboard and /staff/** to /login. Role checks (staff,
+// sends anonymous visitors of /dashboard, /activities and /staff/** to /login. Role checks (staff,
 // admin) live in server components via the DAL (src/lib/auth/dal.ts), not here.
 export async function proxy(request: NextRequest) {
   // Email link that fell back to the site root ("/?code=..."): hand it to the callback.

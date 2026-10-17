@@ -1,7 +1,7 @@
 export type Role = "student" | "teacher" | "admin";
 
 /** Path prefixes that need a signed-in user. The proxy redirects anonymous visitors to /login. */
-export const PROTECTED_PREFIXES = ["/dashboard", "/staff"] as const;
+export const PROTECTED_PREFIXES = ["/dashboard", "/staff", "/activities"] as const;
 
 function matchesPrefix(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);

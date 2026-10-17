@@ -9,11 +9,11 @@ import {
 } from "./routes";
 
 describe("isProtectedPath", () => {
-  it.each(["/dashboard", "/dashboard/x", "/staff", "/staff/users", "/staff/reviews/1"])(
+  it.each(["/dashboard", "/dashboard/x", "/staff", "/staff/users", "/staff/reviews/1", "/activities", "/activities/abc"])(
     "%s needs a signed-in user",
     (p) => expect(isProtectedPath(p)).toBe(true),
   );
-  it.each(["/", "/login", "/register", "/forgot-password", "/reset-password", "/auth/callback", "/staffroom", "/dashboards"])(
+  it.each(["/", "/login", "/register", "/forgot-password", "/reset-password", "/auth/callback", "/staffroom", "/dashboards", "/activitiesx"])(
     "%s is public",
     (p) => expect(isProtectedPath(p)).toBe(false),
   );
