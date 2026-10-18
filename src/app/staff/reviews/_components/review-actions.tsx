@@ -12,6 +12,13 @@ export function ReviewActions({ submissionId }: { submissionId: string }) {
   const [reason, setReason] = useState("");
   const [reasonError, setReasonError] = useState<string | null>(null);
 
+  // One error at a time: a client-side reason error hides the previous server error, and every
+  // dispatch clears the reason error so the next server result shows.
+  function approve(formData: FormData) {
+    setReasonError(null);
+    dispatch(formData);
+  }
+
   function reject(formData: FormData) {
     const code = rejectReasonError(reason);
     if (code) {
@@ -24,7 +31,7 @@ export function ReviewActions({ submissionId }: { submissionId: string }) {
 
   return (
     <div className="space-y-5">
-      {state?.error ? (
+      {state?.error && !reasonError ? (
         <div
           role="alert"
           className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
@@ -33,7 +40,7 @@ export function ReviewActions({ submissionId }: { submissionId: string }) {
         </div>
       ) : null}
 
-      <form action={dispatch}>
+      <form action={approve}>
         <input type="hidden" name="submissionId" value={submissionId} />
         <input type="hidden" name="decision" value="approve" />
         <button

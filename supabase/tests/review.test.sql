@@ -6,7 +6,7 @@
 -- Two concurrent approvals (FOR UPDATE) need two sessions; here a second approve in the same
 -- session must raise not_pending and leave one ledger row.
 begin;
-select plan(93);
+select plan(106);
 
 -- ids
 --   s1 student ...4101   s2 student ...4102
@@ -21,6 +21,9 @@ select plan(93);
 --     4605 s1 fixed2                      4606 t2 fixed (reviewer = owner case)
 --     4607 s1 fixed (rejected below)      4608 s2 fixed (reason validation, stays pending)
 --     4609 s1 waste plastic 1500 g (approved after the rates change)
+--     4610 s1 waste plastic 1550 g (15.5 -> floor 15)   4611 s1 waste plastic 1999 g (19.99 -> 19)
+--     4612 s1 waste plastic 1040 g + paper 80 g (10.4 + 0.4 = 10.8 -> 10; each item < .5)
+--     4613 s2 trees 1,000,000,000 (points beyond int)   4614 s2 waste 'RV big' 2,000,000 g (same)
 
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-000000004101', 'rv-s1@example.test', '{"full_name":"นักเรียน หนึ่ง"}'::jsonb),
@@ -48,7 +51,13 @@ insert into public.submissions (id, activity_id, student_id, status) values
   ('00000000-0000-0000-0000-000000004606', '00000000-0000-0000-0000-000000004503', '00000000-0000-0000-0000-000000004202', 'pending'),
   ('00000000-0000-0000-0000-000000004607', '00000000-0000-0000-0000-000000004503', '00000000-0000-0000-0000-000000004101', 'pending'),
   ('00000000-0000-0000-0000-000000004608', '00000000-0000-0000-0000-000000004503', '00000000-0000-0000-0000-000000004102', 'pending'),
-  ('00000000-0000-0000-0000-000000004609', '00000000-0000-0000-0000-000000004501', '00000000-0000-0000-0000-000000004101', 'pending');
+  ('00000000-0000-0000-0000-000000004609', '00000000-0000-0000-0000-000000004501', '00000000-0000-0000-0000-000000004101', 'pending'),
+  ('00000000-0000-0000-0000-000000004610', '00000000-0000-0000-0000-000000004501', '00000000-0000-0000-0000-000000004101', 'pending'),
+  ('00000000-0000-0000-0000-000000004611', '00000000-0000-0000-0000-000000004501', '00000000-0000-0000-0000-000000004101', 'pending'),
+  ('00000000-0000-0000-0000-000000004612', '00000000-0000-0000-0000-000000004501', '00000000-0000-0000-0000-000000004101', 'pending'),
+  ('00000000-0000-0000-0000-000000004613', '00000000-0000-0000-0000-000000004502', '00000000-0000-0000-0000-000000004102', 'pending'),
+  ('00000000-0000-0000-0000-000000004614', '00000000-0000-0000-0000-000000004501', '00000000-0000-0000-0000-000000004102', 'pending');
+insert into public.waste_categories (name, points_per_kg, carbon_kg_per_kg) values ('RV big', 2000000, 0);
 insert into public.submission_items (submission_id, waste_category_id, quantity) values
   ('00000000-0000-0000-0000-000000004601', (select id from public.waste_categories where name = 'พลาสติก'), 1500),
   ('00000000-0000-0000-0000-000000004602', (select id from public.waste_categories where name = 'พลาสติก'), 150),
@@ -59,7 +68,13 @@ insert into public.submission_items (submission_id, waste_category_id, quantity)
   ('00000000-0000-0000-0000-000000004606', null, 1),
   ('00000000-0000-0000-0000-000000004607', null, 1),
   ('00000000-0000-0000-0000-000000004608', null, 1),
-  ('00000000-0000-0000-0000-000000004609', (select id from public.waste_categories where name = 'พลาสติก'), 1500);
+  ('00000000-0000-0000-0000-000000004609', (select id from public.waste_categories where name = 'พลาสติก'), 1500),
+  ('00000000-0000-0000-0000-000000004610', (select id from public.waste_categories where name = 'พลาสติก'), 1550),
+  ('00000000-0000-0000-0000-000000004611', (select id from public.waste_categories where name = 'พลาสติก'), 1999),
+  ('00000000-0000-0000-0000-000000004612', (select id from public.waste_categories where name = 'พลาสติก'), 1040),
+  ('00000000-0000-0000-0000-000000004612', (select id from public.waste_categories where name = 'กระดาษ'), 80),
+  ('00000000-0000-0000-0000-000000004613', null, 1000000000),
+  ('00000000-0000-0000-0000-000000004614', (select id from public.waste_categories where name = 'RV big'), 2000000);
 
 -- 1-18: shape and privileges --------------------------------------------------------------
 select has_function('public', 'approve_submission', array['uuid'], 'approve_submission(uuid) exists');
@@ -146,6 +161,34 @@ select is((select points from public.ledger_entries where ref_submission_id = '0
 select is((select carbon_kg from public.ledger_entries where ref_submission_id = '00000000-0000-0000-0000-000000004602'),
   0.509::numeric, 'mixed carbon = round((150 x 1.0310 + 100 x 3.5460) / 1000, 3), rounded once');
 
+-- points are FLOORED, never rounded (spec 6.1): fractional results
+select lives_ok($$select public.approve_submission('00000000-0000-0000-0000-000000004610')$$, 'teacher approves 1550 g');
+select is((select points from public.ledger_entries where ref_submission_id = '00000000-0000-0000-0000-000000004610'),
+  15, '1550 g x 10 / 1000 = 15.5 is floored to 15');
+select is((select carbon_kg from public.ledger_entries where ref_submission_id = '00000000-0000-0000-0000-000000004610'),
+  1.598::numeric, '1550 g carbon = round(1.59805, 3)');
+select lives_ok($$select public.approve_submission('00000000-0000-0000-0000-000000004611')$$, 'teacher approves 1999 g');
+select is((select points from public.ledger_entries where ref_submission_id = '00000000-0000-0000-0000-000000004611'),
+  19, '1999 g x 10 / 1000 = 19.99 is floored to 19');
+select is((select carbon_kg from public.ledger_entries where ref_submission_id = '00000000-0000-0000-0000-000000004611'),
+  2.061::numeric, '1999 g carbon = round(2.060969, 3)');
+select lives_ok($$select public.approve_submission('00000000-0000-0000-0000-000000004612')$$, 'teacher approves mixed 1040 g + 80 g');
+select is((select points from public.ledger_entries where ref_submission_id = '00000000-0000-0000-0000-000000004612'),
+  10, 'mixed 10.4 + 0.4 = 10.8 is floored to 10');
+select is((select carbon_kg from public.ledger_entries where ref_submission_id = '00000000-0000-0000-0000-000000004612'),
+  1.356::numeric, 'mixed carbon = round((1040 x 1.0310 + 80 x 3.5460) / 1000, 3)');
+
+-- points beyond the int range raise a specific code; nothing is written
+select throws_ok($$select public.approve_submission('00000000-0000-0000-0000-000000004613')$$,
+  'P0001', 'points_out_of_range', 'trees points beyond int raise points_out_of_range');
+select throws_ok($$select public.approve_submission('00000000-0000-0000-0000-000000004614')$$,
+  'P0001', 'points_out_of_range', 'waste points beyond int raise points_out_of_range');
+select ok((select count(*) = 0 from public.ledger_entries
+            where ref_submission_id in ('00000000-0000-0000-0000-000000004613', '00000000-0000-0000-0000-000000004614'))
+      and (select bool_and(status = 'pending') from public.submissions
+            where id in ('00000000-0000-0000-0000-000000004613', '00000000-0000-0000-0000-000000004614')),
+  'an out-of-range approval writes no ledger row and leaves the submission pending');
+
 -- trees / fixed
 select lives_ok($$select public.approve_submission('00000000-0000-0000-0000-000000004603')$$, 'teacher approves 3 trees');
 select is((select points from public.ledger_entries where ref_submission_id = '00000000-0000-0000-0000-000000004603'),
@@ -224,7 +267,11 @@ reset role;
 -- notifications to the student (R36) -----------------------------------------------------
 select is((select count(*) from public.notifications
             where user_id = '00000000-0000-0000-0000-000000004101' and type = 'submission_approved'),
-  5::bigint, 'one submission_approved notification per approval of s1');
+  8::bigint, 'one submission_approved notification per approval of s1');
+select ok(exists (select 1 from public.notifications
+            where user_id = '00000000-0000-0000-0000-000000004101' and type = 'submission_approved'
+              and body like '%RV trees%' and body like '%7.5 กก.%' and body not like '%7.500%'),
+  'approved notification prints carbon without trailing zeros');
 select is((select link from public.notifications
             where user_id = '00000000-0000-0000-0000-000000004101' and type = 'submission_approved' limit 1),
   '/my-submissions', 'approved notification links to /my-submissions');
@@ -261,14 +308,15 @@ select is((select carbon_kg from public.ledger_entries where ref_submission_id =
   3.000::numeric, 'a later approval uses the new carbon rate');
 
 -- student_balance (R37) ------------------------------------------------------------------
--- s1 earned 15 + 2 + 15 + 10 + 10 + 30 = 82 points, 1.547 + 0.509 + 7.5 + 0 + 1.25 + 3 = 13.806 kg
+-- s1 earned 15 + 2 + 15 + 19 + 10 + 15 + 10 + 10 + 30 = 126 points,
+-- 1.547 + 0.509 + 1.598 + 2.061 + 1.356 + 7.5 + 0 + 1.25 + 3 = 18.821 kg
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000004101","role":"authenticated"}', true);
 select is((select count(*) from public.student_balance), 1::bigint, 'a student sees only one balance row');
 select is((select student_id from public.student_balance), '00000000-0000-0000-0000-000000004101'::uuid,
   'the row is the student''s own');
-select is((select points from public.student_balance), 82::bigint, 'balance points = sum of earned points');
-select is((select carbon_kg from public.student_balance), 13.806::numeric, 'balance carbon = sum of earned carbon');
+select is((select points from public.student_balance), 126::bigint, 'balance points = sum of earned points');
+select is((select carbon_kg from public.student_balance), 18.821::numeric, 'balance carbon = sum of earned carbon');
 reset role;
 
 -- a redeem lowers points but not carbon; an adjust changes both
@@ -277,8 +325,8 @@ insert into public.ledger_entries (student_id, kind, points, carbon_kg, note) va
   ('00000000-0000-0000-0000-000000004101', 'adjust', -3, -0.306, 'แก้ผลอนุมัติผิด');
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000004101","role":"authenticated"}', true);
-select is((select points from public.student_balance), 59::bigint, 'redeem and adjust lower the points (all kinds)');
-select is((select carbon_kg from public.student_balance), 13.5::numeric, 'carbon counts earn and adjust only');
+select is((select points from public.student_balance), 103::bigint, 'redeem and adjust lower the points (all kinds)');
+select is((select carbon_kg from public.student_balance), 18.515::numeric, 'carbon counts earn and adjust only');
 reset role;
 
 set local role authenticated;

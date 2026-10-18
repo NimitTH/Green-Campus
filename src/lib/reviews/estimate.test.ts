@@ -17,6 +17,22 @@ describe("estimateSubmission (mirrors approve_submission, spec 6.1)", () => {
     ];
     expect(estimateSubmission(activity, items)).toEqual({ points: 2, carbonKg: 0.509 });
   });
+  // Parity with supabase/tests/review.test.sql: the same inputs give the same ledger values.
+  it.each([
+    [[{ quantity: 1550, category: plastic }], 15, 1.598],
+    [[{ quantity: 1999, category: plastic }], 19, 2.061],
+    [
+      [
+        { quantity: 1040, category: plastic },
+        { quantity: 80, category: paper },
+      ],
+      10,
+      1.356,
+    ],
+  ])("waste floors fractional points like approve_submission (%#)", (items, points, carbonKg) => {
+    const activity = { type: "waste" as const, unitPoints: 0, unitCarbonKg: null };
+    expect(estimateSubmission(activity, items)).toEqual({ points, carbonKg });
+  });
   it("trees: count x unit values, null carbon = 0", () => {
     expect(estimateSubmission({ type: "trees", unitPoints: 5, unitCarbonKg: 2.5 }, [{ quantity: 3, category: null }])).toEqual({
       points: 15,

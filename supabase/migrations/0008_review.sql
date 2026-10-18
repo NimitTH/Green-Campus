@@ -18,8 +18,11 @@
 --   submission_not_found       unknown submission
 --   own_submission             the reviewer is the submission's student
 --   not_pending                already approved or rejected (also the loser of a concurrent review)
+--   points_out_of_range        the computed points do not fit ledger_entries.points (int) or the
+--                              carbon does not fit carbon_kg numeric(12,3): an implausible amount
 -- Formulas (spec 6.1, R35):
---   waste  points = floor(sum(grams x points_per_kg) / 1000)   (integer arithmetic)
+--   waste  points = floor(sum(grams x points_per_kg) / 1000)   (exact numeric, then FLOOR: sum() of
+--                   bigint is numeric, so a plain "/ 1000" assigned to an integer would ROUND)
 --          carbon = round(sum(grams x carbon_kg_per_kg) / 1000, 3)   (rounded once over the sum)
 --   trees  points = count x unit_points, carbon = count x coalesce(unit_carbon_kg, 0)
 --   fixed  points = unit_points,         carbon = coalesce(unit_carbon_kg, 0)
@@ -34,8 +37,9 @@ declare
   v_sub public.submissions%rowtype;
   v_activity public.activities%rowtype;
   v_count bigint;
-  v_points bigint;
-  v_carbon numeric(12, 3);
+  -- unconstrained: range-checked below before the insert
+  v_points numeric;
+  v_carbon numeric;
 begin
   if v_uid is null then
     raise exception 'not_authenticated' using errcode = '42501';
@@ -61,7 +65,7 @@ begin
 
   if v_activity.type = 'waste' then
     select
-      coalesce(sum(si.quantity::bigint * wc.points_per_kg), 0) / 1000,
+      floor(coalesce(sum(si.quantity::bigint * wc.points_per_kg), 0) / 1000),
       round(coalesce(sum(si.quantity * wc.carbon_kg_per_kg), 0) / 1000, 3)
       into v_points, v_carbon
     from public.submission_items si
@@ -72,14 +76,18 @@ begin
     from public.submission_items si
     where si.submission_id = v_sub.id;
     v_points := v_count * v_activity.unit_points;
-    v_carbon := v_count * coalesce(v_activity.unit_carbon_kg, 0);
+    v_carbon := round(v_count * coalesce(v_activity.unit_carbon_kg, 0), 3);
   else
     v_points := v_activity.unit_points;
-    v_carbon := coalesce(v_activity.unit_carbon_kg, 0);
+    v_carbon := round(coalesce(v_activity.unit_carbon_kg, 0), 3);
+  end if;
+
+  if v_points > 2147483647 or v_carbon >= 1000000000 then
+    raise exception 'points_out_of_range';
   end if;
 
   insert into public.ledger_entries (student_id, kind, points, carbon_kg, ref_submission_id, created_by)
-  values (v_sub.student_id, 'earn', v_points, v_carbon, v_sub.id, v_uid);
+  values (v_sub.student_id, 'earn', v_points::integer, v_carbon, v_sub.id, v_uid);
 
   update public.submissions
   set status = 'approved', reviewed_by = v_uid, reviewed_at = now(), updated_at = now()
@@ -90,7 +98,7 @@ begin
     'submission_approved',
     'ผลของคุณได้รับการอนุมัติ',
     'กิจกรรม "' || v_activity.title || '" ได้ ' || v_points::text || ' แต้ม และลด carbon '
-      || v_carbon::text || ' กก. CO2e',
+      || trim_scale(v_carbon)::text || ' กก. CO2e', -- 7.500 -> 7.5, 0.000 -> 0
     '/my-submissions'
   );
 end;

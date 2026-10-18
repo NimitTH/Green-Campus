@@ -139,7 +139,14 @@ describe("evidence_already_used", () => {
 });
 
 describe("review errors (approve_submission, reject_submission)", () => {
-  const codes = ["submission_not_found", "not_pending", "own_submission", "reason_required", "reason_too_long"];
+  const codes = [
+    "submission_not_found",
+    "not_pending",
+    "own_submission",
+    "reason_required",
+    "reason_too_long",
+    "points_out_of_range",
+  ];
   it.each(codes)("has a Thai message for %s", (code) => {
     expect(reviewErrorMessageTh(code)).not.toBe(GENERIC_ERROR_TH);
     expect(reviewErrorMessageTh(code)).toMatch(/[฀-๿]/);
