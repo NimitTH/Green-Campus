@@ -26,7 +26,6 @@ declare
   v_starts_at timestamptz;
   v_ends_at timestamptz;
   v_requires_code boolean;
-  v_participation uuid;
   v_bytes bigint;
   v_code text;
   v_expires_at timestamptz := now() + interval '30 minutes';
@@ -49,12 +48,12 @@ begin
     raise exception 'code_not_required';
   end if;
 
-  -- FOR UPDATE on the participation row serialises concurrent issues for the same pair, so
+  -- FOR NO KEY UPDATE on the participation row serialises concurrent issues for the same pair, so
   -- the revoke + insert below cannot interleave and trip weigh_codes_one_active_per_pair.
-  select p.id into v_participation
+  perform 1
   from public.participations p
   where p.activity_id = p_activity_id and p.student_id = p_student_id
-  for update;
+  for no key update;
   if not found then
     raise exception 'not_participant';
   end if;

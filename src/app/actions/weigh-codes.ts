@@ -10,8 +10,8 @@ import { isUuid } from "@/lib/uuid";
 // database enforces the same rules again (RLS, issue_weigh_code).
 
 export type IssueCodeResult =
-  | { ok: true; code: string; expiresAt: string; error?: undefined }
-  | { ok: false; error: string; code?: undefined; expiresAt?: undefined };
+  | { ok: true; code: string; expiresAt: string; serverNow: string; error?: undefined }
+  | { ok: false; error: string; code?: undefined; expiresAt?: undefined; serverNow?: undefined };
 
 /** Issue a one-time weigh station code (spec 6.4). Teacher or admin only. */
 export async function issueWeighCode(activityId: string, studentId: string): Promise<IssueCodeResult> {
@@ -33,7 +33,20 @@ export async function issueWeighCode(activityId: string, studentId: string): Pro
   }
   const row = (Array.isArray(data) ? data[0] : data) as { code: string; expires_at: string } | null;
   if (!row) return { ok: false, error: errorMessageTh(null) };
-  return { ok: true, code: row.code, expiresAt: row.expires_at };
+  // Database time (created_at = now() of the issuing transaction) lets the client count down
+  // correctly even when the tablet clock is wrong. Falls back to the app server clock.
+  const { data: created } = await supabase
+    .from("weigh_codes")
+    .select("created_at")
+    .eq("activity_id", activityId)
+    .eq("student_id", studentId)
+    .eq("code", row.code)
+    .is("revoked_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const serverNow = (created as { created_at: string } | null)?.created_at ?? new Date().toISOString();
+  return { ok: true, code: row.code, expiresAt: row.expires_at, serverNow };
 }
 
 export type StudentHit = { id: string; name: string };

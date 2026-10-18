@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { GENERIC_ERROR_TH } from "@/lib/errors";
 import {
   issueWeighCode,
   searchParticipants,
@@ -18,14 +19,14 @@ function formatRemaining(ms: number): string {
 }
 
 /** Live countdown to `expiresAt`; shows "หมดอายุแล้ว" at 0. */
-function Countdown({ expiresAt }: { expiresAt: string }) {
+function Countdown({ expiresAt, clockOffsetMs }: { expiresAt: string; clockOffsetMs: number }) {
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
-    const tick = () => setNow(Date.now());
+    const tick = () => setNow(Date.now() + clockOffsetMs);
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [expiresAt]);
+  }, [expiresAt, clockOffsetMs]);
 
   if (now === null) return <p className="text-lg">&nbsp;</p>;
   const remaining = Date.parse(expiresAt) - now;
@@ -43,12 +44,15 @@ function Countdown({ expiresAt }: { expiresAt: string }) {
   );
 }
 
-type Issued = { student: StudentHit; code: string; expiresAt: string };
+// clockOffsetMs = database time minus this device's clock when the code was received.
+type Issued = { student: StudentHit; code: string; expiresAt: string; clockOffsetMs: number };
 
 export function WeighStation({ activities }: { activities: Activity[] }) {
   const [activityId, setActivityId] = useState(activities[0].id);
   const [query, setQuery] = useState("");
   const [students, setStudents] = useState<StudentHit[]>([]);
+  // Search key (activity + text) of the results currently shown; differs while a search is in flight.
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [searchError, setSearchError] = useState<string | undefined>();
   const [issued, setIssued] = useState<Issued | null>(null);
   const [issueError, setIssueError] = useState<string | undefined>();
@@ -59,27 +63,49 @@ export function WeighStation({ activities }: { activities: Activity[] }) {
   // Search participants whenever the activity or the text changes (debounced).
   useEffect(() => {
     const id = ++requestId.current;
+    const key = `${activityId}|${query}`;
     const timer = setTimeout(() => {
-      searchParticipants(activityId, query).then((result) => {
-        if (id !== requestId.current) return;
-        setStudents(result.students);
-        setSearchError(result.error);
-      });
+      searchParticipants(activityId, query)
+        .then((result) => {
+          if (id !== requestId.current) return;
+          setStudents(result.students);
+          setSearchError(result.error);
+          setLoadedKey(key);
+        })
+        .catch(() => {
+          if (id !== requestId.current) return;
+          setStudents([]);
+          setSearchError(GENERIC_ERROR_TH);
+          setLoadedKey(key);
+        });
     }, 250);
     return () => clearTimeout(timer);
   }, [activityId, query]);
+
+  const searching = loadedKey !== `${activityId}|${query}`;
 
   function issue(student: StudentHit) {
     setIssueError(undefined);
     setIssuingId(student.id);
     startTransition(async () => {
-      const result: IssueCodeResult = await issueWeighCode(activityId, student.id);
-      setIssuingId(null);
-      if (result.ok) {
-        setIssued({ student, code: result.code, expiresAt: result.expiresAt });
-      } else {
+      try {
+        const result: IssueCodeResult = await issueWeighCode(activityId, student.id);
+        if (result.ok) {
+          setIssued({
+            student,
+            code: result.code,
+            expiresAt: result.expiresAt,
+            clockOffsetMs: Date.parse(result.serverNow) - Date.now(),
+          });
+        } else {
+          setIssued(null);
+          setIssueError(result.error);
+        }
+      } catch {
         setIssued(null);
-        setIssueError(result.error);
+        setIssueError(GENERIC_ERROR_TH);
+      } finally {
+        setIssuingId(null);
       }
     });
   }
@@ -95,6 +121,8 @@ export function WeighStation({ activities }: { activities: Activity[] }) {
           value={activityId}
           onChange={(e) => {
             setActivityId(e.target.value);
+            setStudents([]);
+            setSearchError(undefined);
             setIssued(null);
             setIssueError(undefined);
           }}
@@ -148,12 +176,16 @@ export function WeighStation({ activities }: { activities: Activity[] }) {
             {issued.code}
           </p>
           <div className="mt-3">
-            <Countdown expiresAt={issued.expiresAt} />
+            <Countdown expiresAt={issued.expiresAt} clockOffsetMs={issued.clockOffsetMs} />
           </div>
         </section>
       ) : null}
 
-      {students.length === 0 ? (
+      {searching ? (
+        <p role="status" className="text-gray-600 dark:text-gray-400">
+          กำลังค้นหา...
+        </p>
+      ) : students.length === 0 ? (
         <p className="text-gray-600 dark:text-gray-400">ไม่พบนักเรียนที่เข้าร่วมกิจกรรมนี้</p>
       ) : (
         <ul className="space-y-3">

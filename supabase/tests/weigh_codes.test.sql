@@ -2,7 +2,7 @@
 -- Same actor impersonation style as join_activity.test.sql. Business errors are raised with
 -- the bare code as the message (P0001); auth errors (not_authenticated, not_staff) use 42501.
 begin;
-select plan(37);
+select plan(39);
 
 -- ids
 --   s1 student ...2101 (participant)   s2 student ...2102 (not a participant)
@@ -32,6 +32,11 @@ insert into public.participations (activity_id, student_id)
 select a.id, '00000000-0000-0000-0000-000000002101'
 from public.activities a where a.title like 'WC %';
 
+-- another student's code, so that "student sees no weigh codes" below is not vacuous
+insert into public.weigh_codes (activity_id, student_id, code, issued_by)
+values ('00000000-0000-0000-0000-000000002501', '00000000-0000-0000-0000-000000002102', '000123',
+        '00000000-0000-0000-0000-000000002201');
+
 -- 1-4: shape and privileges --------------------------------------------------
 select has_function('public', 'issue_weigh_code', array['uuid', 'uuid'], 'issue_weigh_code(uuid, uuid) exists');
 select is_definer('public', 'issue_weigh_code', array['uuid', 'uuid'], 'issue_weigh_code is security definer');
@@ -59,7 +64,8 @@ set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000002101","role":"authenticated"}', true);
 select throws_ok($$select * from public.issue_weigh_code('00000000-0000-0000-0000-000000002501', '00000000-0000-0000-0000-000000002101')$$,
   '42501', 'not_staff', 'student cannot issue a code (even for themselves)');
-select is((select count(*) from public.weigh_codes), 0::bigint, 'student sees no weigh codes');
+select is((select count(*) from public.weigh_codes), 0::bigint,
+  'student sees none of the other student''s weigh codes (RLS)');
 reset role;
 
 -- 9-: teacher t1 ---------------------------------------------------------------------
@@ -80,7 +86,8 @@ select throws_ok($$select * from public.issue_weigh_code('00000000-0000-0000-000
   'P0001', 'out_of_window', 'before starts_at throws out_of_window');
 select throws_ok($$select * from public.issue_weigh_code('00000000-0000-0000-0000-000000002506', '00000000-0000-0000-0000-000000002101')$$,
   'P0001', 'out_of_window', 'after ends_at + 3 days throws out_of_window');
-select is((select count(*) from public.weigh_codes), 0::bigint, 'failed attempts create no rows');
+select is((select count(*) from public.weigh_codes where student_id = '00000000-0000-0000-0000-000000002101'),
+  0::bigint, 'failed attempts create no rows');
 
 select lives_ok($$select * from public.issue_weigh_code('00000000-0000-0000-0000-000000002505', '00000000-0000-0000-0000-000000002101')$$,
   'inside ends_at .. ends_at + 3 days succeeds');
@@ -118,12 +125,12 @@ select is((select issued_by from public.weigh_codes
 select cmp_ok(
   (select abs(extract(epoch from (wc.expires_at - now())) - 1800)
      from public.weigh_codes wc
-    where wc.activity_id = '00000000-0000-0000-0000-000000002501' and wc.revoked_at is null),
+    where wc.activity_id = '00000000-0000-0000-0000-000000002501' and wc.student_id = '00000000-0000-0000-0000-000000002101' and wc.revoked_at is null),
   '<=', 5::numeric, 'expires_at is 30 minutes from now (+-5 s)');
 
 select is((select r.expires_at from public.issue_weigh_code('00000000-0000-0000-0000-000000002501', '00000000-0000-0000-0000-000000002101') r),
   (select wc.expires_at from public.weigh_codes wc
-    where wc.activity_id = '00000000-0000-0000-0000-000000002501' and wc.revoked_at is null
+    where wc.activity_id = '00000000-0000-0000-0000-000000002501' and wc.student_id = '00000000-0000-0000-0000-000000002101' and wc.revoked_at is null
       and wc.used_at is null),
   'returned expires_at equals the stored expires_at');
 
@@ -142,26 +149,43 @@ reset role;
 
 -- a used code is not revoked on reissue
 update public.weigh_codes set used_at = now()
- where activity_id = '00000000-0000-0000-0000-000000002501' and used_at is null and revoked_at is null;
+ where activity_id = '00000000-0000-0000-0000-000000002501' and student_id = '00000000-0000-0000-0000-000000002101'
+   and used_at is null and revoked_at is null;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000002201","role":"authenticated"}', true);
 select lives_ok($$select * from public.issue_weigh_code('00000000-0000-0000-0000-000000002501', '00000000-0000-0000-0000-000000002101')$$,
   'issuing after a used code succeeds');
 select is((select count(*) from public.weigh_codes
-            where activity_id = '00000000-0000-0000-0000-000000002501' and used_at is not null and revoked_at is null),
+            where activity_id = '00000000-0000-0000-0000-000000002501' and student_id = '00000000-0000-0000-0000-000000002101' and used_at is not null and revoked_at is null),
   1::bigint, 'the used code stays used and unrevoked');
 reset role;
 
 -- an expired active code is revoked on reissue
 update public.weigh_codes set expires_at = now() - interval '1 minute'
- where activity_id = '00000000-0000-0000-0000-000000002501' and used_at is null and revoked_at is null;
+ where activity_id = '00000000-0000-0000-0000-000000002501' and student_id = '00000000-0000-0000-0000-000000002101'
+   and used_at is null and revoked_at is null;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000002201","role":"authenticated"}', true);
 select lives_ok($$select * from public.issue_weigh_code('00000000-0000-0000-0000-000000002501', '00000000-0000-0000-0000-000000002101')$$,
   'reissue over an expired active code succeeds');
 select is((select count(*) from public.weigh_codes
-            where activity_id = '00000000-0000-0000-0000-000000002501' and used_at is null and revoked_at is null),
+            where activity_id = '00000000-0000-0000-0000-000000002501' and student_id = '00000000-0000-0000-0000-000000002101' and used_at is null and revoked_at is null),
   1::bigint, 'the expired code was revoked, one active code remains');
+reset role;
+
+-- a locked active code (attempts = 5) is revoked on reissue
+update public.weigh_codes set attempts = 5
+ where activity_id = '00000000-0000-0000-0000-000000002501' and used_at is null and revoked_at is null
+   and student_id = '00000000-0000-0000-0000-000000002101';
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000002201","role":"authenticated"}', true);
+select lives_ok($$select * from public.issue_weigh_code('00000000-0000-0000-0000-000000002501', '00000000-0000-0000-0000-000000002101')$$,
+  'reissue over a locked code (attempts = 5) succeeds');
+select is((select count(*) from public.weigh_codes
+            where activity_id = '00000000-0000-0000-0000-000000002501'
+              and student_id = '00000000-0000-0000-0000-000000002101'
+              and attempts = 5 and revoked_at is not null),
+  1::bigint, 'the locked code was revoked');
 reset role;
 
 -- admin ----------------------------------------------------------------------------------
@@ -170,7 +194,7 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000
 select lives_ok($$select * from public.issue_weigh_code('00000000-0000-0000-0000-000000002501', '00000000-0000-0000-0000-000000002101')$$,
   'admin issues a code');
 select is((select issued_by from public.weigh_codes
-            where activity_id = '00000000-0000-0000-0000-000000002501' and revoked_at is null and used_at is null),
+            where activity_id = '00000000-0000-0000-0000-000000002501' and student_id = '00000000-0000-0000-0000-000000002101' and revoked_at is null and used_at is null),
   '00000000-0000-0000-0000-000000002301'::uuid, 'issued_by is the admin');
 
 -- no client writes ---------------------------------------------------------------------------
