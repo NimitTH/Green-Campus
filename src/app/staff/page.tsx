@@ -30,6 +30,15 @@ async function StaffHome() {
       </div>
       <nav aria-label="เมนูครู" className="mb-4 grid gap-3 sm:grid-cols-2">
         <Link
+          href="/staff/reviews"
+          className="block rounded-2xl border border-gray-200 p-4 font-semibold hover:border-green-600 dark:border-gray-800"
+        >
+          ตรวจผล
+          <span className="block text-sm font-normal text-gray-600 dark:text-gray-400">
+            อนุมัติหรือปฏิเสธผลที่นักเรียนส่ง
+          </span>
+        </Link>
+        <Link
           href="/staff/activities"
           className="block rounded-2xl border border-gray-200 p-4 font-semibold hover:border-green-600 dark:border-gray-800"
         >

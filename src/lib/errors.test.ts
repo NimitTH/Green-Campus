@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { GENERIC_ERROR_TH, errorCodeFromDb, errorMessageTh, submitErrorMessageTh, uploadErrorCode } from "./errors";
+import {
+  GENERIC_ERROR_TH,
+  errorCodeFromDb,
+  errorMessageTh,
+  reviewErrorMessageTh,
+  submitErrorMessageTh,
+  uploadErrorCode,
+} from "./errors";
 
 describe("errorMessageTh", () => {
   it.each(["activity_not_open", "activity_ended", "already_joined", "not_authenticated", "not_student"])(
@@ -128,5 +135,32 @@ describe("evidence_already_used", () => {
     expect(message).toMatch(/ใช้ส่งผลไปแล้ว/);
     expect(message).toMatch(/ผลที่ส่ง/);
     expect(message).not.toBe(submitErrorMessageTh("bad_evidence_path"));
+  });
+});
+
+describe("review errors (approve_submission, reject_submission)", () => {
+  const codes = ["submission_not_found", "not_pending", "own_submission", "reason_required", "reason_too_long"];
+  it.each(codes)("has a Thai message for %s", (code) => {
+    expect(reviewErrorMessageTh(code)).not.toBe(GENERIC_ERROR_TH);
+    expect(reviewErrorMessageTh(code)).toMatch(/[฀-๿]/);
+    expect(errorCodeFromDb({ message: code })).toBe(code);
+  });
+  it("gives distinct messages", () => {
+    expect(new Set(codes.map(reviewErrorMessageTh)).size).toBe(codes.length);
+  });
+  it("words not_staff for reviewing, not the weigh station", () => {
+    expect(reviewErrorMessageTh("not_staff")).toMatch(/ตรวจผล/);
+    expect(reviewErrorMessageTh("not_staff")).not.toBe(errorMessageTh("not_staff"));
+  });
+  it("falls back like errorMessageTh", () => {
+    expect(reviewErrorMessageTh("not_authenticated")).toBe(errorMessageTh("not_authenticated"));
+    expect(reviewErrorMessageTh("something_else")).toBe(GENERIC_ERROR_TH);
+  });
+});
+
+describe("activity type lock (trigger activity_type_locked)", () => {
+  it("has a Thai message and is recognised in a database error", () => {
+    expect(errorMessageTh("activity_type_locked")).toMatch(/เปลี่ยนชนิดกิจกรรมไม่ได้/);
+    expect(errorCodeFromDb({ message: "activity_type_locked" })).toBe("activity_type_locked");
   });
 });

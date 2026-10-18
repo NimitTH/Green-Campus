@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { loadEnvConfig } from "@next/env";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
@@ -144,4 +145,59 @@ export async function listWeighCodes(
     .order("created_at", { ascending: true });
   if (error) throw new Error(`e2e: list weigh codes failed: ${error.message}`);
   return (data ?? []) as { attempts: number; used_at: string | null; revoked_at: string | null }[];
+}
+
+/** A Supabase client signed in as `user` (publishable key: RLS and function checks apply). */
+export async function signedInClient(user: TestUser): Promise<SupabaseClient> {
+  const { url, publishableKey } = localEnv();
+  const c = createClient(url, publishableKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { error } = await c.auth.signInWithPassword({ email: user.email, password: user.password });
+  if (error) throw new Error(`e2e: sign in ${user.email} failed: ${error.message}`);
+  return c;
+}
+
+/**
+ * Submit a result as the student through the real path (upload to evidence, then submit_result).
+ * `items` as for submit_result ([] for fixed). Returns the new submission id.
+ */
+export async function seedSubmission(
+  student: TestUser,
+  activityId: string,
+  image: Buffer,
+  items: { waste_category_id?: string; quantity: number }[] = [],
+): Promise<string> {
+  const c = await signedInClient(student);
+  const path = `${student.id}/${randomUUID()}/evidence.png`;
+  const { error: uploadError } = await c.storage.from("evidence").upload(path, image, { contentType: "image/png" });
+  if (uploadError) throw new Error(`e2e: evidence upload failed: ${uploadError.message}`);
+  const { data, error } = await c.rpc("submit_result", {
+    p_activity_id: activityId,
+    p_code: null,
+    p_items: items,
+    p_evidence_path: path,
+  });
+  const result = data as { ok: boolean; error_code: string | null; submission_id: string | null } | null;
+  if (error || !result?.ok || !result.submission_id) {
+    throw new Error(`e2e: submit_result failed: ${error?.message ?? result?.error_code}`);
+  }
+  return result.submission_id;
+}
+
+/** Ledger rows written for one submission (service role). */
+export async function listLedgerForSubmission(
+  submissionId: string,
+): Promise<{ kind: string; points: number; carbon_kg: number | string; created_by: string | null }[]> {
+  const { data, error } = await admin()
+    .from("ledger_entries")
+    .select("kind, points, carbon_kg, created_by")
+    .eq("ref_submission_id", submissionId);
+  if (error) throw new Error(`e2e: list ledger failed: ${error.message}`);
+  return (data ?? []) as { kind: string; points: number; carbon_kg: number | string; created_by: string | null }[];
+}
+
+/** id of a waste category by its (unique) name, e.g. 'พลาสติก' (0003). */
+export async function wasteCategoryId(name: string): Promise<string> {
+  const { data, error } = await admin().from("waste_categories").select("id").eq("name", name).single();
+  if (error || !data) throw new Error(`e2e: waste category ${name} not found: ${error?.message}`);
+  return (data as { id: string }).id;
 }

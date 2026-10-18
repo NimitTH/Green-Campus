@@ -1,5 +1,5 @@
 // Error codes raised by database functions (message = the code) mapped to Thai text
-// that tells the user what to do next (spec 9). Shared by join (Task 6) and submit (Task 8).
+// that tells the user what to do next (spec 9). Shared by join (Task 6), submit (Task 8) and review (Task 9).
 
 export const GENERIC_ERROR_TH = "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง";
 
@@ -26,6 +26,14 @@ const MESSAGES: Record<string, string> = {
   bad_evidence_path: "ไม่พบรูปหลักฐานที่อัปโหลด กรุณาเลือกรูปแล้วส่งใหม่",
   evidence_already_used:
     "รูปนี้ถูกใช้ส่งผลไปแล้ว ให้ตรวจที่หน้า ผลที่ส่ง ก่อน ถ้ายังไม่มีผลนั้น เลือกรูปใหม่แล้วส่งอีกครั้ง",
+  // approve_submission / reject_submission (Task 9): raised, message = code
+  submission_not_found: "ไม่พบผลที่ส่งนี้ อาจถูกลบไปแล้ว กลับไปที่คิวรอตรวจ",
+  not_pending: "ผลนี้ถูกตรวจไปแล้ว รีเฟรชหน้าเพื่อดูสถานะล่าสุด",
+  own_submission: "ตรวจผลของตัวเองไม่ได้ ให้ครูหรือผู้ดูแลคนอื่นตรวจแทน",
+  reason_required: "กรุณากรอกเหตุผลที่ไม่ผ่าน เพื่อให้นักเรียนรู้ว่าต้องแก้อะไร",
+  reason_too_long: "เหตุผลยาวเกิน 500 ตัวอักษร กรุณาเขียนให้สั้นลง",
+  // trigger on activities (Task 9, R38)
+  activity_type_locked: "เปลี่ยนชนิดกิจกรรมไม่ได้ เพราะมีผู้ส่งผลแล้ว ถ้าต้องการชนิดอื่นให้สร้างกิจกรรมใหม่",
   // client-side (image resize / upload)
   not_image: "ไฟล์นี้ไม่ใช่รูปภาพหรือเปิดไม่ได้ กรุณาถ่ายหรือเลือกรูปใหม่",
   image_too_large: "รูปมีขนาดใหญ่เกิน 2 MB แม้ย่อแล้ว กรุณาถ่ายหรือเลือกรูปใหม่",
@@ -39,6 +47,11 @@ const MESSAGES: Record<string, string> = {
 const SUBMIT_MESSAGES: Record<string, string> = {
   not_participant: "คุณยังไม่ได้เข้าร่วมกิจกรรมนี้ กดเข้าร่วมกิจกรรมก่อนส่งผล",
   out_of_window: "ส่งผลไม่ได้ เพราะกิจกรรมยังไม่เริ่ม หรือเลยช่วงส่งผลแล้ว (ส่งได้ถึง 3 วันหลังกิจกรรมสิ้นสุด)",
+};
+
+// not_staff from issue_weigh_code is worded for the weigh station.
+const REVIEW_MESSAGES: Record<string, string> = {
+  not_staff: "เฉพาะครูและผู้ดูแลเท่านั้นที่ตรวจผลได้",
 };
 
 function isKnownCode(code: string): boolean {
@@ -59,6 +72,12 @@ export function errorCodeFromDb(error: { message?: string | null } | null | unde
 /** errorMessageTh for the student submit form (submit_result error_code, image and upload errors). */
 export function submitErrorMessageTh(code: string | null | undefined): string {
   if (code && Object.prototype.hasOwnProperty.call(SUBMIT_MESSAGES, code)) return SUBMIT_MESSAGES[code];
+  return errorMessageTh(code);
+}
+
+/** errorMessageTh for the staff review screen (approve_submission / reject_submission codes). */
+export function reviewErrorMessageTh(code: string | null | undefined): string {
+  if (code && Object.prototype.hasOwnProperty.call(REVIEW_MESSAGES, code)) return REVIEW_MESSAGES[code];
   return errorMessageTh(code);
 }
 

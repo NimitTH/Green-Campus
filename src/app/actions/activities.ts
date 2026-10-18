@@ -44,8 +44,10 @@ export async function saveActivity(input: ActivityInput & { id?: string }): Prom
       .select("id")
       .maybeSingle();
     if (error) {
-      console.error("saveActivity update failed", error.code, error.message);
-      return { error: GENERIC_ERROR_TH };
+      // activity_type_locked (R38): the type cannot change once a submission exists.
+      const code = errorCodeFromDb(error);
+      if (!code) console.error("saveActivity update failed", error.code, error.message);
+      return { error: errorMessageTh(code) };
     }
     if (!data) return { error: NOT_FOUND };
     revalidatePath("/staff/activities");

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { signIn } from "./helpers/auth";
+import { PNG_1X1 } from "./helpers/images";
 import {
   createConfirmedUser,
   createJoinedCodeActivity,
@@ -9,27 +9,15 @@ import {
   deleteUsers,
   listSubmissions,
   listWeighCodes,
-  localEnv,
   removeEvidence,
+  signedInClient,
   type TestUser,
 } from "./helpers/supabase-admin";
 
-// Plan Task 8. A 1x1 PNG: real image bytes the browser can decode and re-encode as JPEG.
-const PNG_1X1 = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
-  "base64",
-);
+// Plan Task 8.
 
 function uniqueSuffix(projectName: string): string {
   return `${projectName}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-}
-
-async function signedInClient(user: TestUser): Promise<SupabaseClient> {
-  const { url, publishableKey } = localEnv();
-  const client = createClient(url, publishableKey, { auth: { persistSession: false, autoRefreshToken: false } });
-  const { error } = await client.auth.signInWithPassword({ email: user.email, password: user.password });
-  if (error) throw new Error(`e2e: sign in ${user.email} failed: ${error.message}`);
-  return client;
 }
 
 test("student submits with a weigh code (wrong, then right) and sees it pending", async ({ page, browser }, testInfo) => {
