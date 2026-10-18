@@ -64,6 +64,7 @@ describe("submit errors (submit_result, image upload)", () => {
     "over_limit",
     "invalid_items",
     "bad_evidence_path",
+    "evidence_already_used",
   ];
   const clientCodes = ["not_image", "image_too_large", "upload_failed"];
   it.each([...submitCodes, ...clientCodes])("has a Thai message for %s", (code) => {
@@ -118,5 +119,14 @@ describe("uploadErrorCode", () => {
     [undefined],
   ])("keeps network and other errors %j on upload_failed", (error) => {
     expect(uploadErrorCode(error)).toBe("upload_failed");
+  });
+});
+
+describe("evidence_already_used", () => {
+  it("says the photo was used and points to ผลที่ส่ง, unlike bad_evidence_path", () => {
+    const message = submitErrorMessageTh("evidence_already_used");
+    expect(message).toMatch(/ใช้ส่งผลไปแล้ว/);
+    expect(message).toMatch(/ผลที่ส่ง/);
+    expect(message).not.toBe(submitErrorMessageTh("bad_evidence_path"));
   });
 });

@@ -25,7 +25,7 @@ type Weight = { kg: string; khit: string };
 /** Upload and the submit call each give up after this long, so the button never stays on loading. */
 const REQUEST_TIMEOUT_MS = 60_000;
 /** After these the student may already have a submission (lost response): point to ผลที่ส่ง. */
-const CHECK_HISTORY_CODES = new Set(["code_invalid", "request_timeout"]);
+const CHECK_HISTORY_CODES = new Set(["code_invalid", "request_timeout", "evidence_already_used"]);
 
 const inputClass =
   "w-full rounded-lg border border-gray-300 px-3 py-2 text-base dark:border-gray-700 dark:bg-gray-900";
@@ -181,7 +181,7 @@ export function SubmitForm({
       );
       if (!result.ok) {
         // The photo is missing or already used: the next try uploads it again under a new path.
-        if (result.code === "bad_evidence_path") uploaded.current = null;
+        if (result.code === "bad_evidence_path" || result.code === "evidence_already_used") uploaded.current = null;
         setError({ code: result.code, message: result.error });
         return;
       }

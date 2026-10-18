@@ -285,7 +285,7 @@ select is(public.submit_result('00000000-0000-0000-0000-000000003503', null, nul
 select is(public.submit_result('00000000-0000-0000-0000-000000003503', '999999', '[]'::jsonb,
   '00000000-0000-0000-0000-000000003101/p4/a.jpg') ->> 'ok', 'true', 'a code is ignored when not required (multiple submissions allowed)');
 select is(public.submit_result('00000000-0000-0000-0000-000000003503', null, null,
-  '00000000-0000-0000-0000-000000003101/p3/a.jpg') ->> 'error_code', 'bad_evidence_path', 'a photo that backs another submission returns bad_evidence_path');
+  '00000000-0000-0000-0000-000000003101/p3/a.jpg') ->> 'error_code', 'evidence_already_used', 'a photo that backs another submission returns evidence_already_used');
 select is((select count(*) from public.submission_items si join public.submissions s on s.id = si.submission_id
             where s.activity_id = '00000000-0000-0000-0000-000000003503'), 2::bigint, 'fixed with [] or null both store one item each');
 select is((select count(*) from public.submissions where activity_id = '00000000-0000-0000-0000-000000003503' and code_id is null), 2::bigint,

@@ -81,8 +81,9 @@ create unique index submissions_evidence_path_key
 --   out_of_window      draft, before starts_at, or after ends_at + 3 days (R18, same as issue_weigh_code)
 --   invalid_items      p_items does not fit the activity type (R25), including malformed input
 --   over_limit         waste: sum of grams > max_per_submission; trees: count > max_per_submission
---   bad_evidence_path  null, outside {auth.uid()}/, contains '..', no uploaded object, or the photo
---                      already backs another submission (one photo, one submission)
+--   bad_evidence_path  null, outside {auth.uid()}/, contains '..', or no uploaded object
+--   evidence_already_used  the photo already backs a submission (one photo, one submission); e.g. a
+--                      retry after a lost response: the app tells the student to check ผลที่ส่ง
 --   code_required      requires_code and no code given
 --   code_invalid       no active code for the pair (none issued, revoked, already used) or a mismatch
 --   code_expired       the active code has expired
@@ -117,6 +118,7 @@ declare
   v_code_row public.weigh_codes%rowtype;
   v_code_id uuid;
   v_submission_id uuid;
+  v_constraint text;
 begin
   if v_uid is null then
     raise exception 'not_authenticated' using errcode = '42501';
@@ -208,9 +210,11 @@ begin
      or not exists (
        select 1 from storage.objects o
        where o.bucket_id = 'evidence' and o.name = p_evidence_path
-     )
-     or exists (select 1 from public.submissions s where s.evidence_path = p_evidence_path) then
+     ) then
     return jsonb_build_object('ok', false, 'error_code', 'bad_evidence_path', 'submission_id', null);
+  end if;
+  if exists (select 1 from public.submissions s where s.evidence_path = p_evidence_path) then
+    return jsonb_build_object('ok', false, 'error_code', 'evidence_already_used', 'submission_id', null);
   end if;
 
   -- weigh code (R27), last -------------------------------------------------------------------
@@ -264,7 +268,11 @@ begin
     values (p_activity_id, v_uid, v_code_id, p_evidence_path, 'pending')
     returning id into v_submission_id;
   exception when unique_violation then
-    return jsonb_build_object('ok', false, 'error_code', 'bad_evidence_path', 'submission_id', null);
+    get stacked diagnostics v_constraint = constraint_name;
+    if v_constraint is distinct from 'submissions_evidence_path_key' then
+      raise; -- not the photo index: a real error
+    end if;
+    return jsonb_build_object('ok', false, 'error_code', 'evidence_already_used', 'submission_id', null);
   end;
 
   insert into public.submission_items (submission_id, waste_category_id, quantity)
