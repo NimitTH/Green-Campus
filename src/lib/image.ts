@@ -4,12 +4,14 @@
 //
 // Decoding/encoding is injectable (ImageCodec) so unit tests run without a real canvas.
 
+import { withTimeout } from "./timeout";
+
 export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
 const TARGET_BYTES = 300 * 1024;
 const DEFAULT_TIMEOUT_MS = 15_000;
 const QUALITY_STEPS = [0.7, 0.6, 0.5];
 const EDGE_STEPS = [1280, 1024, 800, 640];
-const IMAGE_EXTENSIONS = /\.(jpe?g|png|webp|heic|heif|gif|bmp|avif)$/i;
+const IMAGE_EXTENSIONS = /\.(jpe?g|png|webp|heic|heif)$/i;
 
 export type ImageErrorCode = "not_image" | "image_too_large";
 
@@ -33,27 +35,14 @@ export type ImageCodec = {
 
 export type ResizeOptions = { codec?: ImageCodec; timeoutMs?: number };
 
-/** HEIC may arrive as image/heic, image/heif or with an empty type and a .heic name. */
+/**
+ * HEIC may arrive as image/heic, image/heif, or with an empty / application/octet-stream type
+ * and a .heic name (some pickers do the same for JPEG/PNG/WebP): try to decode those too.
+ */
 function looksLikeImage(file: File): boolean {
   if (file.size === 0) return false;
-  if (file.type) return file.type.startsWith("image/");
-  return IMAGE_EXTENSIONS.test(file.name);
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("timeout")), ms);
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (error: unknown) => {
-        clearTimeout(timer);
-        reject(error);
-      },
-    );
-  });
+  if (file.type === "" || file.type === "application/octet-stream") return IMAGE_EXTENSIONS.test(file.name);
+  return file.type.startsWith("image/");
 }
 
 function scaled(width: number, height: number, maxEdge: number): { width: number; height: number } {

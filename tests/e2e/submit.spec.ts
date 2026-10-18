@@ -66,6 +66,8 @@ test("student submits with a weigh code (wrong, then right) and sees it pending"
     const submit = page.getByRole("button", { name: "ส่งผล" });
     await submit.click();
     await expect(page.getByRole("alert").filter({ hasText: "รหัสไม่ถูกต้อง" })).toBeVisible();
+    // a lost response looks like code_invalid on retry: the message links to ผลที่ส่ง
+    await expect(page.getByRole("link", { name: "ดูผลที่ส่ง" })).toBeVisible();
     await expect(submit).toBeEnabled();
     // the wrong attempt was committed (returned, not raised: spec 7.1 item 4)
     expect((await listWeighCodes(student.id, activityId)).map((c) => c.attempts)).toEqual([1]);
@@ -109,13 +111,19 @@ test("two concurrent submits with one code create exactly one submission", async
     const code = (Array.isArray(issued) ? issued[0] : issued).code as string;
 
     const [a, b] = await Promise.all([signedInClient(student), signedInClient(student)]);
-    const path = `${student.id}/${randomUUID()}/evidence.png`;
-    const { error: uploadError } = await a.storage.from("evidence").upload(path, PNG_1X1, { contentType: "image/png" });
-    expect(uploadError).toBeNull();
-    uploaded.push(path);
+    // Each session uploads its own photo (two devices), so the only shared thing is the code:
+    // a photo already used by a submission returns bad_evidence_path before the code is checked.
+    const paths: string[] = [];
+    for (const client of [a, b]) {
+      const path = `${student.id}/${randomUUID()}/evidence.png`;
+      const { error: uploadError } = await client.storage.from("evidence").upload(path, PNG_1X1, { contentType: "image/png" });
+      expect(uploadError).toBeNull();
+      uploaded.push(path);
+      paths.push(path);
+    }
 
-    const args = { p_activity_id: activityId, p_code: code, p_items: [], p_evidence_path: path };
-    const results = await Promise.all([a.rpc("submit_result", args), b.rpc("submit_result", args)]);
+    const args = (path: string) => ({ p_activity_id: activityId, p_code: code, p_items: [], p_evidence_path: path });
+    const results = await Promise.all([a.rpc("submit_result", args(paths[0])), b.rpc("submit_result", args(paths[1]))]);
     for (const r of results) expect(r.error).toBeNull();
     const data = results.map((r) => r.data as { ok: boolean; error_code: string | null; submission_id: string | null });
 

@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useRef, useState } from "react";
 import { submitResult, type SubmitItem } from "@/app/actions/submissions";
-import { submitErrorMessageTh } from "@/lib/errors";
+import { submitErrorMessageTh, uploadErrorCode } from "@/lib/errors";
 import { ImageError, resizeToJpeg } from "@/lib/image";
 import { createBrowserClient } from "@/lib/supabase/browser";
+import { TimeoutError, withTimeout } from "@/lib/timeout";
 import { estimateWaste, toGrams } from "@/lib/units";
 
 export type WasteCategoryOption = { id: string; name: string; pointsPerKg: number; carbonKgPerKg: number };
@@ -19,6 +21,11 @@ export type SubmitActivity = {
 };
 
 type Weight = { kg: string; khit: string };
+
+/** Upload and the submit call each give up after this long, so the button never stays on loading. */
+const REQUEST_TIMEOUT_MS = 60_000;
+/** After these the student may already have a submission (lost response): point to ผลที่ส่ง. */
+const CHECK_HISTORY_CODES = new Set(["code_invalid", "request_timeout"]);
 
 const inputClass =
   "w-full rounded-lg border border-gray-300 px-3 py-2 text-base dark:border-gray-700 dark:bg-gray-900";
@@ -114,7 +121,7 @@ export function SubmitForm({
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ code: string | null; message: string } | null>(null);
   // Guards a second tap before React re-renders the disabled button.
   const busyRef = useRef(false);
   // The photo already uploaded for this file: a retry after e.g. a wrong code reuses it.
@@ -132,16 +139,17 @@ export function SubmitForm({
     const jpeg = await resizeToJpeg(photo);
     setStage("กำลังอัปโหลดรูป...");
     const path = `${userId}/${crypto.randomUUID()}/evidence.jpg`;
-    let failed: boolean;
+    let failure: string | null;
     try {
-      const { error: uploadError } = await createBrowserClient()
-        .storage.from("evidence")
-        .upload(path, jpeg, { contentType: "image/jpeg", upsert: false });
-      failed = uploadError !== null;
-    } catch {
-      failed = true; // network error
+      const { error: uploadError } = await withTimeout(
+        createBrowserClient().storage.from("evidence").upload(path, jpeg, { contentType: "image/jpeg", upsert: false }),
+        REQUEST_TIMEOUT_MS,
+      );
+      failure = uploadError ? uploadErrorCode(uploadError as { status?: number; statusCode?: string; message?: string }) : null;
+    } catch (e) {
+      failure = e instanceof TimeoutError ? e.code : "upload_failed"; // network error
     }
-    if (failed) throw new Error("upload_failed");
+    if (failure) throw new Error(failure);
     uploaded.current = { file: photo, path };
     return path;
   }
@@ -162,21 +170,26 @@ export function SubmitForm({
 
       const evidencePath = await upload(file);
       setStage("กำลังส่งผล...");
-      const result = await submitResult({
-        activityId: activity.id,
-        code: activity.requiresCode ? trimmed : null,
-        items: built.items,
-        evidencePath,
-      });
+      const result = await withTimeout(
+        submitResult({
+          activityId: activity.id,
+          code: activity.requiresCode ? trimmed : null,
+          items: built.items,
+          evidencePath,
+        }),
+        REQUEST_TIMEOUT_MS,
+      );
       if (!result.ok) {
-        setError(result.error);
+        // The photo is missing or already used: the next try uploads it again under a new path.
+        if (result.code === "bad_evidence_path") uploaded.current = null;
+        setError({ code: result.code, message: result.error });
         return;
       }
       done = true;
       router.push("/my-submissions");
     } catch (e) {
-      const codeOf = e instanceof ImageError ? e.code : e instanceof Error ? e.message : null;
-      setError(submitErrorMessageTh(codeOf));
+      const codeOf = e instanceof ImageError || e instanceof TimeoutError ? e.code : e instanceof Error ? e.message : null;
+      setError({ code: codeOf, message: submitErrorMessageTh(codeOf) });
     } finally {
       setStage(null);
       // After success the button stays disabled while the next page loads.
@@ -291,7 +304,15 @@ export function SubmitForm({
 
       {error ? (
         <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
-          {error}
+          {error.message}
+          {error.code && CHECK_HISTORY_CODES.has(error.code) ? (
+            <>
+              {" "}
+              <Link href="/my-submissions" className="font-semibold underline">
+                ดูผลที่ส่ง
+              </Link>
+            </>
+          ) : null}
         </p>
       ) : null}
 

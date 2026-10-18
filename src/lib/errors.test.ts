@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GENERIC_ERROR_TH, errorCodeFromDb, errorMessageTh, submitErrorMessageTh } from "./errors";
+import { GENERIC_ERROR_TH, errorCodeFromDb, errorMessageTh, submitErrorMessageTh, uploadErrorCode } from "./errors";
 
 describe("errorMessageTh", () => {
   it.each(["activity_not_open", "activity_ended", "already_joined", "not_authenticated", "not_student"])(
@@ -84,5 +84,39 @@ describe("submit errors (submit_result, image upload)", () => {
     expect(submitErrorMessageTh("already_joined")).toBe(errorMessageTh("already_joined"));
     expect(submitErrorMessageTh(null)).toBe(GENERIC_ERROR_TH);
     expect(submitErrorMessageTh("__proto__")).toBe(GENERIC_ERROR_TH);
+  });
+});
+
+describe("submit follow-ups (review)", () => {
+  it("code_invalid tells a student who just submitted to check ผลที่ส่ง", () => {
+    expect(submitErrorMessageTh("code_invalid")).toMatch(/ผลที่ส่ง/);
+  });
+  it.each(["request_timeout", "upload_unauthorized"])("has a Thai message for %s", (code) => {
+    expect(submitErrorMessageTh(code)).not.toBe(GENERIC_ERROR_TH);
+    expect(submitErrorMessageTh(code)).toMatch(/[฀-๿]/);
+  });
+  it("upload_unauthorized asks the student to sign in again", () => {
+    expect(submitErrorMessageTh("upload_unauthorized")).toMatch(/เข้าสู่ระบบใหม่/);
+  });
+});
+
+describe("uploadErrorCode", () => {
+  it.each([
+    [{ status: 401, statusCode: "401", message: "Unauthorized" }],
+    [{ status: 403, statusCode: "403", message: "Forbidden" }],
+    [{ status: 400, statusCode: "403", message: "new row violates row-level security policy" }],
+    [{ status: 400, statusCode: "400", message: "new row violates row-level security policy for table \"objects\"" }],
+    [{ status: 400, statusCode: "400", message: "jwt expired" }],
+  ])("maps auth / RLS errors %j to upload_unauthorized", (error) => {
+    expect(uploadErrorCode(error)).toBe("upload_unauthorized");
+  });
+  it.each([
+    [{ status: 500, statusCode: "500", message: "Internal Server Error" }],
+    [{ status: 413, statusCode: "413", message: "Payload too large" }],
+    [{ message: "Failed to fetch" }],
+    [null],
+    [undefined],
+  ])("keeps network and other errors %j on upload_failed", (error) => {
+    expect(uploadErrorCode(error)).toBe("upload_failed");
   });
 });

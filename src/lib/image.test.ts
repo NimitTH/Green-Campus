@@ -87,6 +87,26 @@ describe("resizeToJpeg", () => {
     expect(errorMessageTh("not_image")).toMatch(/[฀-๿]/);
   });
 
+  it.each(["photo.heic", "IMG.HEIF", "a.jpg", "a.jpeg", "a.png", "a.webp"])(
+    "tries to decode application/octet-stream named %s",
+    async (name) => {
+      const { codec } = fakeCodec();
+      const out = await resizeToJpeg(bigFile(name, "application/octet-stream", 1000), undefined, undefined, { codec });
+      expect(out.type).toBe("image/jpeg");
+      expect(codec.decode).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each([
+    ["data.bin", "application/octet-stream"],
+    ["clip.gif", "application/octet-stream"],
+    ["report.pdf", "application/pdf"],
+  ])("rejects %s (%s) as not_image without decoding", async (name, type) => {
+    const { codec } = fakeCodec();
+    expect((await rejection(resizeToJpeg(bigFile(name, type, 1000), undefined, undefined, { codec }))).code).toBe("not_image");
+    expect(codec.decode).not.toHaveBeenCalled();
+  });
+
   it("rejects an empty or extension-less file with no type as not_image", async () => {
     const { codec } = fakeCodec();
     expect((await rejection(resizeToJpeg(new File([], "empty.jpg", { type: "image/jpeg" }), undefined, undefined, { codec }))).code).toBe("not_image");

@@ -4,7 +4,7 @@
 -- attempts are committed, spec 7.1 item 4); only not_authenticated / not_student raise (42501).
 -- Two concurrent calls with one code (Review Focus 1) need two sessions: tests/e2e/submit.spec.ts.
 begin;
-select plan(104);
+select plan(108);
 
 -- ids
 --   s1 student ...3101 (participant everywhere)   s2 student ...3102 (participant of nothing)
@@ -15,7 +15,8 @@ select plan(104);
 --     draft ...3505 (draft)   future ...3506 (starts in 1 h)   late ...3507 (ended 2 days ago)
 --     over ...3508 (ended 4 days ago)   closed ...3509 (closed, in window)
 --     wcode ...3510 (waste, requires_code, no max)
---   evidence objects: s1 '...3101/u1/a.jpg', '...3101/u2/b.jpg'; s2 '...3102/u1/c.jpg'
+--   evidence objects: s1 '...3101/u1/a.jpg' (error cases, never submitted) and '...3101/p1..p9/a.jpg'
+--   (one per successful submission: a photo backs one submission only); s2 '...3102/u1/c.jpg'
 
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-000000003101', 'sr-s1@example.test', '{"full_name":"นักเรียน หนึ่ง"}'::jsonb),
@@ -43,8 +44,10 @@ from public.activities a where a.title like 'SR %';
 
 insert into storage.objects (bucket_id, name, owner) values
   ('evidence', '00000000-0000-0000-0000-000000003101/u1/a.jpg', '00000000-0000-0000-0000-000000003101'),
-  ('evidence', '00000000-0000-0000-0000-000000003101/u2/b.jpg', '00000000-0000-0000-0000-000000003101'),
   ('evidence', '00000000-0000-0000-0000-000000003102/u1/c.jpg', '00000000-0000-0000-0000-000000003102');
+insert into storage.objects (bucket_id, name, owner)
+select 'evidence', '00000000-0000-0000-0000-000000003101/p' || g || '/a.jpg', '00000000-0000-0000-0000-000000003101'
+from generate_series(1, 9) g;
 
 -- one active code for (s1, code) and (s1, wcode)
 insert into public.weigh_codes (activity_id, student_id, code, issued_by) values
@@ -212,7 +215,7 @@ set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000003101","role":"authenticated"}', true);
 -- (ค) right code works once
 select is(public.submit_result('00000000-0000-0000-0000-000000003504', ' 222222 ', '[]'::jsonb,
-  '00000000-0000-0000-0000-000000003101/u1/a.jpg') ->> 'ok', 'true', 'right code succeeds');
+  '00000000-0000-0000-0000-000000003101/p1/a.jpg') ->> 'ok', 'true', 'right code succeeds');
 select is((select count(*) from public.submissions where activity_id = '00000000-0000-0000-0000-000000003504'), 1::bigint,
   'one submission created');
 select is((select status from public.submissions where activity_id = '00000000-0000-0000-0000-000000003504'), 'pending',
@@ -220,11 +223,15 @@ select is((select status from public.submissions where activity_id = '00000000-0
 select is((select code_id from public.submissions where activity_id = '00000000-0000-0000-0000-000000003504'),
   (select id from public.weigh_codes where code = '222222'), 'submission.code_id is the used code');
 select is((select evidence_path from public.submissions where activity_id = '00000000-0000-0000-0000-000000003504'),
-  '00000000-0000-0000-0000-000000003101/u1/a.jpg', 'submission.evidence_path is stored');
+  '00000000-0000-0000-0000-000000003101/p1/a.jpg', 'submission.evidence_path is stored');
 select is((select student_id from public.submissions where activity_id = '00000000-0000-0000-0000-000000003504'),
   '00000000-0000-0000-0000-000000003101'::uuid, 'submission.student_id is the caller');
 select is((select count(*) from public.submission_items si join public.submissions s on s.id = si.submission_id
-            where s.activity_id = '00000000-0000-0000-0000-000000003504'), 0::bigint, 'fixed submission stores no items');
+            where s.activity_id = '00000000-0000-0000-0000-000000003504'), 1::bigint, 'fixed submission stores one item (spec 5.1)');
+select is((select si.quantity from public.submission_items si join public.submissions s on s.id = si.submission_id
+            where s.activity_id = '00000000-0000-0000-0000-000000003504'), 1, 'fixed item quantity is 1');
+select is((select si.waste_category_id from public.submission_items si join public.submissions s on s.id = si.submission_id
+            where s.activity_id = '00000000-0000-0000-0000-000000003504'), null, 'fixed item has no category');
 select isnt((select used_at from public.weigh_codes where code = '222222'), null, 'used code has used_at');
 select is((select attempts from public.weigh_codes where code = '222222'), 0, 'right code adds no attempt');
 select is(public.submit_result('00000000-0000-0000-0000-000000003504', '222222', null,
@@ -239,7 +246,7 @@ reset role;
 select is((select count(*) from public.notifications n
             where n.user_id in ('00000000-0000-0000-0000-000000003201', '00000000-0000-0000-0000-000000003301')
               and n.type = 'submission_new'
-              and n.link = '/staff/submissions/' || (select id from public.submissions where activity_id = '00000000-0000-0000-0000-000000003504')),
+              and n.link = '/staff/reviews/' || (select id from public.submissions where activity_id = '00000000-0000-0000-0000-000000003504')),
   2::bigint, 'teacher and admin each got a submission_new notification with the review link');
 select is((select count(*) from public.notifications where user_id in ('00000000-0000-0000-0000-000000003101', '00000000-0000-0000-0000-000000003102')),
   0::bigint, 'students get no submission_new notification');
@@ -266,7 +273,7 @@ select is(public.submit_result('00000000-0000-0000-0000-000000003510', '333333',
   jsonb_build_array(
     jsonb_build_object('waste_category_id', (select id from public.waste_categories where name = 'พลาสติก'), 'quantity', 1200),
     jsonb_build_object('waste_category_id', (select id from public.waste_categories where name = 'กระดาษ'), 'quantity', 300)),
-  '00000000-0000-0000-0000-000000003101/u2/b.jpg') ->> 'ok', 'true', 'waste submission with code succeeds');
+  '00000000-0000-0000-0000-000000003101/p2/a.jpg') ->> 'ok', 'true', 'waste submission with code succeeds');
 select is((select sum(si.quantity) from public.submission_items si join public.submissions s on s.id = si.submission_id
             where s.activity_id = '00000000-0000-0000-0000-000000003510'), 1500::bigint, 'waste items store the grams');
 select is((select count(distinct si.waste_category_id) from public.submission_items si join public.submissions s on s.id = si.submission_id
@@ -274,13 +281,17 @@ select is((select count(distinct si.waste_category_id) from public.submission_it
 
 -- (ซ) activities without a code: no code needed, a given code is ignored
 select is(public.submit_result('00000000-0000-0000-0000-000000003503', null, null,
-  '00000000-0000-0000-0000-000000003101/u1/a.jpg') ->> 'ok', 'true', 'fixed without code succeeds with no code');
+  '00000000-0000-0000-0000-000000003101/p3/a.jpg') ->> 'ok', 'true', 'fixed without code succeeds with no code');
 select is(public.submit_result('00000000-0000-0000-0000-000000003503', '999999', '[]'::jsonb,
-  '00000000-0000-0000-0000-000000003101/u1/a.jpg') ->> 'ok', 'true', 'a code is ignored when not required (multiple submissions allowed)');
+  '00000000-0000-0000-0000-000000003101/p4/a.jpg') ->> 'ok', 'true', 'a code is ignored when not required (multiple submissions allowed)');
+select is(public.submit_result('00000000-0000-0000-0000-000000003503', null, null,
+  '00000000-0000-0000-0000-000000003101/p3/a.jpg') ->> 'error_code', 'bad_evidence_path', 'a photo that backs another submission returns bad_evidence_path');
+select is((select count(*) from public.submission_items si join public.submissions s on s.id = si.submission_id
+            where s.activity_id = '00000000-0000-0000-0000-000000003503'), 2::bigint, 'fixed with [] or null both store one item each');
 select is((select count(*) from public.submissions where activity_id = '00000000-0000-0000-0000-000000003503' and code_id is null), 2::bigint,
   'no-code submissions have code_id null');
 select is(public.submit_result('00000000-0000-0000-0000-000000003502', null, '[{"quantity": 10}]'::jsonb,
-  '00000000-0000-0000-0000-000000003101/u1/a.jpg') ->> 'ok', 'true', 'trees at max_per_submission succeeds');
+  '00000000-0000-0000-0000-000000003101/p5/a.jpg') ->> 'ok', 'true', 'trees at max_per_submission succeeds');
 select is((select si.quantity from public.submission_items si join public.submissions s on s.id = si.submission_id
             where s.activity_id = '00000000-0000-0000-0000-000000003502'), 10, 'tree count is stored');
 select is((select si.waste_category_id from public.submission_items si join public.submissions s on s.id = si.submission_id
@@ -289,13 +300,13 @@ select is(public.submit_result('00000000-0000-0000-0000-000000003501', null,
   jsonb_build_array(
     jsonb_build_object('waste_category_id', (select id from public.waste_categories where name = 'พลาสติก'), 'quantity', 3000),
     jsonb_build_object('waste_category_id', (select id from public.waste_categories where name = 'กระดาษ'), 'quantity', 2000)),
-  '00000000-0000-0000-0000-000000003101/u1/a.jpg') ->> 'ok', 'true', 'waste exactly at max_per_submission succeeds');
+  '00000000-0000-0000-0000-000000003101/p6/a.jpg') ->> 'ok', 'true', 'waste exactly at max_per_submission succeeds');
 select is(public.submit_result('00000000-0000-0000-0000-000000003507', null, null,
-  '00000000-0000-0000-0000-000000003101/u1/a.jpg') ->> 'ok', 'true', 'inside ends_at .. ends_at + 3 days succeeds');
+  '00000000-0000-0000-0000-000000003101/p7/a.jpg') ->> 'ok', 'true', 'inside ends_at .. ends_at + 3 days succeeds');
 select is(public.submit_result('00000000-0000-0000-0000-000000003509', null, null,
-  '00000000-0000-0000-0000-000000003101/u1/a.jpg') ->> 'ok', 'true', 'closed activity inside the window succeeds (R18)');
+  '00000000-0000-0000-0000-000000003101/p8/a.jpg') ->> 'ok', 'true', 'closed activity inside the window succeeds (R18)');
 select ok(set_config('sr.sid', public.submit_result('00000000-0000-0000-0000-000000003509', null, null,
-  '00000000-0000-0000-0000-000000003101/u1/a.jpg') ->> 'submission_id', true) is not null, 'a submission_id is returned');
+  '00000000-0000-0000-0000-000000003101/p9/a.jpg') ->> 'submission_id', true) is not null, 'a submission_id is returned');
 select is((select activity_id from public.submissions where id = current_setting('sr.sid')::uuid),
   '00000000-0000-0000-0000-000000003509'::uuid, 'the returned submission_id is the new submission');
 select is((select count(*) from public.submissions where student_id = '00000000-0000-0000-0000-000000003101'), 9::bigint,
@@ -327,14 +338,14 @@ select throws_ok($$insert into storage.objects (bucket_id, name, owner)
 select is((select count(*) from storage.objects where bucket_id = 'evidence'), 2::bigint,
   'student reads only their own evidence objects');
 update storage.objects set name = '00000000-0000-0000-0000-000000003102/u2/renamed.jpg' where bucket_id = 'evidence';
-select throws_ok($$delete from storage.objects where bucket_id = 'evidence'$$, null, null, 'direct delete of storage objects is refused');
+select throws_ok($$delete from storage.objects where bucket_id = 'evidence'$$, null, null, 'direct SQL delete of storage objects is refused (storage.protect_delete trigger)');
 reset role;
 select is((select count(*) from storage.objects where bucket_id = 'evidence' and name like '00000000-0000-0000-0000-000000003102/%'
             and name not like '%renamed%'), 2::bigint, 'students cannot update or delete evidence objects');
 
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000003201","role":"authenticated"}', true);
-select is((select count(*) from storage.objects where bucket_id = 'evidence'), 4::bigint, 'staff read all evidence objects');
+select is((select count(*) from storage.objects where bucket_id = 'evidence'), 12::bigint, 'staff read all evidence objects');
 reset role;
 
 select * from finish();

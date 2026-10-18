@@ -69,6 +69,11 @@ create policy evidence_select on storage.objects
     )
   );
 
+-- One photo backs at most one submission (also closes the race between two concurrent submits).
+create unique index submissions_evidence_path_key
+  on public.submissions (evidence_path)
+  where evidence_path is not null;
+
 -- submit_result -----------------------------------------------------------------------------
 -- Returns {ok, error_code, submission_id}. Every business error is RETURNED, not raised, so a
 -- wrong-code attempt is committed (spec 7.1 item 4):
@@ -76,7 +81,8 @@ create policy evidence_select on storage.objects
 --   out_of_window      draft, before starts_at, or after ends_at + 3 days (R18, same as issue_weigh_code)
 --   invalid_items      p_items does not fit the activity type (R25), including malformed input
 --   over_limit         waste: sum of grams > max_per_submission; trees: count > max_per_submission
---   bad_evidence_path  null, outside {auth.uid()}/, contains '..', or no uploaded object
+--   bad_evidence_path  null, outside {auth.uid()}/, contains '..', no uploaded object, or the photo
+--                      already backs another submission (one photo, one submission)
 --   code_required      requires_code and no code given
 --   code_invalid       no active code for the pair (none issued, revoked, already used) or a mismatch
 --   code_expired       the active code has expired
@@ -142,6 +148,9 @@ begin
     if p_items is not null and p_items <> '[]'::jsonb then
       return jsonb_build_object('ok', false, 'error_code', 'invalid_items', 'submission_id', null);
     end if;
+    -- spec 5.1: a fixed submission has one row, quantity = 1, no category
+    v_cats := array[null::uuid];
+    v_qtys := array[1];
   else
     -- separate IFs: the checks must not be evaluated out of order (jsonb_array_length on a non-array raises)
     if p_items is null or jsonb_typeof(p_items) <> 'array' then
@@ -199,7 +208,8 @@ begin
      or not exists (
        select 1 from storage.objects o
        where o.bucket_id = 'evidence' and o.name = p_evidence_path
-     ) then
+     )
+     or exists (select 1 from public.submissions s where s.evidence_path = p_evidence_path) then
     return jsonb_build_object('ok', false, 'error_code', 'bad_evidence_path', 'submission_id', null);
   end if;
 
@@ -237,16 +247,25 @@ begin
         'submission_id', null);
     end if;
 
-    update public.weigh_codes
-    set used_at = now(), updated_at = now()
-    where id = v_code_row.id;
     v_code_id := v_code_row.id;
   end if;
 
   -- success ----------------------------------------------------------------------------------
-  insert into public.submissions (activity_id, student_id, code_id, evidence_path, status)
-  values (p_activity_id, v_uid, v_code_id, p_evidence_path, 'pending')
-  returning id into v_submission_id;
+  -- Two concurrent submits with the same photo both pass the exists() check above; the unique
+  -- index then rejects the second. The block's rollback also undoes its used_at update.
+  begin
+    if v_code_id is not null then
+      update public.weigh_codes
+      set used_at = now(), updated_at = now()
+      where id = v_code_id;
+    end if;
+
+    insert into public.submissions (activity_id, student_id, code_id, evidence_path, status)
+    values (p_activity_id, v_uid, v_code_id, p_evidence_path, 'pending')
+    returning id into v_submission_id;
+  exception when unique_violation then
+    return jsonb_build_object('ok', false, 'error_code', 'bad_evidence_path', 'submission_id', null);
+  end;
 
   insert into public.submission_items (submission_id, waste_category_id, quantity)
   select v_submission_id, c.cat, c.qty
@@ -256,7 +275,7 @@ begin
     'submission_new',
     'มีผลส่งใหม่รอตรวจ',
     v_name || ' ส่งผลกิจกรรม "' || v_activity.title || '"',
-    '/staff/submissions/' || v_submission_id::text
+    '/staff/reviews/' || v_submission_id::text
   );
 
   return jsonb_build_object('ok', true, 'error_code', null, 'submission_id', v_submission_id);
