@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { statusLabelTh, typeLabelTh } from "./labels";
+import { statusLabelTh, submissionStatusLabelTh, typeLabelTh } from "./labels";
 
 describe("labels", () => {
   it("labels the three types and statuses in Thai", () => {
@@ -9,5 +9,14 @@ describe("labels", () => {
   it("returns the raw value for unknown input", () => {
     expect(typeLabelTh("x")).toBe("x");
     expect(statusLabelTh("y")).toBe("y");
+  });
+});
+
+describe("submissionStatusLabelTh", () => {
+  it("labels submission statuses as on /my-submissions", () => {
+    expect(submissionStatusLabelTh("pending")).toBe("รอตรวจ");
+    expect(submissionStatusLabelTh("approved")).toBe("อนุมัติแล้ว");
+    expect(submissionStatusLabelTh("rejected")).toBe("ไม่ผ่าน");
+    expect(submissionStatusLabelTh("z")).toBe("z");
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GENERIC_ERROR_TH, errorCodeFromDb, errorMessageTh } from "./errors";
+import { GENERIC_ERROR_TH, errorCodeFromDb, errorMessageTh, submitErrorMessageTh } from "./errors";
 
 describe("errorMessageTh", () => {
   it.each(["activity_not_open", "activity_ended", "already_joined", "not_authenticated", "not_student"])(
@@ -50,5 +50,39 @@ describe("errorCodeFromDb", () => {
     expect(errorCodeFromDb({ message: null })).toBeNull();
     expect(errorCodeFromDb(null)).toBeNull();
     expect(errorCodeFromDb(undefined)).toBeNull();
+  });
+});
+
+describe("submit errors (submit_result, image upload)", () => {
+  const submitCodes = [
+    "code_required",
+    "code_invalid",
+    "code_expired",
+    "code_locked",
+    "not_participant",
+    "out_of_window",
+    "over_limit",
+    "invalid_items",
+    "bad_evidence_path",
+  ];
+  const clientCodes = ["not_image", "image_too_large", "upload_failed"];
+  it.each([...submitCodes, ...clientCodes])("has a Thai message for %s", (code) => {
+    expect(submitErrorMessageTh(code)).not.toBe(GENERIC_ERROR_TH);
+    expect(submitErrorMessageTh(code)).toMatch(/[฀-๿]/);
+    expect(errorMessageTh(code)).not.toBe(GENERIC_ERROR_TH);
+  });
+  it("gives distinct messages for every submit code", () => {
+    const all = [...submitCodes, ...clientCodes];
+    expect(new Set(all.map(submitErrorMessageTh)).size).toBe(all.length);
+  });
+  it("speaks to the student for codes shared with the weigh station", () => {
+    expect(submitErrorMessageTh("not_participant")).not.toBe(errorMessageTh("not_participant"));
+    expect(submitErrorMessageTh("out_of_window")).not.toBe(errorMessageTh("out_of_window"));
+    expect(submitErrorMessageTh("out_of_window")).not.toMatch(/ออกรหัส/);
+  });
+  it("falls back like errorMessageTh", () => {
+    expect(submitErrorMessageTh("already_joined")).toBe(errorMessageTh("already_joined"));
+    expect(submitErrorMessageTh(null)).toBe(GENERIC_ERROR_TH);
+    expect(submitErrorMessageTh("__proto__")).toBe(GENERIC_ERROR_TH);
   });
 });

@@ -1,0 +1,171 @@
+import { randomUUID } from "node:crypto";
+import { expect, test } from "@playwright/test";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { signIn } from "./helpers/auth";
+import {
+  createConfirmedUser,
+  createJoinedCodeActivity,
+  deleteActivitiesByTitle,
+  deleteUsers,
+  listSubmissions,
+  listWeighCodes,
+  localEnv,
+  removeEvidence,
+  type TestUser,
+} from "./helpers/supabase-admin";
+
+// Plan Task 8. A 1x1 PNG: real image bytes the browser can decode and re-encode as JPEG.
+const PNG_1X1 = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "base64",
+);
+
+function uniqueSuffix(projectName: string): string {
+  return `${projectName}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+async function signedInClient(user: TestUser): Promise<SupabaseClient> {
+  const { url, publishableKey } = localEnv();
+  const client = createClient(url, publishableKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { error } = await client.auth.signInWithPassword({ email: user.email, password: user.password });
+  if (error) throw new Error(`e2e: sign in ${user.email} failed: ${error.message}`);
+  return client;
+}
+
+test("student submits with a weigh code (wrong, then right) and sees it pending", async ({ page, browser }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const title = `กิจกรรมส่งผล ${suffix}`;
+  let teacher: TestUser | undefined;
+  let student: TestUser | undefined;
+
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-sub-${suffix}`);
+    student = await createConfirmedUser("student", `student-sub-${suffix}`);
+    const activityId = await createJoinedCodeActivity(title, student.id);
+
+    // teacher issues a code at the weigh station (separate browser context)
+    const staffContext = await browser.newContext();
+    const staffPage = await staffContext.newPage();
+    await signIn(staffPage, teacher, "/staff/weigh-station");
+    await staffPage.getByLabel("กิจกรรม", { exact: true }).selectOption({ label: title });
+    await staffPage.getByRole("button", { name: /^ออกรหัสให้ / }).click();
+    const codeLocator = staffPage.getByTestId("weigh-code");
+    await expect(codeLocator).toHaveText(/^\d{6}$/);
+    const code = (await codeLocator.textContent())!.trim();
+    await staffContext.close();
+    const wrong = code === "000000" ? "111111" : "000000";
+
+    // student: activity page -> ส่งผล -> form
+    await signIn(page, student, `/activities/${activityId}`);
+    await page.getByRole("link", { name: "ส่งผล", exact: true }).click();
+    await expect(page).toHaveURL((url) => url.pathname === `/activities/${activityId}/submit`);
+    await expect(page.getByText("แต้มจริงจะได้เมื่อครูตรวจผ่าน")).toBeVisible();
+    await page.getByLabel("รูปหลักฐาน").setInputFiles({ name: "evidence.png", mimeType: "image/png", buffer: PNG_1X1 });
+
+    await page.getByLabel("รหัสจากจุดชั่ง (6 หลัก)").fill(wrong);
+    const submit = page.getByRole("button", { name: "ส่งผล" });
+    await submit.click();
+    await expect(page.getByRole("alert").filter({ hasText: "รหัสไม่ถูกต้อง" })).toBeVisible();
+    await expect(submit).toBeEnabled();
+    // the wrong attempt was committed (returned, not raised: spec 7.1 item 4)
+    expect((await listWeighCodes(student.id, activityId)).map((c) => c.attempts)).toEqual([1]);
+
+    await page.getByLabel("รหัสจากจุดชั่ง (6 หลัก)").fill(code);
+    await submit.click();
+    await expect(page).toHaveURL((url) => url.pathname === "/my-submissions");
+    const row = page.getByTestId("submission").filter({ hasText: title });
+    await expect(row).toContainText("รอตรวจ");
+
+    const rows = await listSubmissions(student.id, activityId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe("pending");
+    expect((await listWeighCodes(student.id, activityId))[0].used_at).not.toBeNull();
+    expect(rows[0].evidence_path).toMatch(new RegExp(`^${student.id}/[0-9a-f-]{36}/evidence\\.jpg$`));
+  } finally {
+    await deleteActivitiesByTitle(title);
+    await deleteUsers([teacher, student]);
+  }
+});
+
+// Review Focus 1 (R28): two sessions submit with the same code at the same time -> one submission.
+test("two concurrent submits with one code create exactly one submission", async ({}, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const title = `กิจกรรมส่งพร้อมกัน ${suffix}`;
+  let teacher: TestUser | undefined;
+  let student: TestUser | undefined;
+  const uploaded: string[] = [];
+
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-race-${suffix}`);
+    student = await createConfirmedUser("student", `student-race-${suffix}`);
+    const activityId = await createJoinedCodeActivity(title, student.id);
+
+    const staff = await signedInClient(teacher);
+    const { data: issued, error: issueError } = await staff.rpc("issue_weigh_code", {
+      p_activity_id: activityId,
+      p_student_id: student.id,
+    });
+    expect(issueError).toBeNull();
+    const code = (Array.isArray(issued) ? issued[0] : issued).code as string;
+
+    const [a, b] = await Promise.all([signedInClient(student), signedInClient(student)]);
+    const path = `${student.id}/${randomUUID()}/evidence.png`;
+    const { error: uploadError } = await a.storage.from("evidence").upload(path, PNG_1X1, { contentType: "image/png" });
+    expect(uploadError).toBeNull();
+    uploaded.push(path);
+
+    const args = { p_activity_id: activityId, p_code: code, p_items: [], p_evidence_path: path };
+    const results = await Promise.all([a.rpc("submit_result", args), b.rpc("submit_result", args)]);
+    for (const r of results) expect(r.error).toBeNull();
+    const data = results.map((r) => r.data as { ok: boolean; error_code: string | null; submission_id: string | null });
+
+    expect(data.filter((d) => d.ok)).toHaveLength(1);
+    const loser = data.find((d) => !d.ok);
+    expect(loser).toEqual({ ok: false, error_code: "code_invalid", submission_id: null });
+
+    const rows = await listSubmissions(student.id, activityId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].id).toBe(data.find((d) => d.ok)!.submission_id);
+  } finally {
+    await deleteActivitiesByTitle(title);
+    await removeEvidence(uploaded);
+    await deleteUsers([teacher, student]);
+  }
+});
+
+test("student submits waste weights (kg + ขีด) without a code", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const title = `กิจกรรมขยะ ${suffix}`;
+  let student: TestUser | undefined;
+
+  try {
+    student = await createConfirmedUser("student", `student-waste-${suffix}`);
+    const activityId = await createJoinedCodeActivity(title, student.id, {
+      type: "waste",
+      unit_points: 0,
+      requires_code: false,
+      max_per_submission: 10_000,
+    });
+
+    await signIn(page, student, `/activities/${activityId}/submit`);
+    await expect(page.getByLabel("รหัสจากจุดชั่ง (6 หลัก)")).toHaveCount(0);
+    await page.getByLabel("พลาสติก กิโลกรัม").fill("1");
+    await page.getByLabel("พลาสติก ขีด").fill("5");
+    await page.getByLabel("กระดาษ กิโลกรัม").fill("0.2");
+    // 1500 g plastic x 10 + 200 g paper x 5 = 16 points (default rates, 0003)
+    await expect(page.getByText(/16 แต้ม/)).toBeVisible();
+
+    const submit = page.getByRole("button", { name: "ส่งผล" });
+    await submit.click();
+    await expect(page.getByRole("alert").filter({ hasText: "ไม่พบรูปหลักฐาน" })).toBeVisible();
+
+    await page.getByLabel("รูปหลักฐาน").setInputFiles({ name: "evidence.png", mimeType: "image/png", buffer: PNG_1X1 });
+    await submit.click();
+    await expect(page).toHaveURL((url) => url.pathname === "/my-submissions");
+    await expect(page.getByTestId("submission").filter({ hasText: title })).toContainText("รอตรวจ");
+    expect(await listSubmissions(student.id, activityId)).toHaveLength(1);
+  } finally {
+    await deleteActivitiesByTitle(title);
+    await deleteUsers([student]);
+  }
+});

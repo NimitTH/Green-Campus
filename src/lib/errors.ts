@@ -15,6 +15,24 @@ const MESSAGES: Record<string, string> = {
   not_participant: "นักเรียนคนนี้ยังไม่ได้เข้าร่วมกิจกรรมนี้",
   out_of_window: "ออกรหัสไม่ได้ เพราะกิจกรรมยังไม่เริ่ม เป็นฉบับร่าง หรือเลยช่วงส่งผลแล้ว (สิ้นสุด + 3 วัน)",
   activity_has_submissions: "ลบไม่ได้ เพราะมีผู้ส่งผลแล้ว ให้ปิดกิจกรรมแทน",
+  // submit_result (Task 8): returned as {ok: false, error_code}
+  code_required: "กิจกรรมนี้ต้องใช้รหัส 6 หลักจากจุดชั่ง กรอกรหัสแล้วส่งอีกครั้ง",
+  code_invalid: "รหัสไม่ถูกต้องหรือถูกใช้ไปแล้ว ตรวจรหัสอีกครั้ง หรือขอรหัสใหม่ที่จุดชั่ง",
+  code_expired: "รหัสหมดอายุแล้ว (ใช้ได้ 30 นาที) ขอรหัสใหม่ที่จุดชั่ง",
+  code_locked: "กรอกรหัสผิดครบ 5 ครั้ง รหัสถูกล็อก ขอรหัสใหม่ที่จุดชั่ง",
+  over_limit: "ปริมาณเกินที่กิจกรรมนี้รับได้ต่อการส่งหนึ่งครั้ง ลดปริมาณหรือแบ่งส่งหลายครั้ง",
+  invalid_items: "ข้อมูลปริมาณไม่ถูกต้อง กรอกจำนวนที่มากกว่า 0 อย่างน้อยหนึ่งช่อง",
+  bad_evidence_path: "ไม่พบรูปหลักฐานที่อัปโหลด กรุณาเลือกรูปแล้วส่งใหม่",
+  // client-side (image resize / upload)
+  not_image: "ไฟล์นี้ไม่ใช่รูปภาพหรือเปิดไม่ได้ กรุณาถ่ายหรือเลือกรูปใหม่",
+  image_too_large: "รูปมีขนาดใหญ่เกิน 2 MB แม้ย่อแล้ว กรุณาถ่ายหรือเลือกรูปใหม่",
+  upload_failed: "อัปโหลดรูปไม่สำเร็จ ตรวจการเชื่อมต่ออินเทอร์เน็ตแล้วลองอีกครั้ง",
+};
+
+// Codes shared with issue_weigh_code whose staff wording does not fit a student submitting.
+const SUBMIT_MESSAGES: Record<string, string> = {
+  not_participant: "คุณยังไม่ได้เข้าร่วมกิจกรรมนี้ กดเข้าร่วมกิจกรรมก่อนส่งผล",
+  out_of_window: "ส่งผลไม่ได้ เพราะกิจกรรมยังไม่เริ่ม หรือเลยช่วงส่งผลแล้ว (ส่งได้ถึง 3 วันหลังกิจกรรมสิ้นสุด)",
 };
 
 function isKnownCode(code: string): boolean {
@@ -30,4 +48,10 @@ export function errorMessageTh(code: string | null | undefined): string {
 export function errorCodeFromDb(error: { message?: string | null } | null | undefined): string | null {
   const code = error?.message?.trim();
   return code && isKnownCode(code) ? code : null;
+}
+
+/** errorMessageTh for the student submit form (submit_result error_code, image and upload errors). */
+export function submitErrorMessageTh(code: string | null | undefined): string {
+  if (code && Object.prototype.hasOwnProperty.call(SUBMIT_MESSAGES, code)) return SUBMIT_MESSAGES[code];
+  return errorMessageTh(code);
 }

@@ -7,7 +7,7 @@ import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { requireUser } from "@/lib/auth/dal";
 import { typeLabelTh } from "@/lib/activities/labels";
 import { getActivity, hasJoined, type ActivityRow } from "@/lib/activities/queries";
-import { joinState, type JoinState } from "@/lib/activities/status";
+import { inSubmitWindow, joinState, type JoinState } from "@/lib/activities/status";
 import { formatBangkok } from "@/lib/datetime";
 import { isUuid } from "@/lib/uuid";
 import { JoinButton } from "./join-button";
@@ -51,6 +51,10 @@ async function ActivityDetail({ params }: { params: Promise<{ id: string }> }) {
   const joined = await hasJoined(activity.id, user.id);
   const state = joinState({ status: activity.status, endsAt: activity.ends_at, joined });
   const note = STATE_NOTE[state];
+  const canSubmit =
+    user.role === "student" &&
+    state === "joined" &&
+    inSubmitWindow({ status: activity.status, startsAt: activity.starts_at, endsAt: activity.ends_at });
 
   return (
     <article>
@@ -96,6 +100,14 @@ async function ActivityDetail({ params }: { params: Promise<{ id: string }> }) {
           <p className="text-sm text-gray-600 dark:text-gray-400">เฉพาะบัญชีนักเรียนเท่านั้นที่เข้าร่วมกิจกรรมได้</p>
         ) : state === "can_join" || state === "joined" ? (
           <JoinButton activityId={activity.id} joined={state === "joined"} />
+        ) : null}
+        {canSubmit ? (
+          <Link
+            href={`/activities/${activity.id}/submit`}
+            className="mt-3 block w-full rounded-lg bg-green-700 px-4 py-3 text-center text-base font-semibold text-white hover:bg-green-800 sm:inline-block sm:w-auto"
+          >
+            ส่งผล
+          </Link>
         ) : null}
         {state === "joined" && activity.status === "closed" ? (
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">กิจกรรมนี้ปิดแล้ว</p>

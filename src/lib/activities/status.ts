@@ -19,3 +19,12 @@ export function joinState(args: {
 export function isEnded(endsAt: string, now: number = Date.now()): boolean {
   return now >= Date.parse(endsAt);
 }
+
+const SUBMIT_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
+
+/** Results can be sent from starts_at until ends_at + 3 days, open or closed, never draft (R18). */
+export function inSubmitWindow(args: { status: string; startsAt: string; endsAt: string; now?: number }): boolean {
+  const now = args.now ?? Date.now();
+  if (args.status === "draft") return false;
+  return now >= Date.parse(args.startsAt) && now <= Date.parse(args.endsAt) + SUBMIT_GRACE_MS;
+}
