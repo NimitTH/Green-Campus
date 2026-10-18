@@ -19,6 +19,18 @@ describe("errorMessageTh", () => {
   });
 });
 
+describe("weigh code errors (issue_weigh_code)", () => {
+  const codes = ["not_staff", "activity_not_found", "code_not_required", "not_participant", "out_of_window"];
+  it.each(codes)("has a Thai message for %s", (code) => {
+    expect(errorMessageTh(code)).not.toBe(GENERIC_ERROR_TH);
+    expect(errorMessageTh(code)).toMatch(/[฀-๿]/);
+    expect(errorCodeFromDb({ message: code })).toBe(code);
+  });
+  it("gives distinct messages", () => {
+    expect(new Set(codes.map(errorMessageTh)).size).toBe(codes.length);
+  });
+});
+
 describe("activity delete blocked (trigger activity_has_submissions)", () => {
   it("maps to the Thai 'close it instead' message", () => {
     expect(errorMessageTh("activity_has_submissions")).toBe("ลบไม่ได้ เพราะมีผู้ส่งผลแล้ว ให้ปิดกิจกรรมแทน");

@@ -38,6 +38,15 @@ async function StaffHome() {
             สร้าง แก้ไข เปิด/ปิดกิจกรรม
           </span>
         </Link>
+        <Link
+          href="/staff/weigh-station"
+          className="block rounded-2xl border border-gray-200 p-4 font-semibold hover:border-green-600 dark:border-gray-800"
+        >
+          จุดชั่ง
+          <span className="block text-sm font-normal text-gray-600 dark:text-gray-400">
+            ออกรหัส 6 หลักให้นักเรียนที่มาชั่ง
+          </span>
+        </Link>
       </nav>
       <section className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-gray-600 dark:border-gray-700 dark:text-gray-400">
         ยังไม่มีข้อมูล

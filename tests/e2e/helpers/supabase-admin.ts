@@ -58,3 +58,27 @@ export async function deleteActivitiesByTitle(title: string): Promise<void> {
   const { error } = await admin().from("activities").delete().eq("title", title);
   if (error) console.warn(`e2e cleanup: delete activity "${title}" failed: ${error.message}`);
 }
+
+/** An open, code-requiring activity (started 1 h ago, ends in 1 day) the student has already joined. */
+export async function createJoinedCodeActivity(title: string, studentId: string): Promise<string> {
+  const now = Date.now();
+  const { data, error } = await admin()
+    .from("activities")
+    .insert({
+      title,
+      type: "fixed",
+      unit_points: 10,
+      status: "open",
+      requires_code: true,
+      starts_at: new Date(now - 60 * 60_000).toISOString(),
+      ends_at: new Date(now + 24 * 60 * 60_000).toISOString(),
+    })
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(`e2e: create activity failed: ${error?.message}`);
+  const { error: joinError } = await admin()
+    .from("participations")
+    .insert({ activity_id: data.id, student_id: studentId });
+  if (joinError) throw new Error(`e2e: join failed: ${joinError.message}`);
+  return data.id as string;
+}
