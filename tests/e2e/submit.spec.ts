@@ -78,6 +78,7 @@ test("student submits with a weigh code (wrong, then right) and sees it pending"
 });
 
 // Review Focus 1 (R28): two sessions submit with the same code at the same time -> one submission.
+// The loser now gets already_submitted: fixed is once per student and the participation lock serialises the pair.
 test("two concurrent submits with one code create exactly one submission", async ({}, testInfo) => {
   const suffix = uniqueSuffix(testInfo.project.name);
   const title = `กิจกรรมส่งพร้อมกัน ${suffix}`;
@@ -117,7 +118,7 @@ test("two concurrent submits with one code create exactly one submission", async
 
     expect(data.filter((d) => d.ok)).toHaveLength(1);
     const loser = data.find((d) => !d.ok);
-    expect(loser).toEqual({ ok: false, error_code: "code_invalid", submission_id: null });
+    expect(loser).toEqual({ ok: false, error_code: "already_submitted", submission_id: null });
 
     const rows = await listSubmissions(student.id, activityId);
     expect(rows).toHaveLength(1);
@@ -159,6 +160,37 @@ test("student submits waste weights (kg + ขีด) without a code", async ({ p
     await submit.click();
     await expect(page).toHaveURL((url) => url.pathname === "/my-submissions");
     await expect(page.getByTestId("submission").filter({ hasText: title })).toContainText("รอตรวจ");
+    expect(await listSubmissions(student.id, activityId)).toHaveLength(1);
+  } finally {
+    await deleteActivitiesByTitle(title);
+    await deleteUsers([student]);
+  }
+});
+
+// Owner decision 2026-10-20: a fixed activity takes one pending/approved submission per student.
+test("student submits a fixed activity once, then sees ส่งผลแล้ว instead of the form", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const title = `กิจกรรมครั้งเดียว ${suffix}`;
+  let student: TestUser | undefined;
+
+  try {
+    student = await createConfirmedUser("student", `student-once-${suffix}`);
+    const activityId = await createJoinedCodeActivity(title, student.id, { requires_code: false });
+
+    await signIn(page, student, `/activities/${activityId}/submit`);
+    await page.getByLabel("รูปหลักฐาน").setInputFiles({ name: "evidence.png", mimeType: "image/png", buffer: PNG_1X1 });
+    await page.getByRole("button", { name: "ส่งผล" }).click();
+    await expect(page).toHaveURL((url) => url.pathname === "/my-submissions");
+
+    await page.goto(`/activities/${activityId}`);
+    await expect(page.getByText("ส่งผลแล้ว")).toBeVisible();
+    await expect(page.getByRole("link", { name: "ส่งผล", exact: true })).toHaveCount(0);
+
+    await page.goto(`/activities/${activityId}/submit`);
+    await expect(page.getByText("ส่งผลแล้ว")).toBeVisible();
+    await expect(page.getByLabel("รูปหลักฐาน")).toHaveCount(0);
+    await page.getByRole("link", { name: "ดูผลที่ส่ง" }).click();
+    await expect(page).toHaveURL((url) => url.pathname === "/my-submissions");
     expect(await listSubmissions(student.id, activityId)).toHaveLength(1);
   } finally {
     await deleteActivitiesByTitle(title);

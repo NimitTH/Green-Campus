@@ -63,6 +63,19 @@ export async function hasJoined(activityId: string, userId: string): Promise<boo
   return (count ?? 0) > 0;
 }
 
+/** True when a fixed activity already has a pending or approved submission by the user (rejected ones do not count). */
+export async function hasActiveSubmission(activityId: string, userId: string): Promise<boolean> {
+  const supabase = await createServerClient();
+  const { count, error } = await supabase
+    .from("submissions")
+    .select("id", { count: "exact", head: true })
+    .eq("activity_id", activityId)
+    .eq("student_id", userId)
+    .in("status", ["pending", "approved"]);
+  if (error) throw new Error(`hasActiveSubmission: ${error.message}`);
+  return (count ?? 0) > 0;
+}
+
 /** Open activities the user has not joined, and every activity the user joined. */
 export async function listActivitiesForStudent(
   userId: string,

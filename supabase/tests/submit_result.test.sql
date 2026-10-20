@@ -234,6 +234,11 @@ select is((select si.waste_category_id from public.submission_items si join publ
             where s.activity_id = '00000000-0000-0000-0000-000000003504'), null, 'fixed item has no category');
 select isnt((select used_at from public.weigh_codes where code = '222222'), null, 'used code has used_at');
 select is((select attempts from public.weigh_codes where code = '222222'), 0, 'right code adds no attempt');
+-- fixed is once per student (pending/approved, 0012): reject this one so the code logic is reached again
+reset role;
+update public.submissions set status = 'rejected' where activity_id = '00000000-0000-0000-0000-000000003504';
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000003101","role":"authenticated"}', true);
 select is(public.submit_result('00000000-0000-0000-0000-000000003504', '222222', null,
   '00000000-0000-0000-0000-000000003101/u1/a.jpg') ->> 'error_code', 'code_invalid', 'reusing the used code returns code_invalid');
 select is((select count(*) from public.submissions where activity_id = '00000000-0000-0000-0000-000000003504'), 1::bigint,
@@ -282,9 +287,15 @@ select is((select count(distinct si.waste_category_id) from public.submission_it
 -- (ซ) activities without a code: no code needed, a given code is ignored
 select is(public.submit_result('00000000-0000-0000-0000-000000003503', null, null,
   '00000000-0000-0000-0000-000000003101/p3/a.jpg') ->> 'ok', 'true', 'fixed without code succeeds with no code');
+-- fixed is once per student (0012): after a rejection a second submission is allowed
+reset role;
+update public.submissions set status = 'rejected' where activity_id = '00000000-0000-0000-0000-000000003503';
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000003101","role":"authenticated"}', true);
 select is(public.submit_result('00000000-0000-0000-0000-000000003503', '999999', '[]'::jsonb,
-  '00000000-0000-0000-0000-000000003101/p4/a.jpg') ->> 'ok', 'true', 'a code is ignored when not required (multiple submissions allowed)');
-select is(public.submit_result('00000000-0000-0000-0000-000000003503', null, null,
+  '00000000-0000-0000-0000-000000003101/p4/a.jpg') ->> 'ok', 'true', 'a code is ignored when not required (resubmit after rejection)');
+select is(public.submit_result('00000000-0000-0000-0000-000000003501', null,
+  jsonb_build_array(jsonb_build_object('waste_category_id', (select id from public.waste_categories where name = 'พลาสติก'), 'quantity', 100)),
   '00000000-0000-0000-0000-000000003101/p3/a.jpg') ->> 'error_code', 'evidence_already_used', 'a photo that backs another submission returns evidence_already_used');
 select is((select count(*) from public.submission_items si join public.submissions s on s.id = si.submission_id
             where s.activity_id = '00000000-0000-0000-0000-000000003503'), 2::bigint, 'fixed with [] or null both store one item each');
@@ -305,6 +316,10 @@ select is(public.submit_result('00000000-0000-0000-0000-000000003507', null, nul
   '00000000-0000-0000-0000-000000003101/p7/a.jpg') ->> 'ok', 'true', 'inside ends_at .. ends_at + 3 days succeeds');
 select is(public.submit_result('00000000-0000-0000-0000-000000003509', null, null,
   '00000000-0000-0000-0000-000000003101/p8/a.jpg') ->> 'ok', 'true', 'closed activity inside the window succeeds (R18)');
+reset role;
+update public.submissions set status = 'rejected' where activity_id = '00000000-0000-0000-0000-000000003509';
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000003101","role":"authenticated"}', true);
 select ok(set_config('sr.sid', public.submit_result('00000000-0000-0000-0000-000000003509', null, null,
   '00000000-0000-0000-0000-000000003101/p9/a.jpg') ->> 'submission_id', true) is not null, 'a submission_id is returned');
 select is((select activity_id from public.submissions where id = current_setting('sr.sid')::uuid),

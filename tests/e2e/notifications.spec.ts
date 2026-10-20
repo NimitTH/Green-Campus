@@ -33,9 +33,10 @@ test("approval raises the student's bell live; reading lowers it; other students
   try {
     teacher = await createConfirmedUser("teacher", `teacher-nt-${suffix}`);
     student = await createConfirmedUser("student", `student-nt-${suffix}`);
+    // trees, not fixed: fixed allows one pending/approved submission per student, this test seeds three
     other = await createConfirmedUser("student", `other-nt-${suffix}`);
-    const activityId = await createJoinedCodeActivity(title, student.id, { requires_code: false });
-    await seedSubmission(student, activityId, PNG_1X1);
+    const activityId = await createJoinedCodeActivity(title, student.id, { requires_code: false, type: "trees", unit_points: 5 });
+    await seedSubmission(student, activityId, PNG_1X1, [{ quantity: 1 }]);
 
     const studentPage = await studentContext.newPage();
     const otherPage = await otherContext.newPage();
@@ -71,8 +72,8 @@ test("approval raises the student's bell live; reading lowers it; other students
 
     // two more approvals, then "อ่านทั้งหมด"
     const c = await signedInClient(teacher);
-    const second = await seedSubmission(student, activityId, PNG_1X1);
-    const third = await seedSubmission(student, activityId, PNG_1X1);
+    const second = await seedSubmission(student, activityId, PNG_1X1, [{ quantity: 1 }]);
+    const third = await seedSubmission(student, activityId, PNG_1X1, [{ quantity: 1 }]);
     for (const id of [second, third]) {
       const { error } = await c.rpc("approve_submission", { p_submission_id: id });
       expect(error).toBeNull();

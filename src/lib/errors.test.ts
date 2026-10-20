@@ -72,6 +72,7 @@ describe("submit errors (submit_result, image upload)", () => {
     "invalid_items",
     "bad_evidence_path",
     "evidence_already_used",
+    "already_submitted",
   ];
   const clientCodes = ["not_image", "image_too_large", "upload_failed"];
   it.each([...submitCodes, ...clientCodes])("has a Thai message for %s", (code) => {

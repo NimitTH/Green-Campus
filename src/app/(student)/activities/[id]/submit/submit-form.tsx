@@ -26,7 +26,7 @@ type Weight = { kg: string; khit: string };
 /** Upload and the submit call each give up after this long, so the button never stays on loading. */
 const REQUEST_TIMEOUT_MS = 60_000;
 /** After these the student may already have a submission (lost response): point to ผลที่ส่ง. */
-const CHECK_HISTORY_CODES = new Set(["code_invalid", "request_timeout", "evidence_already_used"]);
+const CHECK_HISTORY_CODES = new Set(["code_invalid", "request_timeout", "evidence_already_used", "already_submitted"]);
 
 const inputClass =
   "w-full rounded-lg border border-gray-300 px-3 py-2 text-base dark:border-gray-700 dark:bg-gray-900";

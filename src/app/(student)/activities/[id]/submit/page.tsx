@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { requireUser } from "@/lib/auth/dal";
-import { getActivity, hasJoined } from "@/lib/activities/queries";
+import { getActivity, hasActiveSubmission, hasJoined } from "@/lib/activities/queries";
 import { inSubmitWindow } from "@/lib/activities/status";
 import { createServerClient } from "@/lib/supabase/server";
 import { isUuid } from "@/lib/uuid";
@@ -57,6 +57,20 @@ async function Submit({ params }: { params: Promise<{ id: string }> }) {
       <Notice activityId={activity.id}>
         ตอนนี้ส่งผลไม่ได้ เพราะกิจกรรมยังไม่เริ่ม หรือเลยช่วงส่งผลแล้ว (ส่งได้ถึง 3 วันหลังกิจกรรมสิ้นสุด)
       </Notice>
+    );
+  }
+
+  if (activity.type === "fixed" && (await hasActiveSubmission(activity.id, user.id))) {
+    return (
+      <>
+        {back}
+        <section className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-gray-600 dark:border-gray-700 dark:text-gray-400">
+          <p className="font-semibold">ส่งผลแล้ว</p>
+          <Link href="/my-submissions" className="mt-3 inline-block text-sm text-green-700 underline">
+            ดูผลที่ส่ง
+          </Link>
+        </section>
+      </>
     );
   }
 
