@@ -56,6 +56,15 @@ async function StaffHome() {
             ออกรหัส 6 หลักให้นักเรียนที่มาชั่ง
           </span>
         </Link>
+        <Link
+          href="/staff/rewards"
+          className="block rounded-2xl border border-gray-200 p-4 font-semibold hover:border-green-600 dark:border-gray-800"
+        >
+          ของรางวัล
+          <span className="block text-sm font-normal text-gray-600 dark:text-gray-400">
+            เพิ่ม แก้ไข สต็อก และเปิด/ปิดการแลก
+          </span>
+        </Link>
       </nav>
       <section className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-gray-600 dark:border-gray-700 dark:text-gray-400">
         ยังไม่มีข้อมูล

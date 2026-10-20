@@ -1,0 +1,49 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { Suspense } from "react";
+import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { requireStaff } from "@/lib/auth/dal";
+import { isAdminRole } from "@/lib/auth/routes";
+import { getReward } from "@/lib/rewards/queries";
+import { rewardToInput } from "@/lib/rewards/validation";
+import { isUuid } from "@/lib/uuid";
+import { DeleteRewardButton } from "../../_components/delete-reward-button";
+import { RewardForm } from "../../_components/reward-form";
+
+export const metadata: Metadata = { title: "แก้ไขของรางวัล | Green Campus" };
+
+// cacheComponents: params are request-time data, read them inside <Suspense>.
+export default function EditRewardPage({ params }: { params: Promise<{ id: string }> }) {
+  return (
+    <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
+      <h1 className="mb-5 text-xl font-semibold">แก้ไขของรางวัล</h1>
+      <Suspense fallback={<PageSkeleton />}>
+        <EditReward params={params} />
+      </Suspense>
+    </main>
+  );
+}
+
+async function EditReward({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const user = await requireStaff(`/staff/rewards/${encodeURIComponent(id)}/edit`);
+  if (!isUuid(id)) notFound();
+  const reward = await getReward(id);
+  if (!reward) notFound();
+  return (
+    <>
+      <RewardForm initial={rewardToInput(reward)} id={reward.id} imageUrl={reward.imageUrl} />
+      {isAdminRole(user.role) ? (
+        <section aria-labelledby="delete-heading" className="mt-10 border-t border-gray-200 pt-6 dark:border-gray-800">
+          <h2 id="delete-heading" className="mb-2 font-semibold">
+            ลบของรางวัล
+          </h2>
+          <p className="mb-3 text-sm text-gray-600 dark:text-gray-400">
+            ลบได้เฉพาะของรางวัลที่ยังไม่มีคนแลก ถ้ามีคนแลกแล้วให้ปิดการแลกแทน
+          </p>
+          <DeleteRewardButton rewardId={reward.id} name={reward.name} />
+        </section>
+      ) : null}
+    </>
+  );
+}

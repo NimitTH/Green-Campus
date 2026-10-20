@@ -213,3 +213,59 @@ export async function wasteRates(name: string): Promise<{ pointsPerKg: number; c
   const row = data as { points_per_kg: number; carbon_kg_per_kg: number | string };
   return { pointsPerKg: row.points_per_kg, carbonKgPerKg: Number(row.carbon_kg_per_kg) };
 }
+
+// Rewards and cart (Task 12) ---------------------------------------------------------------
+
+type RewardRow = { id: string; name: string; points_cost: number; stock: number; active: boolean; image_path: string | null };
+
+/** A reward row created through the service role. Returns its id. */
+export async function createRewardRow(name: string, pointsCost: number, stock: number, active = true): Promise<string> {
+  const { data, error } = await admin()
+    .from("rewards")
+    .insert({ name, points_cost: pointsCost, stock, active })
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(`e2e: create reward failed: ${error?.message}`);
+  return (data as { id: string }).id;
+}
+
+export async function setRewardActive(id: string, active: boolean): Promise<void> {
+  const { error } = await admin().from("rewards").update({ active }).eq("id", id);
+  if (error) throw new Error(`e2e: set reward active failed: ${error.message}`);
+}
+
+/** A reward by exact name (service role), or null. */
+export async function findReward(name: string): Promise<RewardRow | null> {
+  const { data, error } = await admin()
+    .from("rewards")
+    .select("id, name, points_cost, stock, active, image_path")
+    .eq("name", name)
+    .maybeSingle();
+  if (error) throw new Error(`e2e: find reward failed: ${error.message}`);
+  return data as RewardRow | null;
+}
+
+/** Remove rewards by name with their images (cart rows cascade, 0001). */
+export async function deleteRewardsByName(names: string[]): Promise<void> {
+  for (const name of names) {
+    const { data } = await admin().from("rewards").select("id, image_path").eq("name", name);
+    for (const row of (data ?? []) as { id: string; image_path: string | null }[]) {
+      if (row.image_path) await admin().storage.from("reward-images").remove([row.image_path]);
+    }
+    const { error } = await admin().from("rewards").delete().eq("name", name);
+    if (error) console.warn(`e2e cleanup: delete reward "${name}" failed: ${error.message}`);
+  }
+}
+
+/** Give a student points through an 'adjust' ledger row (service role). */
+export async function grantPoints(studentId: string, points: number): Promise<void> {
+  const { error } = await admin().from("ledger_entries").insert({ student_id: studentId, kind: "adjust", points, note: "e2e" });
+  if (error) throw new Error(`e2e: grant points failed: ${error.message}`);
+}
+
+/** Cart rows of one student (service role). */
+export async function listCart(studentId: string): Promise<{ reward_id: string; qty: number }[]> {
+  const { data, error } = await admin().from("cart_items").select("reward_id, qty").eq("student_id", studentId);
+  if (error) throw new Error(`e2e: list cart failed: ${error.message}`);
+  return (data ?? []) as { reward_id: string; qty: number }[];
+}

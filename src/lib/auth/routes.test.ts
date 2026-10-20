@@ -9,7 +9,7 @@ import {
 } from "./routes";
 
 describe("isProtectedPath", () => {
-  it.each(["/dashboard", "/dashboard/x", "/staff", "/staff/users", "/staff/reviews/1", "/activities", "/activities/abc", "/activities/abc/submit", "/my-submissions", "/notifications"])(
+  it.each(["/dashboard", "/dashboard/x", "/staff", "/staff/users", "/staff/reviews/1", "/activities", "/activities/abc", "/activities/abc/submit", "/my-submissions", "/notifications", "/rewards", "/cart"])(
     "%s needs a signed-in user",
     (p) => expect(isProtectedPath(p)).toBe(true),
   );
