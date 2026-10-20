@@ -28,3 +28,9 @@ export function summaryTh(type: ActivityType, quantities: number[]): string {
   if (type === "trees") return `${total.toLocaleString("en-US")} ต้น`;
   return "เข้าร่วม";
 }
+
+/** Review page line about the student's other submissions in the same activity; null when none. */
+export function studentHistoryTh(pending: number, approved: number): string | null {
+  if (pending === 0 && approved === 0) return null;
+  return `นักเรียนคนนี้มีผลในกิจกรรมนี้: รอตรวจ ${pending} ครั้ง, อนุมัติแล้ว ${approved} ครั้ง`;
+}

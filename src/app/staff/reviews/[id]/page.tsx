@@ -9,11 +9,12 @@ import { requireStaff } from "@/lib/auth/dal";
 import { formatBangkok } from "@/lib/datetime";
 import { ABNORMAL_FACTOR, isAbnormalTotal, submissionTotal } from "@/lib/reviews/abnormal";
 import { estimateSubmission } from "@/lib/reviews/estimate";
-import { formatGramsTh, formatKgTh } from "@/lib/reviews/format";
+import { formatGramsTh, formatKgTh, studentHistoryTh } from "@/lib/reviews/format";
 import {
   evidenceSignedUrl,
   getSubmissionForReview,
   otherSubmissionTotals,
+  studentActivityHistory,
   type SubmissionForReview,
 } from "@/lib/reviews/queries";
 import { isUuid } from "@/lib/uuid";
@@ -46,11 +47,13 @@ async function Review({ params }: { params: Promise<{ id: string }> }) {
   if (!submission) notFound();
 
   const total = submissionTotal(submission.activity.type, submission.items.map((i) => i.quantity));
-  const [photoUrl, others] = await Promise.all([
+  const [photoUrl, others, history] = await Promise.all([
     evidenceSignedUrl(submission.evidencePath),
     total === null ? Promise.resolve([]) : otherSubmissionTotals(submission.activity.id, submission.id),
+    studentActivityHistory(submission.activity.id, submission.studentId, submission.id),
   ]);
   const abnormal = isAbnormalTotal(total, others);
+  const historyLine = studentHistoryTh(history.pending, history.approved);
   const pending = submission.status === "pending";
 
   return (
@@ -69,6 +72,12 @@ async function Review({ params }: { params: Promise<{ id: string }> }) {
           <dd>{formatBangkok(submission.createdAt)}</dd>
         </dl>
       </div>
+
+      {historyLine ? (
+        <p data-testid="student-history" className="mb-4 text-sm text-gray-700 dark:text-gray-300">
+          {historyLine}
+        </p>
+      ) : null}
 
       <div className="grid gap-6 md:grid-cols-2">
         <section aria-labelledby="photo-heading">

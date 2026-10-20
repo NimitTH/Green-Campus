@@ -8,6 +8,7 @@ import { submitErrorMessageTh, uploadErrorCode } from "@/lib/errors";
 import { ImageError, resizeToJpeg } from "@/lib/image";
 import { createBrowserClient } from "@/lib/supabase/browser";
 import { TimeoutError, withTimeout } from "@/lib/timeout";
+import { uniqueId } from "@/lib/unique-id";
 import { estimateWaste, toGrams } from "@/lib/units";
 
 export type WasteCategoryOption = { id: string; name: string; pointsPerKg: number; carbonKgPerKg: number };
@@ -138,7 +139,7 @@ export function SubmitForm({
     setStage("กำลังย่อรูป...");
     const jpeg = await resizeToJpeg(photo);
     setStage("กำลังอัปโหลดรูป...");
-    const path = `${userId}/${crypto.randomUUID()}/evidence.jpg`;
+    const path = `${userId}/${uniqueId()}/evidence.jpg`;
     let failure: string | null;
     try {
       const { error: uploadError } = await withTimeout(

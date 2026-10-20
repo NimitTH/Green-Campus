@@ -44,7 +44,7 @@ export async function saveActivity(input: ActivityInput & { id?: string }): Prom
       .select("id")
       .maybeSingle();
     if (error) {
-      // activity_type_locked (R38): the type cannot change once a submission exists.
+      // activity_type_locked (R38) and activity_status_locked (no back to draft once joined) map to Thai here.
       const code = errorCodeFromDb(error);
       if (!code) console.error("saveActivity update failed", error.code, error.message);
       return { error: errorMessageTh(code) };

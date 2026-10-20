@@ -61,7 +61,17 @@ function TextField({
   );
 }
 
-export function ActivityForm({ initial, id }: { initial: ActivityInput; id?: string }) {
+export function ActivityForm({
+  initial,
+  id,
+  hasParticipants = false,
+}: {
+  initial: ActivityInput;
+  id?: string;
+  hasParticipants?: boolean;
+}) {
+  // Once students joined, a non-draft activity cannot go back to draft (activity_status_locked).
+  const draftLocked = hasParticipants && initial.status !== "draft";
   const [state, action, pending] = useActionState<ActivityFormState, FormData>(saveActivityForm, undefined);
   const values = state?.values ?? initial;
   const errors = state?.fieldErrors;
@@ -241,7 +251,9 @@ export function ActivityForm({ initial, id }: { initial: ActivityInput; id?: str
           aria-invalid={errors?.status ? true : undefined}
           className={inputClass}
         >
-          <option value="draft">ฉบับร่าง (นักเรียนยังไม่เห็น)</option>
+          <option value="draft" disabled={draftLocked}>
+            ฉบับร่าง (นักเรียนยังไม่เห็น){draftLocked ? " - เลือกไม่ได้ เพราะมีนักเรียนเข้าร่วมแล้ว" : ""}
+          </option>
           <option value="open">เปิดรับ</option>
           <option value="closed">ปิดแล้ว</option>
         </select>

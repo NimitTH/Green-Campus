@@ -4,13 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createBrowserClient } from "@/lib/supabase/browser";
-
-function uniqueId(): string {
-  // randomUUID needs a secure context (localhost counts); fall back for plain http.
-  return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+import { uniqueId } from "@/lib/unique-id";
 
 /** Badge text: the unread count, capped at "9+". */
 export function badgeText(count: number): string {

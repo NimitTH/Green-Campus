@@ -184,3 +184,25 @@ export async function evidenceSignedUrl(path: string | null): Promise<string | n
   }
   return data?.signedUrl ?? null;
 }
+
+/** Counts of the student's OTHER pending and approved submissions in the same activity (staff RLS). */
+export async function studentActivityHistory(
+  activityId: string,
+  studentId: string,
+  excludeId: string,
+): Promise<{ pending: number; approved: number }> {
+  const supabase = await createServerClient();
+  const count = async (status: "pending" | "approved") => {
+    const { count: n, error } = await supabase
+      .from("submissions")
+      .select("id", { count: "exact", head: true })
+      .eq("activity_id", activityId)
+      .eq("student_id", studentId)
+      .eq("status", status)
+      .neq("id", excludeId);
+    if (error) throw new Error(`studentActivityHistory: ${error.message}`);
+    return n ?? 0;
+  };
+  const [pending, approved] = await Promise.all([count("pending"), count("approved")]);
+  return { pending, approved };
+}

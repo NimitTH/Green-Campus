@@ -16,6 +16,9 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           <Link href="/activities" className="hover:underline">
             กิจกรรม
           </Link>
+          <Link href="/my-submissions" className="hover:underline">
+            ผลที่ส่ง
+          </Link>
         </nav>
         <NotificationBell />
       </header>

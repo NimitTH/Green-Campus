@@ -115,7 +115,10 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000
 select is((select count(*) from public.activities where id = '00000000-0000-0000-0000-000000001501'),
   0::bigint, 'student who never joined cannot see the closed activity');
 reset role;
+-- 0011 forbids this transition now; bypass it to keep covering the RLS rule for rows already in that state.
+alter table public.activities disable trigger activities_prevent_draft_with_participants;
 update public.activities set status = 'draft' where id = '00000000-0000-0000-0000-000000001501';
+alter table public.activities enable trigger activities_prevent_draft_with_participants;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000001101","role":"authenticated"}', true);
 select is((select count(*) from public.activities where id = '00000000-0000-0000-0000-000000001501'),

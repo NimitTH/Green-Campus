@@ -171,3 +171,11 @@ describe("activity type lock (trigger activity_type_locked)", () => {
     expect(errorCodeFromDb({ message: "activity_type_locked" })).toBe("activity_type_locked");
   });
 });
+
+describe("activity_status_locked", () => {
+  it("is a known db code with a Thai message", async () => {
+    const { errorCodeFromDb, errorMessageTh } = await import("./errors");
+    expect(errorCodeFromDb({ message: "activity_status_locked" })).toBe("activity_status_locked");
+    expect(errorMessageTh("activity_status_locked")).toContain("ฉบับร่าง");
+  });
+});

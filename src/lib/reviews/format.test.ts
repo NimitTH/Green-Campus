@@ -33,3 +33,15 @@ describe("summaryTh", () => {
     expect(summaryTh("fixed", [1])).toBe("เข้าร่วม");
   });
 });
+
+describe("studentHistoryTh", () => {
+  it("formats pending and approved counts", async () => {
+    const { studentHistoryTh } = await import("./format");
+    expect(studentHistoryTh(2, 1)).toBe("นักเรียนคนนี้มีผลในกิจกรรมนี้: รอตรวจ 2 ครั้ง, อนุมัติแล้ว 1 ครั้ง");
+    expect(studentHistoryTh(0, 3)).toBe("นักเรียนคนนี้มีผลในกิจกรรมนี้: รอตรวจ 0 ครั้ง, อนุมัติแล้ว 3 ครั้ง");
+  });
+  it("is null when both are zero", async () => {
+    const { studentHistoryTh } = await import("./format");
+    expect(studentHistoryTh(0, 0)).toBeNull();
+  });
+});

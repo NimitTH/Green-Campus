@@ -6,6 +6,7 @@ import { requireStaff } from "@/lib/auth/dal";
 import { getActivity } from "@/lib/activities/queries";
 import { activityToInput } from "@/lib/activities/validation";
 import { isUuid } from "@/lib/uuid";
+import { createServerClient } from "@/lib/supabase/server";
 import { ActivityForm } from "../../_components/activity-form";
 import { DeleteActivityButton } from "../../_components/delete-activity-button";
 
@@ -29,9 +30,15 @@ async function EditActivity({ params }: { params: Promise<{ id: string }> }) {
   if (!isUuid(id)) notFound();
   const activity = await getActivity(id);
   if (!activity) notFound();
+  // Convenience only: activity_status_locked (trigger) is the real boundary.
+  const supabase = await createServerClient();
+  const { count: participants } = await supabase
+    .from("participations")
+    .select("id", { count: "exact", head: true })
+    .eq("activity_id", id);
   return (
     <>
-      <ActivityForm initial={activityToInput(activity)} id={activity.id} />
+      <ActivityForm initial={activityToInput(activity)} id={activity.id} hasParticipants={(participants ?? 0) > 0} />
       <section aria-labelledby="delete-heading" className="mt-10 border-t border-gray-200 pt-6 dark:border-gray-800">
         <h2 id="delete-heading" className="mb-2 font-semibold">
           ลบกิจกรรม
