@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { NotificationBell } from "@/components/NotificationBell";
 import { Suspense } from "react";
 import { requireStaff } from "@/lib/auth/dal";
 import { PageSkeleton } from "../_components/page-skeleton";
@@ -10,10 +11,11 @@ import { PageSkeleton } from "../_components/page-skeleton";
 export default function StaffLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-1 flex-col">
-      <header className="border-b border-gray-200 px-4 py-3 dark:border-gray-800">
+      <header className="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-800">
         <Link href="/staff" className="font-semibold text-green-700">
           Green Campus · ครูและผู้ดูแล
         </Link>
+        <NotificationBell />
       </header>
       <Suspense fallback={<PageSkeleton />}>
         <StaffGate>{children}</StaffGate>

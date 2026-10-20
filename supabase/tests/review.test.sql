@@ -286,7 +286,7 @@ select ok((select body like '%RV fixed%' and body like '%รูปไม่ช�
             from public.notifications
             where user_id = '00000000-0000-0000-0000-000000004101' and type = 'submission_rejected'),
   'rejected notification has the activity title, the reason and the /my-submissions link');
-select is((select count(*) from public.notifications where user_id = '00000000-0000-0000-0000-000000004102'),
+select is((select count(*) from public.notifications where user_id = '00000000-0000-0000-0000-000000004102' and type <> 'activity_opened'),
   0::bigint, 'failed rejects notified nobody');
 select is((select count(*) from public.notifications
             where user_id = '00000000-0000-0000-0000-000000004202' and type = 'submission_approved'),

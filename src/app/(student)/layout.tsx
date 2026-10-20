@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { NotificationBell } from "@/components/NotificationBell";
 
 // Student area shell. No session read here: each page checks the user inside <Suspense>.
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
@@ -16,6 +17,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             กิจกรรม
           </Link>
         </nav>
+        <NotificationBell />
       </header>
       {children}
     </div>

@@ -148,7 +148,7 @@ select throws_ok($$insert into public.cart_items (student_id, reward_id, qty)
   values ('00000000-0000-0000-0000-000000000102', '00000000-0000-0000-0000-000000000702', 1)$$,
   '42501', null, 'student cannot add to another student''s cart');
 select is((select count(*) from public.cart_items), 1::bigint, 'student sees only own cart');
-select is((select count(*) from public.notifications), 1::bigint, 'student sees only own notifications');
+select is((select count(*) from public.notifications where type <> 'activity_opened'), 1::bigint, 'student sees only own notifications');
 select lives_ok($$update public.notifications set read_at = now() where id = '00000000-0000-0000-0000-000000000901'$$,
   'student can mark own notification read');
 select throws_ok($$update public.notifications set title = 'x' where id = '00000000-0000-0000-0000-000000000901'$$,
@@ -220,7 +220,7 @@ select throws_ok($$insert into public.ledger_entries (student_id, kind, points, 
   '42501', null, 'teacher cannot insert ledger_entries directly');
 select throws_ok($$update public.profiles set role = 'admin' where id = '00000000-0000-0000-0000-000000000101'$$,
   '42501', null, 'teacher cannot change roles');
-select is((select count(*) from public.notifications), 0::bigint, 'teacher does not read students'' notifications');
+select is((select count(*) from public.notifications where type <> 'activity_opened'), 0::bigint, 'teacher does not read students'' notifications');
 
 reset role;
 

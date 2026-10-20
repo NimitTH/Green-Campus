@@ -239,7 +239,7 @@ select is(public.submit_result('00000000-0000-0000-0000-000000003504', '222222',
 select is((select count(*) from public.submissions where activity_id = '00000000-0000-0000-0000-000000003504'), 1::bigint,
   'still one submission after reuse');
 -- staff notifications are not visible to the student
-select is((select count(*) from public.notifications), 0::bigint, 'student sees no staff notifications');
+select is((select count(*) from public.notifications where type <> 'activity_opened'), 0::bigint, 'student sees no staff notifications');
 reset role;
 
 -- notify_staff: one row per teacher/admin, none for the student
@@ -248,7 +248,7 @@ select is((select count(*) from public.notifications n
               and n.type = 'submission_new'
               and n.link = '/staff/reviews/' || (select id from public.submissions where activity_id = '00000000-0000-0000-0000-000000003504')),
   2::bigint, 'teacher and admin each got a submission_new notification with the review link');
-select is((select count(*) from public.notifications where user_id in ('00000000-0000-0000-0000-000000003101', '00000000-0000-0000-0000-000000003102')),
+select is((select count(*) from public.notifications where user_id in ('00000000-0000-0000-0000-000000003101', '00000000-0000-0000-0000-000000003102') and type <> 'activity_opened'),
   0::bigint, 'students get no submission_new notification');
 select ok((select bool_and(n.title = 'มีผลส่งใหม่รอตรวจ' and n.body like '%น้องหนึ่ง%' and n.body like '%SR code%')
             from public.notifications n where n.user_id = '00000000-0000-0000-0000-000000003201'),

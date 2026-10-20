@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { requireUser } from "@/lib/auth/dal";
 import { isStaffRole } from "@/lib/auth/routes";
+import { NotificationBell } from "@/components/NotificationBell";
 import { PageSkeleton } from "../_components/page-skeleton";
 import { SignOutButton } from "../_components/sign-out-button";
 
@@ -28,7 +29,10 @@ async function DashboardContent() {
           <p className="text-sm text-gray-500">สวัสดี</p>
           <h1 className="text-xl font-semibold">{user.displayName || user.fullName}</h1>
         </div>
-        <SignOutButton />
+        <div className="flex items-center gap-2">
+          <NotificationBell />
+          <SignOutButton />
+        </div>
       </div>
       <nav aria-label="เมนูนักเรียน" className="mb-4">
         <Link
