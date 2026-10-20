@@ -97,8 +97,14 @@ async function Order({ params }: { params: Promise<{ id: string }> }) {
         ) : null}
       </dl>
 
-      {/* Task 14: the PDF receipt download goes here. */}
-      <div data-slot="receipt" />
+      {/* Task 14: the PDF receipt, for every status (a plain link: the route answers with an attachment). */}
+      <a
+        href={`/api/receipts/${order.id}`}
+        download
+        className="block rounded-lg border border-green-700 px-4 py-3 text-center font-medium text-green-700 hover:bg-green-50 dark:hover:bg-green-950"
+      >
+        ดาวน์โหลดใบเสร็จ
+      </a>
     </article>
   );
 }
