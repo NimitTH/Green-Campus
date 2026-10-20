@@ -7,7 +7,7 @@ import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { requireUser } from "@/lib/auth/dal";
 import { isStaffRole } from "@/lib/auth/routes";
 import { formatBangkok } from "@/lib/datetime";
-import { orderNumber, orderStatusLabelTh, orderStatusTone } from "@/lib/orders/format";
+import { isOrderReady, orderNumber, orderStatusLabelTh, orderStatusTone } from "@/lib/orders/format";
 import { getOrder } from "@/lib/orders/queries";
 import { isUuid } from "@/lib/uuid";
 
@@ -48,14 +48,15 @@ async function Order({ params }: { params: Promise<{ id: string }> }) {
           {orderNumber(order.id)}
         </h1>
         <p className="mt-2" data-testid="order-status">
-          <Badge tone={orderStatusTone(order.status)}>{orderStatusLabelTh(order.status)}</Badge>
+          <Badge tone={orderStatusTone(order.status, order.readyAt)}>{orderStatusLabelTh(order.status, order.readyAt)}</Badge>
         </p>
         {staff && order.studentName ? <p className="mt-2 text-sm break-words">{order.studentName}</p> : null}
       </header>
 
       {pending ? (
         <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
-          รับของที่แผนกก่อนวันที่ {formatBangkok(order.expiresAt)} ถ้าไม่มารับ ออเดอร์จะหมดอายุและได้แต้มคืน
+          {isOrderReady(order.status, order.readyAt) ? "ของพร้อมแล้ว รับที่แผนกก่อนวันที่" : "รับของที่แผนกก่อนวันที่"}{" "}
+          {formatBangkok(order.expiresAt)} ถ้าไม่มารับ ออเดอร์จะหมดอายุและได้แต้มคืน
         </p>
       ) : null}
 

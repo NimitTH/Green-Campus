@@ -1,22 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { blockedReasonTh, isOrderOverdue, orderIdRange, orderNumber, orderStatusLabelTh, orderStatusTone, parseBlocked } from "./format";
+import { blockedReasonTh, isOrderOverdue, isOrderReady, orderIdRange, orderNumber, orderStatusLabelTh, orderStatusTone, parseBlocked } from "./format";
 
 describe("orderStatusLabelTh", () => {
+  const READY = "2026-10-21T03:00:00+00:00";
   it.each([
-    ["pending_pickup", "รอรับของ"],
-    ["completed", "รับแล้ว"],
-    ["cancelled", "ยกเลิก"],
-    ["expired", "หมดอายุ"],
-  ])("%s -> %s", (status, label) => {
-    expect(orderStatusLabelTh(status)).toBe(label);
+    ["pending_pickup", null, "รอเตรียมของ"],
+    ["pending_pickup", undefined, "รอเตรียมของ"],
+    ["pending_pickup", READY, "พร้อมรับ"],
+    ["completed", null, "รับแล้ว"],
+    ["completed", READY, "รับแล้ว"],
+    ["cancelled", null, "ยกเลิก"],
+    ["cancelled", READY, "ยกเลิก"],
+    ["expired", null, "หมดอายุ"],
+    ["expired", READY, "หมดอายุ"],
+  ])("%s, ready_at %s -> %s", (status, readyAt, label) => {
+    expect(orderStatusLabelTh(status, readyAt)).toBe(label);
   });
   it("passes unknown values through", () => {
     expect(orderStatusLabelTh("toString")).toBe("toString");
   });
   it("tones", () => {
     expect(orderStatusTone("pending_pickup")).toBe("amber");
+    expect(orderStatusTone("pending_pickup", READY)).toBe("green");
     expect(orderStatusTone("completed")).toBe("green");
     expect(orderStatusTone("expired")).toBe("gray");
+  });
+});
+
+describe("isOrderReady", () => {
+  it("is true only for a pending order with ready_at", () => {
+    expect(isOrderReady("pending_pickup", "2026-10-21T03:00:00Z")).toBe(true);
+    expect(isOrderReady("pending_pickup", null)).toBe(false);
+    expect(isOrderReady("completed", "2026-10-21T03:00:00Z")).toBe(false);
   });
 });
 

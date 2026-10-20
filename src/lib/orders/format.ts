@@ -3,18 +3,26 @@
 export type OrderStatus = "pending_pickup" | "completed" | "cancelled" | "expired";
 
 const STATUS_TH: Record<OrderStatus, string> = {
-  pending_pickup: "รอรับของ",
+  pending_pickup: "รอเตรียมของ",
   completed: "รับแล้ว",
   cancelled: "ยกเลิก",
   expired: "หมดอายุ",
 };
 
-export function orderStatusLabelTh(status: string): string {
+/** Pending and prepared by staff (orders.ready_at set, owner decision 2026-10-21). */
+export function isOrderReady(status: string, readyAt: string | null | undefined): boolean {
+  return status === "pending_pickup" && !!readyAt;
+}
+
+/** The single status label: pending_pickup is รอเตรียมของ until staff mark it ready (พร้อมรับ). */
+export function orderStatusLabelTh(status: string, readyAt?: string | null): string {
+  if (isOrderReady(status, readyAt)) return "พร้อมรับ";
   return Object.prototype.hasOwnProperty.call(STATUS_TH, status) ? STATUS_TH[status as OrderStatus] : status;
 }
 
 /** Badge tone of a status. */
-export function orderStatusTone(status: string): "amber" | "green" | "gray" {
+export function orderStatusTone(status: string, readyAt?: string | null): "amber" | "green" | "gray" {
+  if (isOrderReady(status, readyAt)) return "green";
   if (status === "pending_pickup") return "amber";
   if (status === "completed") return "green";
   return "gray";

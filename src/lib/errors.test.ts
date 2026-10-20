@@ -183,7 +183,7 @@ describe("activity_status_locked", () => {
 });
 
 describe("order errors (Task 13)", () => {
-  it.each(["cart_empty", "blocked", "order_not_found", "order_not_pending", "order_expired", "not_admin", "not_student", "not_staff"])(
+  it.each(["cart_empty", "blocked", "order_not_found", "order_not_pending", "order_already_ready", "order_expired", "not_admin", "not_student", "not_staff"])(
     "has a Thai message for %s",
     (code) => {
       const message = orderErrorMessageTh(code);

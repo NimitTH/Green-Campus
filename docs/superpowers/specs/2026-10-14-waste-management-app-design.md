@@ -114,7 +114,7 @@
 | `ledger_entries` | student_id, kind (`earn`/`redeem`/`refund`/`adjust`), points, carbon_kg, ref_submission_id, ref_order_id, note (เหตุผลของ `adjust`), created_by |
 | `rewards` | name, points_cost, stock, image_path, active |
 | `cart_items` | student_id, reward_id, qty (unique คู่ student_id + reward_id) |
-| `orders` | student_id, status (`pending_pickup`/`completed`/`cancelled`/`expired`), total_points, expires_at (+7 วัน), completed_by, completed_at |
+| `orders` | student_id, status (`pending_pickup`/`completed`/`cancelled`/`expired`), total_points, expires_at (+7 วัน), ready_at (เว้นว่างได้ เวลาที่ครูเตรียมของเสร็จ สถานะยังเป็น `pending_pickup`), completed_by, completed_at |
 | `order_items` | order_id, reward_id, qty, unit_cost (ราคา ณ ตอนสั่ง) |
 | `notifications` | user_id, type, title, body, link, read_at |
 | `articles` | title, slug, body, cover_path, published, author_id |
@@ -174,7 +174,8 @@
 | `submit_result(activity_id, code, items, evidence_path)` | student | ดูรายละเอียดด้านล่าง |
 | `approve_submission(submission_id)` | staff | ล็อกแถวผล ตรวจ `pending` และไม่ใช่เจ้าของ คำนวณตาม 6.1 บันทึก `earn` เปลี่ยนสถานะ แจ้งนักเรียน |
 | `reject_submission(submission_id, reason)` | staff | ตรวจเงื่อนไข เปลี่ยนสถานะ แจ้งนักเรียน |
-| `checkout()` | student | ล็อกโปรไฟล์ → คำนวณแต้มจาก ledger → ล็อกแถวของรางวัลตรวจสต็อก → ตัดสต็อก, สร้างออเดอร์ (บันทึก `unit_cost`), บันทึก `redeem`, ล้าง cart, แจ้งเตือน |
+| `checkout()` | student | ล็อกโปรไฟล์ → คำนวณแต้มจาก ledger → ล็อกแถวของรางวัลตรวจสต็อก → ตัดสต็อก, สร้างออเดอร์ (บันทึก `unit_cost`), บันทึก `redeem`, ล้าง cart, แจ้งนักเรียน และแจ้งครู/admin ทุกคน (`order_new` ลิงก์ `/staff/orders`) ใน transaction เดียวกัน |
+| `mark_order_ready(order_id)` | staff | ล็อกออเดอร์ ตรวจว่ายัง `pending_pickup`, ยังไม่พ้น `expires_at` และยังไม่เคยกด แล้วตั้ง `ready_at` (สถานะไม่เปลี่ยน, `expires_at` ไม่ขยาย) แจ้งนักเรียน (`order_ready`) |
 | `complete_order(order_id)` | staff | `pending_pickup` → `completed` แจ้งนักเรียน |
 | `cancel_order(order_id)` | staff | `pending_pickup` → `cancelled` คืนสต็อกและบันทึก `refund` แจ้งนักเรียน |
 | `expire_orders()` | pg_cron (ทุกชั่วโมง) และปุ่ม admin | ออเดอร์ที่พ้น `expires_at` → `expired` คืนสต็อกและ `refund` แจ้งนักเรียน |
@@ -270,7 +271,7 @@
 | `/staff/activities` (+ สร้าง/แก้) | ครู, admin | เลือกหน่วยวัดและตัวเลือกบังคับรหัส |
 | `/staff/weigh-station` | ครู, admin | เลือกกิจกรรม ค้นหานักเรียน กดออกรหัส แสดงรหัสตัวใหญ่พร้อมนับถอยหลัง 30 นาที |
 | `/staff/reviews`, `/staff/reviews/[id]` | ครู, admin | คิวรอตรวจ และหน้าตรวจผล |
-| `/staff/orders` | ครู, admin | ออเดอร์ที่รอรับ ยืนยันรับแล้ว/ยกเลิก |
+| `/staff/orders` | ครู, admin | ออเดอร์ที่รอรับ ปุ่ม "เตรียมของเสร็จแล้ว" (ซ่อนเมื่อพร้อมแล้ว) ยืนยันรับแล้ว/ยกเลิก ออเดอร์ที่ยังไม่พร้อมกดยืนยันรับตรง ๆ ได้ |
 | `/staff/rewards`, `/staff/articles` | ครู, admin | จัดการของรางวัลและสต็อก, เขียนบทความ |
 | `/staff/reports` | ครู, admin | เลือกช่วงวันที่ ดูสรุปและดาวน์โหลด CSV/PDF |
 | `/staff/users`, `/staff/rates` | **admin เท่านั้น** | เปลี่ยนบทบาท, แก้อัตราแต้มและ carbon |
@@ -283,7 +284,11 @@
 
 ### 9.5 แจ้งเตือน
 ไอคอนกระดิ่งแสดงจำนวนยังไม่อ่านและอัปเดตทันทีด้วย Realtime (ตามสิทธิ์ RLS ของผู้ใช้) เหตุการณ์ที่สร้างแจ้งเตือน:
-ส่งผลใหม่ (ถึงครู/admin), ผลถูกอนุมัติ/ปฏิเสธ, แลกของสำเร็จ, ของพร้อมรับ/รับแล้ว, ออเดอร์ถูกยกเลิก/หมดอายุ, กิจกรรมใหม่เปิดรับ (ถึงนักเรียนทุกคน)
+ส่งผลใหม่ (ถึงครู/admin), ผลถูกอนุมัติ/ปฏิเสธ, แลกของสำเร็จ, ออเดอร์ใหม่ (ถึงครู/admin), ของพร้อมรับ (ครูกด "เตรียมของเสร็จแล้ว" ถึงนักเรียน), รับของแล้ว, ออเดอร์ถูกยกเลิก/หมดอายุ, กิจกรรมใหม่เปิดรับ (ถึงนักเรียนทุกคน)
+
+ป้ายสถานะออเดอร์: `pending_pickup` ที่ยังไม่มี `ready_at` = "รอเตรียมของ", มี `ready_at` = "พร้อมรับ", ที่เหลือ รับแล้ว / ยกเลิก / หมดอายุ
+
+**ตัดสินใจโดยผู้ใช้ 2026-10-21:** ออเดอร์มีขั้น "พร้อมรับ" (ครูกด "เตรียมของเสร็จแล้ว" เมื่อเตรียมของเสร็จ นักเรียนได้รับแจ้ง) และครู/admin ได้รับแจ้งเมื่อมีออเดอร์ใหม่
 
 ---
 

@@ -49,7 +49,7 @@ async function Orders() {
             <div className="flex items-start justify-between gap-3">
               <p className="font-mono font-semibold">เลขที่ {orderNumber(o.id)}</p>
               <span data-testid="order-status">
-                <Badge tone={orderStatusTone(o.status)}>{orderStatusLabelTh(o.status)}</Badge>
+                <Badge tone={orderStatusTone(o.status, o.readyAt)}>{orderStatusLabelTh(o.status, o.readyAt)}</Badge>
               </span>
             </div>
             <p className="mt-1 flex flex-wrap justify-between gap-2 text-sm text-gray-600 dark:text-gray-400">

@@ -1,10 +1,13 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { cancelOrder, completeOrder, type OrderActionResult } from "@/app/actions/orders";
+import { cancelOrder, completeOrder, markOrderReady, type OrderActionResult } from "@/app/actions/orders";
 
-/** "ยืนยันรับแล้ว" and a two-step "ยกเลิก" for one pending order. Both lock while either runs. */
-export function OrderActions({ orderId, label }: { orderId: string; label: string }) {
+/**
+ * "เตรียมของเสร็จแล้ว" (only while not ready), "ยืนยันรับแล้ว" and a two-step "ยกเลิก" for one pending
+ * order. All lock while any runs. A pending order that is not ready can still be completed directly.
+ */
+export function OrderActions({ orderId, label, ready }: { orderId: string; label: string; ready: boolean }) {
   const [pending, startTransition] = useTransition();
   const running = useRef(false);
   const [confirming, setConfirming] = useState(false);
@@ -55,6 +58,16 @@ export function OrderActions({ orderId, label }: { orderId: string; label: strin
         </div>
       ) : (
         <div className="flex flex-wrap gap-2">
+          {ready ? null : (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => run(() => markOrderReady(orderId))}
+              className="rounded-lg border border-green-700 px-4 py-2 text-sm font-semibold text-green-800 hover:bg-green-50 disabled:opacity-60 dark:text-green-300 dark:hover:bg-green-950"
+            >
+              {pending ? "กำลังบันทึก..." : "เตรียมของเสร็จแล้ว"}
+            </button>
+          )}
           <button
             type="button"
             disabled={pending}

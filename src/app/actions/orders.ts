@@ -43,7 +43,7 @@ export async function checkoutCart(): Promise<CheckoutResult> {
   redirect(`/orders/${row.order_id}`);
 }
 
-async function staffRpc(fn: "complete_order" | "cancel_order", orderId: string): Promise<OrderActionResult> {
+async function staffRpc(fn: "complete_order" | "cancel_order" | "mark_order_ready", orderId: string): Promise<OrderActionResult> {
   if (!isUuid(orderId)) return { ok: false, error: orderErrorMessageTh("order_not_found") };
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: orderErrorMessageTh("not_authenticated") };
@@ -59,6 +59,11 @@ async function staffRpc(fn: "complete_order" | "cancel_order", orderId: string):
 /** Staff: the student picked the order up. */
 export async function completeOrder(orderId: string): Promise<OrderActionResult> {
   return staffRpc("complete_order", orderId);
+}
+
+/** Staff: the reward has been prepared; the student is notified (status stays pending_pickup). */
+export async function markOrderReady(orderId: string): Promise<OrderActionResult> {
+  return staffRpc("mark_order_ready", orderId);
 }
 
 /** Staff: cancel a pending order (stock and points go back). */

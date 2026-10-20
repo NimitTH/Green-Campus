@@ -13,6 +13,7 @@ export type OrderSummary = {
   totalPoints: number;
   createdAt: string;
   expiresAt: string;
+  readyAt: string | null;
 };
 
 export type OrderLine = { rewardId: string; name: string; qty: number; unitCost: number };
@@ -29,11 +30,18 @@ export type StaffOrder = OrderSummary & { studentName: string; lines: { name: st
 type One<T> = T | T[] | null;
 const one = <T,>(v: One<T>): T | null => (Array.isArray(v) ? (v[0] ?? null) : v);
 
-type OrderRow = { id: string; status: string; total_points: number; created_at: string; expires_at: string };
+type OrderRow = {
+  id: string;
+  status: string;
+  total_points: number;
+  created_at: string;
+  expires_at: string;
+  ready_at: string | null;
+};
 type ProfileRef = { full_name: string; display_name: string | null };
 
 function summary(r: OrderRow): OrderSummary {
-  return { id: r.id, status: r.status, totalPoints: r.total_points, createdAt: r.created_at, expiresAt: r.expires_at };
+  return { id: r.id, status: r.status, totalPoints: r.total_points, createdAt: r.created_at, expiresAt: r.expires_at, readyAt: r.ready_at };
 }
 
 /** The student's orders, newest first. */
@@ -41,7 +49,7 @@ export async function listMyOrders(studentId: string): Promise<OrderSummary[]> {
   const supabase = await createServerClient();
   const { data, error } = await supabase
     .from("orders")
-    .select("id, status, total_points, created_at, expires_at")
+    .select("id, status, total_points, created_at, expires_at, ready_at")
     .eq("student_id", studentId)
     .order("created_at", { ascending: false });
   if (error) throw new Error(`listMyOrders: ${error.message}`);
@@ -61,7 +69,7 @@ export async function getOrder(id: string): Promise<OrderDetail | null> {
   const { data, error } = await supabase
     .from("orders")
     .select(
-      "id, status, total_points, created_at, expires_at, student_id, completed_at, " +
+      "id, status, total_points, created_at, expires_at, ready_at, student_id, completed_at, " +
         "student:profiles!orders_student_id_fkey(full_name, display_name), " +
         "order_items(reward_id, qty, unit_cost, reward_name)",
     )
@@ -85,7 +93,7 @@ export async function getOrder(id: string): Promise<OrderDetail | null> {
 type StaffRow = OrderRow & { student: One<ProfileRef>; order_items: { qty: number; reward_name: string }[] };
 
 const STAFF_COLUMNS =
-  "id, status, total_points, created_at, expires_at, " +
+  "id, status, total_points, created_at, expires_at, ready_at, " +
   "student:profiles!orders_student_id_fkey!inner(full_name, display_name), order_items(qty, reward_name)";
 const LIMIT = 100;
 

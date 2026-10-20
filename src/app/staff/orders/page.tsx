@@ -6,7 +6,7 @@ import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { requireStaff } from "@/lib/auth/dal";
 import { isAdminRole } from "@/lib/auth/routes";
 import { formatBangkok } from "@/lib/datetime";
-import { isOrderOverdue, orderNumber, orderStatusLabelTh, orderStatusTone } from "@/lib/orders/format";
+import { isOrderOverdue, isOrderReady, orderNumber, orderStatusLabelTh, orderStatusTone } from "@/lib/orders/format";
 import { listStaffOrders, type StaffOrder } from "@/lib/orders/queries";
 import { ExpireButton } from "./_components/expire-button";
 import { OrderActions } from "./_components/order-actions";
@@ -85,7 +85,7 @@ function OrderRow({ order, overdue }: { order: StaffOrder; overdue: boolean }) {
           {orderNumber(order.id)}
         </Link>
         <span data-testid="order-status">
-          <Badge tone={orderStatusTone(order.status)}>{orderStatusLabelTh(order.status)}</Badge>
+          <Badge tone={orderStatusTone(order.status, order.readyAt)}>{orderStatusLabelTh(order.status, order.readyAt)}</Badge>
         </span>
       </div>
       <p className="mt-1 break-words">{order.studentName}</p>
@@ -106,7 +106,7 @@ function OrderRow({ order, overdue }: { order: StaffOrder; overdue: boolean }) {
             {overdue ? "เลยกำหนดรับแล้ว " : "รับได้ถึง "}
             {formatBangkok(order.expiresAt)}
           </p>
-          <OrderActions orderId={order.id} label={label} />
+          <OrderActions orderId={order.id} label={label} ready={isOrderReady(order.status, order.readyAt)} />
         </>
       ) : null}
     </li>

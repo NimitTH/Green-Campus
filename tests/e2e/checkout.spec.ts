@@ -38,7 +38,7 @@ type CheckoutResult = {
   blocked: { reward_id: string | null; reason: string; available?: number; shortfall?: number }[];
 };
 
-test("earn -> cart -> ยืนยันแลก -> teacher confirms pickup -> the student sees รับแล้ว", async ({ page, browser }, testInfo) => {
+test("earn -> cart -> ยืนยันแลก -> staff notified -> เตรียมของเสร็จแล้ว -> พร้อมรับ -> teacher confirms pickup -> รับแล้ว", async ({ page, browser }, testInfo) => {
   const suffix = uniqueSuffix(testInfo.project.name);
   const title = `กิจกรรมแต้มแลก ${suffix}`;
   const name = `กระบอกน้ำ ${suffix}`;
@@ -65,7 +65,7 @@ test("earn -> cart -> ยืนยันแลก -> teacher confirms pickup -> 
     await expect(page).toHaveURL((url) => /^\/orders\/[0-9a-f-]{36}$/.test(url.pathname));
     const orderId = new URL(page.url()).pathname.split("/")[2];
 
-    await expect(page.getByTestId("order-status")).toHaveText("รอรับของ");
+    await expect(page.getByTestId("order-status")).toHaveText("รอเตรียมของ");
     await expect(page.getByTestId("order-number")).toHaveText(orderNumber(orderId));
     await expect(page.getByText("รับของที่แผนกก่อนวันที่")).toBeVisible();
     await expect(page.getByTestId("order-item").filter({ hasText: name })).toContainText("20");
@@ -78,7 +78,7 @@ test("earn -> cart -> ยืนยันแลก -> teacher confirms pickup -> 
     await page.getByRole("link", { name: "ออเดอร์" }).first().click();
     await expect(page).toHaveURL((url) => url.pathname === "/orders");
     const row = page.getByTestId("order-row").filter({ hasText: orderNumber(orderId) });
-    await expect(row.getByTestId("order-status")).toHaveText("รอรับของ");
+    await expect(row.getByTestId("order-status")).toHaveText("รอเตรียมของ");
     await expect(row).toContainText("20 แต้ม");
 
     // another student cannot open it
@@ -90,13 +90,34 @@ test("earn -> cart -> ยืนยันแลก -> teacher confirms pickup -> 
     await expect(otherPage.getByTestId("order-number")).toHaveCount(0);
     await otherContext.close();
 
-    // teacher: /staff -> ออเดอร์ -> confirm pickup
+    // teacher: the new order raised an order_new notification
     const staffContext = await browser.newContext();
     const staffPage = await staffContext.newPage();
     await signIn(staffPage, teacher, "/staff");
+    await staffPage.goto("/notifications");
+    await expect(staffPage.getByText("มีออเดอร์ใหม่").first()).toBeVisible();
+
+    // teacher: /staff -> ออเดอร์ -> เตรียมของเสร็จแล้ว
+    await staffPage.goto("/staff");
     await staffPage.getByRole("link", { name: /ออเดอร์/ }).click();
     await expect(staffPage).toHaveURL((url) => url.pathname === "/staff/orders");
     await expect(staffPage.getByRole("button", { name: "ยกเลิกออเดอร์ที่หมดอายุ" })).toHaveCount(0); // admin only
+    await expect(staffOrder(staffPage, orderId).getByTestId("order-status")).toHaveText("รอเตรียมของ");
+    await staffOrder(staffPage, orderId).getByRole("button", { name: "เตรียมของเสร็จแล้ว" }).click();
+    await expect(staffOrder(staffPage, orderId).getByTestId("order-status")).toHaveText("พร้อมรับ");
+    await expect(staffOrder(staffPage, orderId).getByRole("button", { name: "เตรียมของเสร็จแล้ว" })).toHaveCount(0);
+    await expect.poll(async () => (await listOrders(student!.id))[0]?.status).toBe("pending_pickup");
+
+    // student: พร้อมรับ on the order and the list, and a notification
+    await page.goto(`/orders/${orderId}`);
+    await expect(page.getByTestId("order-status")).toHaveText("พร้อมรับ");
+    await expect(page.getByText("ของพร้อมแล้ว รับที่แผนกก่อนวันที่")).toBeVisible();
+    await page.goto("/orders");
+    await expect(page.getByTestId("order-row").filter({ hasText: orderNumber(orderId) }).getByTestId("order-status")).toHaveText("พร้อมรับ");
+    await page.goto("/notifications");
+    await expect(page.getByText("ของรางวัลพร้อมรับแล้ว").first()).toBeVisible();
+
+    // teacher confirms the pickup
     await staffOrder(staffPage, orderId).getByRole("button", { name: "ยืนยันรับแล้ว" }).click();
     await expect(staffOrder(staffPage, orderId).getByTestId("order-status")).toHaveText("รับแล้ว");
     await expect.poll(async () => (await listOrders(student!.id))[0]?.status).toBe("completed");
