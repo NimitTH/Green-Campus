@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { requireUser } from "@/lib/auth/dal";
 import { isStaffRole } from "@/lib/auth/routes";
 import { NotificationBell } from "@/components/NotificationBell";
+import { StudentStats } from "./_components/student-stats";
 import { PageSkeleton } from "../_components/page-skeleton";
 import { SignOutButton } from "../_components/sign-out-button";
 
@@ -45,16 +46,15 @@ async function DashboardContent() {
           </span>
         </Link>
       </nav>
-      <section className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-gray-600 dark:border-gray-700 dark:text-gray-400">
-        ยังไม่มีข้อมูล
-      </section>
       {isStaffRole(user.role) ? (
-        <p className="mt-6 text-center">
-          <Link href="/staff" className="text-green-700 underline">
+        <p className="text-center">
+          <Link href="/staff" className="inline-block rounded-2xl bg-green-700 px-5 py-3 font-semibold text-white">
             ไปหน้าครูและผู้ดูแล
           </Link>
         </p>
-      ) : null}
+      ) : (
+        <StudentStats studentId={user.id} />
+      )}
     </>
   );
 }

@@ -1,0 +1,128 @@
+import Link from "next/link";
+import { WasteByCategory } from "@/components/charts/WasteByCategory";
+import { Badge } from "@/app/_components/activity-ui";
+import { submissionStatusLabelTh } from "@/lib/activities/labels";
+import { formatBangkok } from "@/lib/datetime";
+import { createServerClient } from "@/lib/supabase/server";
+
+const carbonFormat = new Intl.NumberFormat("th-TH", { maximumFractionDigits: 3 });
+const intFormat = new Intl.NumberFormat("th-TH");
+const TONE: Record<string, "gray" | "green" | "amber"> = { pending: "amber", approved: "green", rejected: "gray" };
+
+type Recent = {
+  id: string;
+  status: string;
+  created_at: string;
+  activities: { title: string } | { title: string }[] | null;
+};
+type ApprovedRow = {
+  activities: { type: string } | { type: string }[] | null;
+  submission_items: { quantity: number }[];
+};
+
+function one<T>(v: T | T[] | null): T | null {
+  return Array.isArray(v) ? (v[0] ?? null) : v;
+}
+
+// Must be rendered after the session read (inside <Suspense>), see the dashboard page.
+export async function StudentStats({ studentId }: { studentId: string }) {
+  const supabase = await createServerClient();
+  const [balance, categories, totals, recent, approved] = await Promise.all([
+    supabase.from("student_balance").select("points, carbon_kg").eq("student_id", studentId).maybeSingle(),
+    supabase.from("waste_categories").select("id, name").order("name"),
+    supabase.from("student_waste_totals").select("waste_category_id, grams").eq("student_id", studentId),
+    supabase
+      .from("submissions")
+      .select("id, status, created_at, activities(title)")
+      .eq("student_id", studentId)
+      .order("created_at", { ascending: false })
+      .limit(5),
+    supabase
+      .from("submissions")
+      .select("activities!inner(type), submission_items(quantity)")
+      .eq("student_id", studentId)
+      .eq("status", "approved"),
+  ]);
+  for (const r of [balance, categories, totals, recent, approved]) {
+    if (r.error) throw new Error(`dashboard: ${r.error.message}`);
+  }
+
+  const points = Number(balance.data?.points ?? 0);
+  const carbon = Number(balance.data?.carbon_kg ?? 0);
+  const gramsById = new Map((totals.data ?? []).map((t) => [t.waste_category_id as string, Number(t.grams)]));
+  const chartData = (categories.data ?? []).map((c) => ({
+    name: c.name as string,
+    kg: (gramsById.get(c.id as string) ?? 0) / 1000,
+  }));
+  const totalGrams = [...gramsById.values()].reduce((a, b) => a + b, 0);
+  const approvedRows = (approved.data ?? []) as unknown as ApprovedRow[];
+  const trees = approvedRows
+    .filter((r) => one(r.activities)?.type === "trees")
+    .reduce((sum, r) => sum + r.submission_items.reduce((s, i) => s + i.quantity, 0), 0);
+  const recentRows = (recent.data ?? []) as unknown as Recent[];
+
+  return (
+    <>
+      <div className="mb-4 grid grid-cols-2 gap-3">
+        <div className="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+          <p className="text-sm text-gray-600 dark:text-gray-400">แต้มคงเหลือ</p>
+          <p data-testid="points" className="text-2xl font-semibold">
+            {intFormat.format(points)}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+          <p className="text-sm text-gray-600 dark:text-gray-400">คาร์บอนสะสม</p>
+          <p className="text-2xl font-semibold">
+            <span data-testid="carbon">{carbonFormat.format(carbon)}</span>{" "}
+            <span className="text-sm font-normal">กก. CO2e</span>
+          </p>
+        </div>
+      </div>
+      {trees > 0 ? (
+        <p data-testid="trees" className="mb-4 text-sm text-gray-700 dark:text-gray-300">
+          ปลูกต้นไม้แล้วทั้งหมด {intFormat.format(trees)} ต้น
+        </p>
+      ) : null}
+
+      <section className="mb-4 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+        <h2 className="mb-3 font-semibold">น้ำหนักขยะที่อนุมัติแล้ว (กก.) แยกตามกลุ่ม</h2>
+        {totalGrams > 0 ? (
+          <WasteByCategory data={chartData} />
+        ) : approvedRows.length === 0 ? (
+          <div className="py-4 text-center text-gray-600 dark:text-gray-400">
+            <p>ยังไม่มีผลกิจกรรม</p>
+            <Link href="/activities" className="text-green-700 underline">
+              ดูกิจกรรม
+            </Link>
+          </div>
+        ) : (
+          <p className="py-4 text-center text-gray-600 dark:text-gray-400">ยังไม่มีผลขยะที่อนุมัติ</p>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-semibold">ประวัติล่าสุด</h2>
+          <Link href="/my-submissions" className="text-sm text-green-700 underline">
+            ดูทั้งหมด
+          </Link>
+        </div>
+        {recentRows.length === 0 ? (
+          <p className="text-sm text-gray-600 dark:text-gray-400">ยังไม่มีผลที่ส่ง</p>
+        ) : (
+          <ul className="space-y-2">
+            {recentRows.map((r) => (
+              <li key={r.id} data-testid="recent-submission" className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="break-words">{one(r.activities)?.title ?? "-"}</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">{formatBangkok(r.created_at)}</p>
+                </div>
+                <Badge tone={TONE[r.status] ?? "gray"}>{submissionStatusLabelTh(r.status)}</Badge>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </>
+  );
+}

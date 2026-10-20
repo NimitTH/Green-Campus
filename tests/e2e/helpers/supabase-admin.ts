@@ -201,3 +201,15 @@ export async function wasteCategoryId(name: string): Promise<string> {
   if (error || !data) throw new Error(`e2e: waste category ${name} not found: ${error?.message}`);
   return (data as { id: string }).id;
 }
+
+/** Current rates of a waste category by name (service role). */
+export async function wasteRates(name: string): Promise<{ pointsPerKg: number; carbonKgPerKg: number }> {
+  const { data, error } = await admin()
+    .from("waste_categories")
+    .select("points_per_kg, carbon_kg_per_kg")
+    .eq("name", name)
+    .single();
+  if (error || !data) throw new Error(`e2e: rates of ${name} not found: ${error?.message}`);
+  const row = data as { points_per_kg: number; carbon_kg_per_kg: number | string };
+  return { pointsPerKg: row.points_per_kg, carbonKgPerKg: Number(row.carbon_kg_per_kg) };
+}
