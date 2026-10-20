@@ -81,11 +81,13 @@ export function NotificationBell() {
       teardown();
       activeUid = uid;
       setSignedIn(true);
+      // Count first, independent of Realtime: websockets can be blocked (school wifi).
+      void refetch();
       // The realtime socket must carry this user's JWT, otherwise RLS hides every row.
       await supabase.realtime.setAuth(accessToken);
       if (cancelled || activeUid !== uid) return;
       const filter = `user_id=eq.${uid}`;
-      channel = supabase
+      const mine: RealtimeChannel = supabase
         // Unique per mount: realtime-js returns an existing channel with the same topic, and a
         // channel being removed stays in that list until the server acks the leave.
         .channel(`notifications:${uid}:${uniqueId()}`)
@@ -97,13 +99,17 @@ export function NotificationBell() {
         })
         // Fires on first subscribe and on every reconnect: events may have been missed meanwhile.
         .subscribe((status) => {
+          // A channel that was torn down (unmount, sign-out, user change) must not touch state.
+          if (cancelled || channel !== mine) return;
           if (status === "SUBSCRIBED") {
             setSubscribed(true);
             void refetch();
           } else {
             setSubscribed(false);
+            if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") void refetch();
           }
         });
+      channel = mine;
     }
 
     function stop() {

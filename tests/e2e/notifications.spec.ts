@@ -123,6 +123,24 @@ test("bell still receives live updates after client navigation /dashboard -> /ac
   }
 });
 
+// Websockets can be blocked on school wifi: the count must still show (REST), without live updates.
+test("bell shows the count when realtime cannot connect", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const title = `กิจกรรมไม่มีเรียลไทม์ ${suffix}`;
+  let student: TestUser | undefined;
+  try {
+    student = await createConfirmedUser("student", `student-nt-ws-${suffix}`);
+    await createJoinedCodeActivity(title, student.id, { requires_code: false });
+    await page.routeWebSocket(/realtime/, (ws) => ws.close());
+    await signIn(page, student, "/dashboard");
+    await expect(page.getByRole("link", { name: /^แจ้งเตือน/ })).toHaveAccessibleName(unread(1));
+    await expect(page.getByRole("link", { name: /^แจ้งเตือน/ })).toHaveAttribute("data-realtime", "connecting");
+  } finally {
+    await deleteActivitiesByTitle(title);
+    await deleteUsers([student]);
+  }
+});
+
 test("empty state for a student with no notifications", async ({ page }, testInfo) => {
   const suffix = uniqueSuffix(testInfo.project.name);
   let student: TestUser | undefined;
