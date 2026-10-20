@@ -27,7 +27,7 @@ function one<T>(v: T | T[] | null): T | null {
 // Must be rendered after the session read (inside <Suspense>), see the dashboard page.
 export async function StudentStats({ studentId }: { studentId: string }) {
   const supabase = await createServerClient();
-  const [balance, categories, totals, recent, approved] = await Promise.all([
+  const [balance, categories, totals, recent, approved, approvedCount] = await Promise.all([
     supabase.from("student_balance").select("points, carbon_kg").eq("student_id", studentId).maybeSingle(),
     supabase.from("waste_categories").select("id, name").order("name"),
     supabase.from("student_waste_totals").select("waste_category_id, grams").eq("student_id", studentId),
@@ -40,25 +40,31 @@ export async function StudentStats({ studentId }: { studentId: string }) {
     supabase
       .from("submissions")
       .select("activities!inner(type), submission_items(quantity)")
+      .eq("activities.type", "trees")
+      .eq("student_id", studentId)
+      .eq("status", "approved"),
+    supabase
+      .from("submissions")
+      .select("id", { count: "exact", head: true })
       .eq("student_id", studentId)
       .eq("status", "approved"),
   ]);
-  for (const r of [balance, categories, totals, recent, approved]) {
+  for (const r of [balance, categories, totals, recent, approved, approvedCount]) {
     if (r.error) throw new Error(`dashboard: ${r.error.message}`);
   }
 
   const points = Number(balance.data?.points ?? 0);
   const carbon = Number(balance.data?.carbon_kg ?? 0);
   const gramsById = new Map((totals.data ?? []).map((t) => [t.waste_category_id as string, Number(t.grams)]));
-  const chartData = (categories.data ?? []).map((c) => ({
-    name: c.name as string,
-    kg: (gramsById.get(c.id as string) ?? 0) / 1000,
-  }));
+  const chartData = [...(categories.data ?? [])]
+    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+    .map((c) => ({
+      name: c.name as string,
+      kg: (gramsById.get(c.id as string) ?? 0) / 1000,
+    }));
   const totalGrams = [...gramsById.values()].reduce((a, b) => a + b, 0);
   const approvedRows = (approved.data ?? []) as unknown as ApprovedRow[];
-  const trees = approvedRows
-    .filter((r) => one(r.activities)?.type === "trees")
-    .reduce((sum, r) => sum + r.submission_items.reduce((s, i) => s + i.quantity, 0), 0);
+  const trees = approvedRows.reduce((sum, r) => sum + r.submission_items.reduce((s, i) => s + i.quantity, 0), 0);
   const recentRows = (recent.data ?? []) as unknown as Recent[];
 
   return (
@@ -88,7 +94,7 @@ export async function StudentStats({ studentId }: { studentId: string }) {
         <h2 className="mb-3 font-semibold">น้ำหนักขยะที่อนุมัติแล้ว (กก.) แยกตามกลุ่ม</h2>
         {totalGrams > 0 ? (
           <WasteByCategory data={chartData} />
-        ) : approvedRows.length === 0 ? (
+        ) : (approvedCount.count ?? 0) === 0 ? (
           <div className="py-4 text-center text-gray-600 dark:text-gray-400">
             <p>ยังไม่มีผลกิจกรรม</p>
             <Link href="/activities" className="text-green-700 underline">

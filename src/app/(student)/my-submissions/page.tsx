@@ -4,7 +4,6 @@ import { Badge } from "@/app/_components/activity-ui";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { requireUser } from "@/lib/auth/dal";
 import { submissionStatusLabelTh, typeLabelTh } from "@/lib/activities/labels";
-import { formatKgTh } from "@/lib/reviews/format";
 import { formatBangkok } from "@/lib/datetime";
 import { createServerClient } from "@/lib/supabase/server";
 
@@ -39,12 +38,15 @@ function one<T>(v: T | T[] | null): T | null {
   return Array.isArray(v) ? (v[0] ?? null) : v;
 }
 
+const kgFormat = new Intl.NumberFormat("th-TH", { maximumFractionDigits: 3 });
 const carbonFormat = new Intl.NumberFormat("th-TH", { maximumFractionDigits: 3 });
 
 function amountsTh(row: Row, type: string | undefined): string {
   if (type === "waste") {
     return row.submission_items
-      .map((i) => `${one(i.waste_categories)?.name ?? "-"} ${formatKgTh(i.quantity)}`)
+      .map((i) => ({ name: one(i.waste_categories)?.name ?? "-", grams: i.quantity }))
+      .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+      .map((i) => `${i.name} ${kgFormat.format(i.grams / 1000)} กก.`)
       .join(", ");
   }
   if (type === "trees") {

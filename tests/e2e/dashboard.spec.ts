@@ -45,11 +45,17 @@ test("student with one approved waste result sees points, carbon, chart fallback
 
     const expected = estimateWaste([{ grams, rates: await wasteRates("พลาสติก") }]);
 
+    const problems: string[] = [];
+    page.on("console", (m) => {
+      if (m.type() === "error" || m.type() === "warning") problems.push(m.text());
+    });
+    page.on("pageerror", (e) => problems.push(e.message));
     await signIn(page, student, "/dashboard");
     await expect(page.getByTestId("points")).toHaveText(String(expected.points));
     await expect(page.getByTestId("carbon")).toContainText(String(expected.carbonKg));
     await expect(page.getByTestId("waste-chart")).toBeVisible();
     await expect(page.getByTestId("waste-table")).toContainText("1.55 กก.");
+    expect(problems.filter((p) => /hydrat|did not match|server rendered/i.test(p))).toEqual([]);
     await expect(page.getByText("ยังไม่มีผลกิจกรรม")).toHaveCount(0);
     await expect(page.getByTestId("recent-submission").filter({ hasText: title })).toContainText("อนุมัติแล้ว");
 

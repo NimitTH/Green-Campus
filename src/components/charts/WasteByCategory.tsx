@@ -4,7 +4,7 @@ import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, XAxis, YA
 
 export type WasteDatum = { name: string; kg: number };
 
-const kgFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 3 });
+const kgFormat = new Intl.NumberFormat("th-TH", { maximumFractionDigits: 3 });
 
 /** Bar chart of approved waste weight (kg) per category, with a text table for screen readers. */
 export function WasteByCategory({ data }: { data: WasteDatum[] }) {
