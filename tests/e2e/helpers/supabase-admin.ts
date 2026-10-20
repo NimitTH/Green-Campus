@@ -286,7 +286,7 @@ export async function createOrderFor(studentId: string, rewardId: string, qty: n
   if (error || !data) throw new Error(`e2e: create order failed: ${error?.message}`);
   const { error: itemError } = await admin()
     .from("order_items")
-    .insert({ order_id: (data as { id: string }).id, reward_id: rewardId, qty, unit_cost: unitCost });
+    .insert({ order_id: (data as { id: string }).id, reward_id: rewardId, qty, unit_cost: unitCost, reward_name: "e2e" });
   if (itemError) throw new Error(`e2e: create order item failed: ${itemError.message}`);
 }
 
@@ -342,4 +342,17 @@ export async function checkoutAs(student: TestUser, rewardId: string, qty: numbe
   const result = data as { ok: boolean; order_id: string | null; error_code: string | null } | null;
   if (error || !result?.ok || !result.order_id) throw new Error(`e2e: checkout failed: ${error?.message ?? result?.error_code}`);
   return result.order_id;
+}
+
+/** Ledger rows written for one order (service role). */
+export async function listLedgerForOrder(orderId: string): Promise<{ kind: string; points: number }[]> {
+  const { data, error } = await admin().from("ledger_entries").select("kind, points").eq("ref_order_id", orderId);
+  if (error) throw new Error(`e2e: list order ledger failed: ${error.message}`);
+  return (data ?? []) as { kind: string; points: number }[];
+}
+
+/** Rename a reward and/or change its active flag (service role). */
+export async function updateReward(id: string, fields: { name?: string; active?: boolean }): Promise<void> {
+  const { error } = await admin().from("rewards").update(fields).eq("id", id);
+  if (error) throw new Error(`e2e: update reward failed: ${error.message}`);
 }

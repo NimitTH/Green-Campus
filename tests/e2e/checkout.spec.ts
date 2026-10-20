@@ -11,11 +11,13 @@ import {
   grantPoints,
   ledgerBalance,
   listCart,
+  listLedgerForOrder,
   listOrders,
   makeOrderDue,
   seedApprovedEarn,
   setRewardStock,
   signedInClient,
+  updateReward,
   type TestUser,
 } from "./helpers/supabase-admin";
 
@@ -50,7 +52,7 @@ test("earn -> cart -> ยืนยันแลก -> teacher confirms pickup -> 
     other = await createConfirmedUser("student", `other-co-${suffix}`);
     await seedApprovedEarn(student, teacher, 50, title);
     expect(await ledgerBalance(student.id)).toBe(50);
-    await createRewardRow(name, 20, 3);
+    const rewardId = await createRewardRow(name, 20, 3);
 
     // student: empty order list, then add to cart and redeem
     await signIn(page, student, "/orders");
@@ -107,10 +109,17 @@ test("earn -> cart -> ยืนยันแลก -> teacher confirms pickup -> 
     await page.goto("/notifications");
     await expect(page.getByText("รับของรางวัลแล้ว").first()).toBeVisible();
     await expect(page.getByText("แลกของรางวัลสำเร็จ").first()).toBeVisible();
+
+    // the order keeps the name it was ordered under after a rename and deactivation
+    await updateReward(rewardId, { name: `${name} (ใหม่)`, active: false });
+    await page.goto(`/orders/${orderId}`);
+    await expect(page.getByTestId("order-item")).toContainText(`${name}1 ชิ้น`);
+    await expect(page.getByTestId("order-item")).not.toContainText("(ใหม่)");
   } finally {
-    await deleteUsers([student, other, teacher]);
+    // activities first: it removes the submissions' evidence files, which a user delete would orphan
     await deleteActivitiesByTitle(title);
-    await deleteRewardsByName([name]);
+    await deleteUsers([student, other, teacher]);
+    await deleteRewardsByName([name, `${name} (ใหม่)`]);
   }
 });
 
@@ -290,6 +299,59 @@ test("(จ) one item left, two students redeem at once: only one gets it", async
     expect(balances).toEqual([40, 50]);
   } finally {
     await deleteUsers([s1, s2]);
+    await deleteRewardsByName([name]);
+  }
+});
+
+test("cancel_order and checkout on a shared reward at the same moment: no deadlock, sums stay right", async ({}, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const name = `ของแข่งยกเลิก ${suffix}`;
+  const rounds = 3;
+  let teacher: TestUser | undefined;
+  let student: TestUser | undefined;
+
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-race-cancel-${suffix}`);
+    student = await createConfirmedUser("student", `student-race-cancel-${suffix}`);
+    await grantPoints(student.id, 100);
+    const rewardId = await createRewardRow(name, 10, 10);
+    const [staff, own] = await Promise.all([signedInClient(teacher), signedInClient(student)]);
+    const cancelled: string[] = [];
+
+    for (let round = 0; round < rounds; round++) {
+      // a pending order holding the reward, and the same reward in the cart again
+      const pendingId = await checkoutAs(student, rewardId, 1);
+      const { error: cartError } = await own.from("cart_items").insert({ student_id: student.id, reward_id: rewardId, qty: 1 });
+      expect(cartError).toBeNull();
+
+      // checkout locks profile -> reward; cancel locks order -> reward and its inserts check the FK
+      // to the same profile (KEY SHARE). With a FOR UPDATE profile lock this pair could deadlock.
+      const [cancel, checkout] = await Promise.all([
+        staff.rpc("cancel_order", { p_order_id: pendingId }),
+        own.rpc("checkout"),
+      ]);
+      expect(cancel.error?.code).not.toBe("40P01");
+      expect(checkout.error?.code).not.toBe("40P01");
+      expect(cancel.error).toBeNull();
+      expect(checkout.error).toBeNull();
+      expect((checkout.data as CheckoutResult).ok).toBe(true);
+      cancelled.push(pendingId);
+    }
+
+    // each round: one order cancelled (stock and points back), one order kept
+    const orders = await listOrders(student.id);
+    expect(orders.filter((o) => o.status === "cancelled").map((o) => o.id).sort()).toEqual([...cancelled].sort());
+    expect(orders.filter((o) => o.status === "pending_pickup")).toHaveLength(rounds);
+    expect((await findReward(name))?.stock).toBe(10 - rounds);
+    expect(await ledgerBalance(student.id)).toBe(100 - 10 * rounds);
+    for (const id of cancelled) {
+      const rows = await listLedgerForOrder(id);
+      expect(rows.filter((r) => r.kind === "refund")).toEqual([{ kind: "refund", points: 10 }]);
+      expect(rows.filter((r) => r.kind === "redeem")).toEqual([{ kind: "redeem", points: -10 }]);
+    }
+    expect(await listCart(student.id)).toHaveLength(0);
+  } finally {
+    await deleteUsers([student, teacher]);
     await deleteRewardsByName([name]);
   }
 });

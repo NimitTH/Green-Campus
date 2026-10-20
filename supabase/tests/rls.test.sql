@@ -41,9 +41,9 @@ insert into public.rewards (id, name, points_cost, stock, active) values
 insert into public.orders (id, student_id, total_points) values
   ('00000000-0000-0000-0000-000000000a01', '00000000-0000-0000-0000-000000000101', 100),
   ('00000000-0000-0000-0000-000000000a02', '00000000-0000-0000-0000-000000000102', 100);
-insert into public.order_items (order_id, reward_id, qty, unit_cost) values
-  ('00000000-0000-0000-0000-000000000a01', '00000000-0000-0000-0000-000000000701', 1, 100),
-  ('00000000-0000-0000-0000-000000000a02', '00000000-0000-0000-0000-000000000701', 1, 100);
+insert into public.order_items (order_id, reward_id, qty, unit_cost, reward_name) values
+  ('00000000-0000-0000-0000-000000000a01', '00000000-0000-0000-0000-000000000701', 1, 100, 'Reward'),
+  ('00000000-0000-0000-0000-000000000a02', '00000000-0000-0000-0000-000000000701', 1, 100, 'Reward');
 insert into public.cart_items (student_id, reward_id, qty) values
   ('00000000-0000-0000-0000-000000000102', '00000000-0000-0000-0000-000000000701', 1);
 insert into public.articles (id, title, slug, body, published) values

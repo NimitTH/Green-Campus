@@ -4,8 +4,8 @@ import { orderIdRange } from "./format";
 
 // Read helpers for order pages. They run as the signed-in user, so RLS decides what is visible
 // (students: their own orders; staff: every order, 0002). Callers check the role via the DAL.
-// Reward names come through the rewards RLS: a student cannot read an inactive reward, so its
-// name is null on their order lines (the page shows a placeholder).
+// Reward names are the order_items.reward_name snapshot taken at checkout (next to unit_cost), not
+// the live reward, so a renamed or deactivated reward still shows the name that was ordered.
 
 export type OrderSummary = {
   id: string;
@@ -15,7 +15,7 @@ export type OrderSummary = {
   expiresAt: string;
 };
 
-export type OrderLine = { rewardId: string; name: string | null; qty: number; unitCost: number };
+export type OrderLine = { rewardId: string; name: string; qty: number; unitCost: number };
 
 export type OrderDetail = OrderSummary & {
   studentId: string;
@@ -24,7 +24,7 @@ export type OrderDetail = OrderSummary & {
   lines: OrderLine[];
 };
 
-export type StaffOrder = OrderSummary & { studentName: string; lines: { name: string | null; qty: number }[] };
+export type StaffOrder = OrderSummary & { studentName: string; lines: { name: string; qty: number }[] };
 
 type One<T> = T | T[] | null;
 const one = <T,>(v: One<T>): T | null => (Array.isArray(v) ? (v[0] ?? null) : v);
@@ -52,7 +52,7 @@ type DetailRow = OrderRow & {
   student_id: string;
   completed_at: string | null;
   student: One<ProfileRef>;
-  order_items: { reward_id: string; qty: number; unit_cost: number; rewards: One<{ name: string }> }[];
+  order_items: { reward_id: string; qty: number; unit_cost: number; reward_name: string }[];
 };
 
 /** One order with its lines, or null when it does not exist or the caller may not read it (RLS). */
@@ -63,7 +63,7 @@ export async function getOrder(id: string): Promise<OrderDetail | null> {
     .select(
       "id, status, total_points, created_at, expires_at, student_id, completed_at, " +
         "student:profiles!orders_student_id_fkey(full_name, display_name), " +
-        "order_items(reward_id, qty, unit_cost, rewards(name))",
+        "order_items(reward_id, qty, unit_cost, reward_name)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -77,23 +77,23 @@ export async function getOrder(id: string): Promise<OrderDetail | null> {
     studentName: student ? student.display_name || student.full_name : null,
     completedAt: row.completed_at,
     lines: row.order_items
-      .map((i) => ({ rewardId: i.reward_id, name: one(i.rewards)?.name ?? null, qty: i.qty, unitCost: i.unit_cost }))
-      .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "", "th")),
+      .map((i) => ({ rewardId: i.reward_id, name: i.reward_name, qty: i.qty, unitCost: i.unit_cost }))
+      .sort((a, b) => a.name.localeCompare(b.name, "th")),
   };
 }
 
-type StaffRow = OrderRow & { student: One<ProfileRef>; order_items: { qty: number; rewards: One<{ name: string }> }[] };
+type StaffRow = OrderRow & { student: One<ProfileRef>; order_items: { qty: number; reward_name: string }[] };
 
 const STAFF_COLUMNS =
   "id, status, total_points, created_at, expires_at, " +
-  "student:profiles!orders_student_id_fkey!inner(full_name, display_name), order_items(qty, rewards(name))";
+  "student:profiles!orders_student_id_fkey!inner(full_name, display_name), order_items(qty, reward_name)";
 const LIMIT = 100;
 
 function escapeLike(text: string): string {
   return text.replace(/[\\%_]/g, (c) => `\\${c}`);
 }
 
-async function staffQuery(status: "pending" | "done", query: string, by: "name" | "number"): Promise<StaffRow[]> {
+async function staffQuery(status: "pending" | "done", query: string, by: "full_name" | "display_name" | "number"): Promise<StaffRow[]> {
   const supabase = await createServerClient();
   let q = supabase.from("orders").select(STAFF_COLUMNS);
   q = status === "pending" ? q.eq("status", "pending_pickup") : q.neq("status", "pending_pickup");
@@ -102,7 +102,7 @@ async function staffQuery(status: "pending" | "done", query: string, by: "name" 
     if (!range) return [];
     q = q.gte("id", range.from).lte("id", range.to);
   } else if (query) {
-    q = q.ilike("student.full_name", `%${escapeLike(query)}%`);
+    q = q.ilike(`student.${by}`, `%${escapeLike(query)}%`);
   }
   const { data, error } = await q.order("created_at", { ascending: status === "pending" }).limit(LIMIT);
   if (error) throw new Error(`listStaffOrders: ${error.message}`);
@@ -116,9 +116,11 @@ async function staffQuery(status: "pending" | "done", query: string, by: "name" 
 export async function listStaffOrders(query: string): Promise<StaffOrder[]> {
   const text = query.trim();
   const searches = async (status: "pending" | "done") => {
-    if (!text) return staffQuery(status, "", "name");
+    if (!text) return staffQuery(status, "", "full_name");
+    // The list shows display_name || full_name, so match either column (one escaped ilike each).
     const lists = await Promise.all([
-      staffQuery(status, text, "name"),
+      staffQuery(status, text, "full_name"),
+      staffQuery(status, text, "display_name"),
       orderIdRange(text) ? staffQuery(status, text, "number") : Promise.resolve([]),
     ]);
     const seen = new Map<string, StaffRow>();
@@ -132,7 +134,7 @@ export async function listStaffOrders(query: string): Promise<StaffOrder[]> {
     return {
       ...summary(r),
       studentName: student ? student.display_name || student.full_name : "-",
-      lines: r.order_items.map((i) => ({ name: one(i.rewards)?.name ?? null, qty: i.qty })),
+      lines: r.order_items.map((i) => ({ name: i.reward_name, qty: i.qty })),
     };
   });
 }

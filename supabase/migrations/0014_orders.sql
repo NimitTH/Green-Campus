@@ -11,13 +11,23 @@
 --     cancel_order:      the order -> its rewards by id
 --     expire_orders:     every due order (SKIP LOCKED, never waits) -> all their rewards by id
 --   No function locks a profile after a reward, or an order after a reward.
+--   cancel/expire never lock a profile, but their ledger_entries / notifications inserts check
+--   the FK to profiles, which takes FOR KEY SHARE on the student's row. checkout therefore locks
+--   the profile FOR NO KEY UPDATE: it still serialises two checkouts of one student, but does not
+--   conflict with KEY SHARE. (FOR UPDATE would: a cancel holding reward R and waiting on the
+--   profile, against a checkout holding the profile and waiting on R, is a 40P01 deadlock.)
 -- * The balance is summed from ledger_entries after the profile lock (not student_balance: that
 --   view filters role = 'student' and runs as the invoker). Two checkouts of one student queue on
 --   the profile lock, so the second sees the first's redeem row and its emptied cart.
 -- * One redeem and at most one refund per order, enforced by partial unique indexes.
+-- * order_items.reward_name: the reward name at order time (like unit_cost), so order history and
+--   receipts stay right after a reward is renamed or deactivated (students cannot read inactive
+--   rewards through RLS).
 -- * pg_cron runs expire_orders() every hour (stops while a free project is paused, spec 8.7).
 
 create extension if not exists pg_cron;
+
+alter table public.order_items add column reward_name text not null;
 
 create unique index ledger_entries_one_redeem_per_order
   on public.ledger_entries (ref_order_id)
@@ -56,8 +66,9 @@ begin
     raise exception 'not_authenticated' using errcode = '42501';
   end if;
 
-  -- 1. the caller's profile: serialises checkouts of one student
-  select p.role into v_role from public.profiles p where p.id = v_uid for update;
+  -- 1. the caller's profile: serialises checkouts of one student. NO KEY UPDATE, not UPDATE: the
+  --    FK checks of cancel/expire inserts take KEY SHARE on this row (see the header).
+  select p.role into v_role from public.profiles p where p.id = v_uid for no key update;
   if not found or v_role <> 'student' then
     raise exception 'not_student' using errcode = '42501';
   end if;
@@ -102,8 +113,8 @@ begin
   values (v_uid, v_total::integer, now() + interval '7 days')
   returning id into v_order_id;
 
-  insert into public.order_items (order_id, reward_id, qty, unit_cost)
-  select v_order_id, c.reward_id, c.qty, rw.points_cost
+  insert into public.order_items (order_id, reward_id, qty, unit_cost, reward_name)
+  select v_order_id, c.reward_id, c.qty, rw.points_cost, rw.name
   from public.cart_items c
   join public.rewards rw on rw.id = c.reward_id
   where c.id = any (v_cart_ids);
@@ -193,15 +204,24 @@ security definer
 set search_path = ''
 as $$
 declare
+  v_ids uuid[];
   v_count integer;
 begin
   if p_status not in ('cancelled', 'expired') then
     raise exception 'invalid release status %', p_status;
   end if;
 
+  -- defence in depth: only orders still pending are released (the callers checked already)
+  select coalesce(array_agg(o.id), '{}') into v_ids
+  from public.orders o
+  where o.id = any (p_order_ids) and o.status = 'pending_pickup';
+  if cardinality(v_ids) = 0 then
+    return 0;
+  end if;
+
   perform 1
   from public.rewards rw
-  where rw.id in (select oi.reward_id from public.order_items oi where oi.order_id = any (p_order_ids))
+  where rw.id in (select oi.reward_id from public.order_items oi where oi.order_id = any (v_ids))
   order by rw.id
   for update;
 
@@ -210,7 +230,7 @@ begin
   from (
     select oi.reward_id, sum(oi.qty)::integer as qty
     from public.order_items oi
-    where oi.order_id = any (p_order_ids)
+    where oi.order_id = any (v_ids)
     group by oi.reward_id
   ) t
   where rw.id = t.reward_id;
@@ -218,11 +238,11 @@ begin
   insert into public.ledger_entries (student_id, kind, points, carbon_kg, ref_order_id, created_by)
   select o.student_id, 'refund', o.total_points, 0, o.id, p_actor
   from public.orders o
-  where o.id = any (p_order_ids) and o.total_points > 0;
+  where o.id = any (v_ids) and o.status = 'pending_pickup' and o.total_points > 0;
 
   update public.orders o
   set status = p_status, updated_at = now()
-  where o.id = any (p_order_ids);
+  where o.id = any (v_ids) and o.status = 'pending_pickup';
   get diagnostics v_count = row_count;
 
   perform public.notify(
@@ -235,7 +255,7 @@ begin
     '/orders/' || o.id::text
   )
   from public.orders o
-  where o.id = any (p_order_ids);
+  where o.id = any (v_ids);
 
   return v_count;
 end;
@@ -279,8 +299,9 @@ revoke execute on function public.cancel_order(uuid) from public, anon;
 grant execute on function public.cancel_order(uuid) to authenticated, service_role;
 
 -- expire_orders (R75) -------------------------------------------------------------------------
--- pg_cron / internal calls run without a user (auth.uid() null); signed-in callers must be admins
--- (the staff button). anon has no EXECUTE, so it never reaches the no-user branch.
+-- pg_cron / internal / service_role calls run without a user (auth.uid() null and a JWT role that
+-- is not 'authenticated'); every other caller must be an admin (the staff button), including an
+-- 'authenticated' JWT without a sub. anon has no EXECUTE, so it never reaches the no-user branch.
 -- Due orders a concurrent cancel/complete holds are skipped (the next run sees their new state).
 -- Idempotent: a second run finds nothing pending and due, returns 0 and refunds nothing.
 create or replace function public.expire_orders()
@@ -293,7 +314,7 @@ declare
   v_uid uuid := auth.uid();
   v_ids uuid[];
 begin
-  if v_uid is not null and not public.is_admin() then
+  if (v_uid is not null or coalesce(auth.role(), '') = 'authenticated') and not public.is_admin() then
     raise exception 'not_admin' using errcode = '42501';
   end if;
 

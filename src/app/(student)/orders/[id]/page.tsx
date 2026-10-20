@@ -19,9 +19,6 @@ const number = new Intl.NumberFormat("th-TH");
 export default function OrderPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
-      <Link href="/orders" className="mb-4 inline-block text-sm text-green-700 underline">
-        ← ออเดอร์ของฉัน
-      </Link>
       <Suspense fallback={<PageSkeleton />}>
         <Order params={params} />
       </Suspense>
@@ -37,9 +34,14 @@ async function Order({ params }: { params: Promise<{ id: string }> }) {
   const order = await getOrder(id);
   if (!order) notFound();
   const pending = order.status === "pending_pickup";
+  const staff = isStaffRole(user.role);
 
   return (
     <article className="space-y-5">
+      {/* Back to where the viewer came from: staff manage orders on /staff/orders. */}
+      <Link href={staff ? "/staff/orders" : "/orders"} className="inline-block text-sm text-green-700 underline">
+        {staff ? "← ออเดอร์ทั้งหมด (ครู)" : "← ออเดอร์ของฉัน"}
+      </Link>
       <header className="rounded-2xl border border-green-200 bg-green-50 p-4 text-center dark:border-green-900 dark:bg-green-950">
         <p className="text-sm text-gray-600 dark:text-gray-400">เลขที่ออเดอร์ (แสดงที่แผนกตอนรับของ)</p>
         <h1 data-testid="order-number" className="font-mono text-4xl font-bold tracking-widest break-all">
@@ -48,7 +50,7 @@ async function Order({ params }: { params: Promise<{ id: string }> }) {
         <p className="mt-2" data-testid="order-status">
           <Badge tone={orderStatusTone(order.status)}>{orderStatusLabelTh(order.status)}</Badge>
         </p>
-        {isStaffRole(user.role) && order.studentName ? <p className="mt-2 text-sm break-words">{order.studentName}</p> : null}
+        {staff && order.studentName ? <p className="mt-2 text-sm break-words">{order.studentName}</p> : null}
       </header>
 
       {pending ? (
@@ -62,7 +64,7 @@ async function Order({ params }: { params: Promise<{ id: string }> }) {
           {order.lines.map((l) => (
             <li key={l.rewardId} data-testid="order-item" className="flex items-start justify-between gap-3 p-4">
               <div className="min-w-0">
-                <p className="font-medium break-words">{l.name ?? "ของรางวัลที่ปิดการแลกแล้ว"}</p>
+                <p className="font-medium break-words">{l.name}</p>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   {number.format(l.qty)} ชิ้น × {number.format(l.unitCost)} แต้ม
                 </p>

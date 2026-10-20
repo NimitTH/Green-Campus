@@ -92,7 +92,7 @@ function OrderRow({ order, overdue }: { order: StaffOrder; overdue: boolean }) {
       <ul className="mt-1 text-sm text-gray-700 dark:text-gray-300">
         {order.lines.map((l, i) => (
           <li key={i} className="break-words">
-            {l.name ?? "ของรางวัล"} × {number.format(l.qty)}
+            {l.name} × {number.format(l.qty)}
           </li>
         ))}
       </ul>

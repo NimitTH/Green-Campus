@@ -6,7 +6,7 @@
 --   teacher ...a201   admin ...a301
 --   rewards: r1 ...a501 (30, stock 5), r2 ...a502 (20, stock 1), r3 ...a503 (10, stock 5, inactive)
 begin;
-select plan(118);
+select plan(127);
 
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-00000000a101', 'od-s1@example.test', '{"full_name":"นักเรียน หนึ่ง"}'::jsonb),
@@ -83,6 +83,7 @@ select is((select schedule from cron.job where jobname = 'expire-orders'), '0 * 
   'pg_cron job expire-orders runs every hour');
 select is((select command from cron.job where jobname = 'expire-orders'), 'select public.expire_orders()',
   'pg_cron job calls expire_orders()');
+select col_not_null('public', 'order_items', 'reward_name', 'order_items.reward_name is required (name snapshot)');
 
 -- auth errors --------------------------------------------------------------------------
 set local role authenticated;
@@ -90,6 +91,8 @@ select set_config('request.jwt.claims', '{"role":"authenticated"}', true);
 select throws_ok($$select public.checkout()$$, '42501', 'not_authenticated', 'checkout without a user raises not_authenticated');
 select throws_ok($$select public.complete_order('00000000-0000-0000-0000-00000000a9ff')$$, '42501', 'not_authenticated',
   'complete_order without a user raises not_authenticated');
+select throws_ok($$select public.expire_orders()$$, '42501', 'not_admin',
+  'an authenticated JWT without a sub cannot take the pg_cron (no-user) branch');
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a201","role":"authenticated"}', true);
 select throws_ok($$select public.checkout()$$, '42501', 'not_student', 'teacher checkout raises not_student');
 select throws_ok($$select public.expire_orders()$$, '42501', 'not_admin', 'teacher expire_orders raises not_admin');
@@ -200,6 +203,10 @@ select is((select qty from public.order_items where order_id = (select id from t
             and reward_id = '00000000-0000-0000-0000-00000000a501'), 2, 'qty of r1 copied from the cart');
 select is((select unit_cost from public.order_items where order_id = (select id from t_ids where name = 'o1')
             and reward_id = '00000000-0000-0000-0000-00000000a502'), 20, 'unit_cost of r2 = its points_cost at checkout');
+select is((select reward_name from public.order_items where order_id = (select id from t_ids where name = 'o1')
+            and reward_id = '00000000-0000-0000-0000-00000000a501'), 'OD r1', 'reward_name of r1 = its name at checkout');
+select is((select reward_name from public.order_items where order_id = (select id from t_ids where name = 'o1')
+            and reward_id = '00000000-0000-0000-0000-00000000a502'), 'OD r2', 'reward_name of r2 = its name at checkout');
 select is((select stock from public.rewards where id = '00000000-0000-0000-0000-00000000a501'), 3, 'r1 stock 5 - 2');
 select is((select stock from public.rewards where id = '00000000-0000-0000-0000-00000000a502'), 0, 'r2 stock 1 - 1');
 select is((select points from public.ledger_entries where ref_order_id = (select id from t_ids where name = 'o1') and kind = 'redeem'),
@@ -241,7 +248,17 @@ select is((select count(*) from public.orders where id = (select id from t_ids w
 reset role;
 
 -- (ฉ) cancel_order restores stock and refunds once ----------------------------------------
-update public.rewards set points_cost = 99 where id = '00000000-0000-0000-0000-00000000a501';
+-- rename, reprice and deactivate r1 after ordering: the order keeps what was ordered
+update public.rewards set points_cost = 99, name = 'OD r1 renamed', active = false
+where id = '00000000-0000-0000-0000-00000000a501';
+select is((select reward_name from public.order_items where order_id = (select id from t_ids where name = 'o1')
+            and reward_id = '00000000-0000-0000-0000-00000000a501'), 'OD r1', 'stored reward_name survives a rename');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a101","role":"authenticated"}', true);
+select is((select reward_name from public.order_items where order_id = (select id from t_ids where name = 'o1')
+            and reward_id = '00000000-0000-0000-0000-00000000a501'), 'OD r1',
+  'the student still reads the ordered name of a now inactive reward');
+reset role;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a201","role":"authenticated"}', true);
 select throws_ok($$select public.cancel_order('00000000-0000-0000-0000-00000000a9ff')$$, 'P0001', 'order_not_found',
@@ -271,7 +288,7 @@ select is((select count(*) from public.notifications where user_id = '00000000-0
 select throws_ok($$insert into public.ledger_entries (student_id, kind, points, ref_order_id)
   select '00000000-0000-0000-0000-00000000a101', 'refund', 1, id from t_ids where name = 'o1'$$,
   '23505', null, 'a second refund row for the same order is refused');
-update public.rewards set points_cost = 30 where id = '00000000-0000-0000-0000-00000000a501';
+update public.rewards set points_cost = 30, name = 'OD r1', active = true where id = '00000000-0000-0000-0000-00000000a501';
 
 -- (ช) complete_order ------------------------------------------------------------------------
 insert into public.cart_items (student_id, reward_id, qty)
@@ -295,6 +312,15 @@ select isnt((select completed_at from public.orders where id = (select id from t
 select is((select stock from public.rewards where id = '00000000-0000-0000-0000-00000000a501'), 4, 'complete keeps the stock taken');
 select is((select count(*) from public.ledger_entries where ref_order_id = (select id from t_ids where name = 'o2') and kind = 'refund'),
   0::bigint, 'complete writes no refund');
+-- defence in depth: the internal helper releases nothing that is not pending
+select is(public.release_orders(array[(select id from t_ids where name = 'o2')], 'cancelled', null), 0,
+  'release_orders on a completed order releases nothing');
+select is((select status from public.orders where id = (select id from t_ids where name = 'o2')), 'completed',
+  'release_orders leaves a completed order completed');
+select is((select count(*) from public.ledger_entries where ref_order_id = (select id from t_ids where name = 'o2') and kind = 'refund')
+          + (select count(*) from public.notifications where user_id = '00000000-0000-0000-0000-00000000a101'
+              and type = 'order_cancelled' and link = '/orders/' || (select id from t_ids where name = 'o2')::text),
+  0::bigint, 'release_orders on a completed order writes no refund and no notification');
 select is((select count(*) from public.notifications where user_id = '00000000-0000-0000-0000-00000000a101'
             and type = 'order_completed' and link = '/orders/' || (select id from t_ids where name = 'o2')::text), 1::bigint,
   'student notified order_completed');
