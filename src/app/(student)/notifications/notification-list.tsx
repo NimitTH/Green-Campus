@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { markAllNotificationsRead, markNotificationRead } from "@/app/actions/notifications";
 import { formatBangkok } from "@/lib/datetime";
+import { internalLink } from "@/lib/notifications/link";
 
 export type NotificationRow = {
   id: string;
@@ -14,10 +15,6 @@ export type NotificationRow = {
   created_at: string;
 };
 
-/** Internal paths only ("/x", not "//host"). */
-function isInternalPath(link: string | null): link is string {
-  return !!link && link.startsWith("/") && !link.startsWith("//") && !link.includes("\\");
-}
 
 export function NotificationList({ items }: { items: NotificationRow[] }) {
   const router = useRouter();
@@ -44,7 +41,8 @@ export function NotificationList({ items }: { items: NotificationRow[] }) {
           return;
         }
       }
-      if (isInternalPath(item.link)) router.push(item.link);
+      const target = internalLink(item.link);
+      if (target) router.push(target);
       else router.refresh();
     });
   }

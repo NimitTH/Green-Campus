@@ -45,8 +45,8 @@ test("approval raises the student's bell live; reading lowers it; other students
     const otherBell = otherPage.getByRole("link", { name: /^แจ้งเตือน/ });
     await expect(bell).toHaveAccessibleName(unread(1));
     await expect(otherBell).toHaveAccessibleName(unread(1));
-    // let the realtime channel finish subscribing
-    await studentPage.waitForTimeout(1500);
+    await expect(bell).toHaveAttribute("data-realtime", "subscribed");
+    await expect(otherBell).toHaveAttribute("data-realtime", "subscribed");
 
     // teacher approves (the review UI itself is covered by review.spec.ts)
     await signIn(page, teacher, "/staff/reviews");
@@ -91,6 +91,35 @@ test("approval raises the student's bell live; reading lowers it; other students
     await otherContext.close();
     await deleteActivitiesByTitle(title);
     await deleteUsers([teacher, student, other]);
+  }
+});
+
+// A bell unmounts and another mounts for the same user (different layout): live updates must survive.
+test("bell still receives live updates after client navigation /dashboard -> /activities", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const title = `กิจกรรมเปลี่ยนหน้า ${suffix}`;
+  let teacher: TestUser | undefined;
+  let student: TestUser | undefined;
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-nt-nav-${suffix}`);
+    student = await createConfirmedUser("student", `student-nt-nav-${suffix}`);
+    const activityId = await createJoinedCodeActivity(title, student.id, { requires_code: false });
+    const submissionId = await seedSubmission(student, activityId, PNG_1X1);
+
+    await signIn(page, student, "/dashboard");
+    await page.getByRole("link", { name: /^กิจกรรม/ }).first().click();
+    await expect(page).toHaveURL((url) => url.pathname === "/activities");
+    const bell = page.getByRole("link", { name: /^แจ้งเตือน/ });
+    await expect(bell).toHaveAttribute("data-realtime", "subscribed");
+    await expect(bell).toHaveAccessibleName(unread(1));
+
+    const c = await signedInClient(teacher);
+    const { error } = await c.rpc("approve_submission", { p_submission_id: submissionId });
+    expect(error).toBeNull();
+    await expect(bell).toHaveAccessibleName(unread(2), { timeout: 3000 });
+  } finally {
+    await deleteActivitiesByTitle(title);
+    await deleteUsers([teacher, student]);
   }
 });
 

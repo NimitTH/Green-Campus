@@ -5,6 +5,13 @@ import { useEffect, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createBrowserClient } from "@/lib/supabase/browser";
 
+function uniqueId(): string {
+  // randomUUID needs a secure context (localhost counts); fall back for plain http.
+  return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 /** Badge text: the unread count, capped at "9+". */
 export function badgeText(count: number): string {
   return count > 9 ? "9+" : String(count);
@@ -22,12 +29,14 @@ export function bellLabel(count: number): string {
 export function NotificationBell() {
   const [signedIn, setSignedIn] = useState(false);
   const [count, setCount] = useState(0);
+  const [subscribed, setSubscribed] = useState(false);
 
   useEffect(() => {
     const supabase = createBrowserClient();
     let cancelled = false;
     let channel: RealtimeChannel | null = null;
     let activeUid: string | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
     async function refetch() {
       const { count: unread, error } = await supabase
@@ -37,7 +46,21 @@ export function NotificationBell() {
       if (!cancelled && !error && unread !== null) setCount(unread);
     }
 
+    // The count always comes from the DB; bursts of events collapse into one refetch.
+    function scheduleRefetch() {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        void refetch();
+      }, 300);
+    }
+
     function teardown() {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      setSubscribed(false);
       if (channel) {
         void supabase.removeChannel(channel);
         channel = null;
@@ -46,6 +69,14 @@ export function NotificationBell() {
     }
 
     async function start(uid: string, accessToken: string) {
+      try {
+        await startChannel(uid, accessToken);
+      } catch (e) {
+        console.error("notification bell: realtime setup failed", e);
+      }
+    }
+
+    async function startChannel(uid: string, accessToken: string) {
       if (activeUid === uid) return;
       teardown();
       activeUid = uid;
@@ -55,18 +86,24 @@ export function NotificationBell() {
       if (cancelled || activeUid !== uid) return;
       const filter = `user_id=eq.${uid}`;
       channel = supabase
-        .channel(`notifications:${uid}`)
+        // Unique per mount: realtime-js returns an existing channel with the same topic, and a
+        // channel being removed stays in that list until the server acks the leave.
+        .channel(`notifications:${uid}:${uniqueId()}`)
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter }, () => {
-          setCount((c) => c + 1);
+          scheduleRefetch();
         })
         .on("postgres_changes", { event: "UPDATE", schema: "public", table: "notifications", filter }, () => {
-          void refetch();
+          scheduleRefetch();
         })
         // Fires on first subscribe and on every reconnect: events may have been missed meanwhile.
         .subscribe((status) => {
-          if (status === "SUBSCRIBED") void refetch();
+          if (status === "SUBSCRIBED") {
+            setSubscribed(true);
+            void refetch();
+          } else {
+            setSubscribed(false);
+          }
         });
-      void refetch();
     }
 
     function stop() {
@@ -108,6 +145,7 @@ export function NotificationBell() {
     <Link
       href="/notifications"
       aria-label={bellLabel(count)}
+      data-realtime={subscribed ? "subscribed" : "connecting"}
       className="relative inline-flex size-11 items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-900"
     >
       <svg aria-hidden="true" viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
