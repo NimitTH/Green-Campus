@@ -57,6 +57,15 @@ async function StaffHome() {
           </span>
         </Link>
         <Link
+          href="/staff/orders"
+          className="block rounded-2xl border border-gray-200 p-4 font-semibold hover:border-green-600 dark:border-gray-800"
+        >
+          ออเดอร์
+          <span className="block text-sm font-normal text-gray-600 dark:text-gray-400">
+            ยืนยันรับของ หรือยกเลิกออเดอร์ที่รอรับ
+          </span>
+        </Link>
+        <Link
           href="/staff/rewards"
           className="block rounded-2xl border border-gray-200 p-4 font-semibold hover:border-green-600 dark:border-gray-800"
         >

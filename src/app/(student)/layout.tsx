@@ -25,6 +25,9 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           <Link href="/cart" className="hover:underline">
             ตะกร้า
           </Link>
+          <Link href="/orders" className="hover:underline">
+            ออเดอร์
+          </Link>
         </nav>
         <NotificationBell />
       </header>

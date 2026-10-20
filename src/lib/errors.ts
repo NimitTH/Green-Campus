@@ -35,6 +35,13 @@ const MESSAGES: Record<string, string> = {
   reason_too_long: "เหตุผลยาวเกิน 500 ตัวอักษร กรุณาเขียนให้สั้นลง",
   points_out_of_range:
     "ปริมาณในผลนี้สูงผิดปกติจนคำนวณแต้มไม่ได้ ตรวจรูปและตัวเลขอีกครั้ง แล้วติดต่อผู้ดูแลระบบ หรือกดไม่ผ่านพร้อมเหตุผล",
+  // checkout / complete_order / cancel_order / expire_orders (Task 13, R71-R75)
+  cart_empty: "ตะกร้าว่าง เลือกของรางวัลก่อน แล้วกดยืนยันแลกอีกครั้ง",
+  blocked: "แลกไม่ได้ เพราะบางรายการในตะกร้าติดปัญหา แก้ตามที่แจ้งแล้วกดยืนยันแลกอีกครั้ง",
+  order_not_found: "ไม่พบออเดอร์นี้ อาจถูกลบไปแล้ว รีเฟรชหน้าเพื่อดูรายการล่าสุด",
+  order_not_pending: "ออเดอร์นี้ถูกรับของ ยกเลิก หรือหมดอายุไปแล้ว รีเฟรชหน้าเพื่อดูสถานะล่าสุด",
+  order_expired: "ออเดอร์นี้เลยกำหนดรับของ 7 วันแล้ว ยืนยันรับไม่ได้ ให้ยกเลิกออเดอร์ (ระบบคืนแต้มและสต็อกให้)",
+  not_admin: "เฉพาะผู้ดูแลระบบเท่านั้นที่ทำรายการนี้ได้",
   // trigger on activities (Task 9, R38)
   activity_status_locked: "เปลี่ยนกลับเป็นฉบับร่างไม่ได้ เพราะมีนักเรียนเข้าร่วมแล้ว ให้ปิดกิจกรรมแทน",
   activity_type_locked: "เปลี่ยนชนิดกิจกรรมไม่ได้ เพราะมีผู้ส่งผลแล้ว ถ้าต้องการชนิดอื่นให้สร้างกิจกรรมใหม่",
@@ -56,6 +63,12 @@ const SUBMIT_MESSAGES: Record<string, string> = {
 // not_staff from issue_weigh_code is worded for the weigh station.
 const REVIEW_MESSAGES: Record<string, string> = {
   not_staff: "เฉพาะครูและผู้ดูแลเท่านั้นที่ตรวจผลได้",
+};
+
+// Wording for checkout (student) and the staff order screen.
+const ORDER_MESSAGES: Record<string, string> = {
+  not_student: "เฉพาะบัญชีนักเรียนเท่านั้นที่แลกของรางวัลได้",
+  not_staff: "เฉพาะครูและผู้ดูแลเท่านั้นที่จัดการออเดอร์ได้",
 };
 
 function isKnownCode(code: string): boolean {
@@ -82,6 +95,12 @@ export function submitErrorMessageTh(code: string | null | undefined): string {
 /** errorMessageTh for the staff review screen (approve_submission / reject_submission codes). */
 export function reviewErrorMessageTh(code: string | null | undefined): string {
   if (code && Object.prototype.hasOwnProperty.call(REVIEW_MESSAGES, code)) return REVIEW_MESSAGES[code];
+  return errorMessageTh(code);
+}
+
+/** errorMessageTh for checkout and the order screens (checkout / complete / cancel / expire codes). */
+export function orderErrorMessageTh(code: string | null | undefined): string {
+  if (code && Object.prototype.hasOwnProperty.call(ORDER_MESSAGES, code)) return ORDER_MESSAGES[code];
   return errorMessageTh(code);
 }
 

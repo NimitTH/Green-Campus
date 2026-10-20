@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { loadEnvConfig } from "@next/env";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { PNG_1X1 } from "./images";
 
 // Test-only admin access to the LOCAL Supabase stack (service key from .env.local).
 // Never print the keys. Always refuses non-local Supabase URLs.
@@ -287,4 +288,58 @@ export async function createOrderFor(studentId: string, rewardId: string, qty: n
     .from("order_items")
     .insert({ order_id: (data as { id: string }).id, reward_id: rewardId, qty, unit_cost: unitCost });
   if (itemError) throw new Error(`e2e: create order item failed: ${itemError.message}`);
+}
+
+// Checkout and orders (Task 13) -------------------------------------------------------------
+
+/**
+ * Give a student points through the real earn path: a joined fixed activity worth `points`,
+ * a submission, and a staff approval. Returns the activity title (for cleanup).
+ */
+export async function seedApprovedEarn(student: TestUser, staff: TestUser, points: number, title: string): Promise<void> {
+  const activityId = await createJoinedCodeActivity(title, student.id, { unit_points: points, requires_code: false });
+  const submissionId = await seedSubmission(student, activityId, PNG_1X1);
+  const c = await signedInClient(staff);
+  const { error } = await c.rpc("approve_submission", { p_submission_id: submissionId });
+  if (error) throw new Error(`e2e: approve failed: ${error.message}`);
+}
+
+/** Points balance of a student: the sum of every ledger row (service role). */
+export async function ledgerBalance(studentId: string): Promise<number> {
+  const { data, error } = await admin().from("ledger_entries").select("points").eq("student_id", studentId);
+  if (error) throw new Error(`e2e: ledger balance failed: ${error.message}`);
+  return ((data ?? []) as { points: number }[]).reduce((sum, r) => sum + r.points, 0);
+}
+
+export type OrderRow = { id: string; status: string; total_points: number };
+
+/** Orders of one student, oldest first (service role). */
+export async function listOrders(studentId: string): Promise<OrderRow[]> {
+  const { data, error } = await admin()
+    .from("orders")
+    .select("id, status, total_points")
+    .eq("student_id", studentId)
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(`e2e: list orders failed: ${error.message}`);
+  return (data ?? []) as OrderRow[];
+}
+
+/** Move an order's expires_at into the past so it is due for expiry. */
+export async function makeOrderDue(orderId: string): Promise<void> {
+  const { error } = await admin()
+    .from("orders")
+    .update({ expires_at: new Date(Date.now() - 60_000).toISOString() })
+    .eq("id", orderId);
+  if (error) throw new Error(`e2e: make order due failed: ${error.message}`);
+}
+
+/** Put `qty` of a reward in the student's cart and check out through the student's own client. */
+export async function checkoutAs(student: TestUser, rewardId: string, qty: number): Promise<string> {
+  const c = await signedInClient(student);
+  const { error: cartError } = await c.from("cart_items").insert({ student_id: student.id, reward_id: rewardId, qty });
+  if (cartError) throw new Error(`e2e: cart insert failed: ${cartError.message}`);
+  const { data, error } = await c.rpc("checkout");
+  const result = data as { ok: boolean; order_id: string | null; error_code: string | null } | null;
+  if (error || !result?.ok || !result.order_id) throw new Error(`e2e: checkout failed: ${error?.message ?? result?.error_code}`);
+  return result.order_id;
 }

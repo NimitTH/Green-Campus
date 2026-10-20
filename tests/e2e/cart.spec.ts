@@ -78,6 +78,9 @@ test("staff creates a reward with an image, the student fills a cart and the tot
     await card(page, nameB).getByRole("button", { name: "ใส่ตะกร้า" }).click();
     await expect(card(page, nameB).getByRole("status")).toContainText("ใส่ตะกร้าแล้ว");
     expect(await listCart(student.id)).toHaveLength(2);
+    // The add's refresh() streams the re-rendered page after the result: let it finish, or it can
+    // read the stock change below and disable the button before the click (no server refusal).
+    await page.waitForLoadState("networkidle");
 
     // stock dropped to 0 after the page loaded: the server refuses the add
     await setRewardStock(idLate, 0);

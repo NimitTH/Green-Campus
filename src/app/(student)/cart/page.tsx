@@ -5,6 +5,7 @@ import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { requireUser } from "@/lib/auth/dal";
 import { cartTotal, getBalance, listCartLines } from "@/lib/rewards/queries";
 import { CartLine } from "./cart-line";
+import { CheckoutButton } from "./checkout-button";
 
 export const metadata: Metadata = { title: "ตะกร้า | Green Campus" };
 
@@ -79,6 +80,10 @@ async function Cart() {
           ตะกร้าไม่ได้กันสต็อกไว้ให้ ของอาจหมดก่อนยืนยันแลก
         </p>
       </section>
+      <CheckoutButton
+        disabled={total > balance}
+        names={Object.fromEntries(lines.map((l) => [l.rewardId, l.reward?.active ? l.reward.name : "ของรางวัลที่ปิดการแลกแล้ว"]))}
+      />
     </>
   );
 }

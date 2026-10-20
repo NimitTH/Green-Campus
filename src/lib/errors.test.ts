@@ -3,6 +3,7 @@ import {
   GENERIC_ERROR_TH,
   errorCodeFromDb,
   errorMessageTh,
+  orderErrorMessageTh,
   reviewErrorMessageTh,
   submitErrorMessageTh,
   uploadErrorCode,
@@ -178,5 +179,24 @@ describe("activity_status_locked", () => {
     const { errorCodeFromDb, errorMessageTh } = await import("./errors");
     expect(errorCodeFromDb({ message: "activity_status_locked" })).toBe("activity_status_locked");
     expect(errorMessageTh("activity_status_locked")).toContain("ฉบับร่าง");
+  });
+});
+
+describe("order errors (Task 13)", () => {
+  it.each(["cart_empty", "blocked", "order_not_found", "order_not_pending", "order_expired", "not_admin", "not_student", "not_staff"])(
+    "has a Thai message for %s",
+    (code) => {
+      const message = orderErrorMessageTh(code);
+      expect(message).not.toBe(GENERIC_ERROR_TH);
+      expect(message).toMatch(/[฀-๿]/);
+    },
+  );
+  it("words not_student and not_staff for orders", () => {
+    expect(orderErrorMessageTh("not_student")).toContain("แลกของรางวัล");
+    expect(orderErrorMessageTh("not_staff")).toContain("ออเดอร์");
+  });
+  it("recognises the raised codes", () => {
+    expect(errorCodeFromDb({ message: "order_not_pending" })).toBe("order_not_pending");
+    expect(errorCodeFromDb({ message: "order_expired" })).toBe("order_expired");
   });
 });
