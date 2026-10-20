@@ -96,7 +96,7 @@ select is((select p.proconfig from pg_proc p join pg_namespace n on n.oid = p.pr
            where n.nspname = 'public' and p.proname = 'profile_display_name'), array['search_path=""'],
   'profile_display_name has an empty search_path');
 select ok(not has_function_privilege('anon', 'public.profile_display_name(uuid)', 'execute'), 'anon cannot execute profile_display_name');
-select ok(has_function_privilege('authenticated', 'public.profile_display_name(uuid)', 'execute'), 'authenticated can execute profile_display_name');
+select ok(not has_function_privilege('authenticated', 'public.profile_display_name(uuid)', 'execute'), 'authenticated cannot execute profile_display_name (R99, 0017)');
 
 update public.profiles set display_name = '  น้องสี่  ' where id = '00000000-0000-0000-0000-00000000c104';
 select is(public.profile_display_name('00000000-0000-0000-0000-00000000c104'), 'น้องสี่', 'display_name wins, trimmed');

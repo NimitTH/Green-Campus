@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { requireUser } from "@/lib/auth/dal";
 import { isStaffRole } from "@/lib/auth/routes";
 import { NotificationBell } from "@/components/NotificationBell";
+import { RankCard } from "./_components/rank-card";
 import { StudentStats } from "./_components/student-stats";
 import { PageSkeleton } from "../_components/page-skeleton";
 import { SignOutButton } from "../_components/sign-out-button";
@@ -53,7 +54,12 @@ async function DashboardContent() {
           </Link>
         </p>
       ) : (
-        <StudentStats studentId={user.id} />
+        <>
+          <Suspense fallback={null}>
+            <RankCard />
+          </Suspense>
+          <StudentStats studentId={user.id} />
+        </>
       )}
     </>
   );

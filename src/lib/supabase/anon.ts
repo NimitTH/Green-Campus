@@ -1,0 +1,8 @@
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+
+/** Cookie-free client with the publishable key: for anonymous public data inside `use cache` scopes. */
+export function createAnonClient(): SupabaseClient {
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}

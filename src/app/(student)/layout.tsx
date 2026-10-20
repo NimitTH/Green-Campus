@@ -28,6 +28,9 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           <Link href="/orders" className="hover:underline">
             ออเดอร์
           </Link>
+          <Link href="/leaderboard" className="hover:underline">
+            อันดับ
+          </Link>
         </nav>
         <NotificationBell />
       </header>

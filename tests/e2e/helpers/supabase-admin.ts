@@ -356,3 +356,11 @@ export async function updateReward(id: string, fields: { name?: string; active?:
   const { error } = await admin().from("rewards").update(fields).eq("id", id);
   if (error) throw new Error(`e2e: update reward failed: ${error.message}`);
 }
+
+/** Give a student carbon through an 'earn' ledger row (service role); `createdAt` defaults to now. */
+export async function grantCarbon(studentId: string, carbonKg: number, createdAt?: string): Promise<void> {
+  const { error } = await admin()
+    .from("ledger_entries")
+    .insert({ student_id: studentId, kind: "earn", points: 0, carbon_kg: carbonKg, note: "e2e", ...(createdAt ? { created_at: createdAt } : {}) });
+  if (error) throw new Error(`e2e: grant carbon failed: ${error.message}`);
+}
