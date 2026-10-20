@@ -77,7 +77,8 @@
 ## Known limitation: copying sara am (ำ)
 
 - **The defect.** pdfkit writes one ToUnicode entry per glyph. Sarabun shapes ำ as nikhahit (fused with any tone mark) + sara aa, and the sara aa glyph maps back to "า". So text copied from the PDF reads "น้ำา" for "น้ำ".
-- **What is not affected.** Search for "น้ำ" still matches, and what you see on the page is correct.
+- **What is affected.** Only the text layer (copy/paste and in-viewer search). The extra "า" sits right after every ำ, so copying or searching any word that continues after ำ (e.g. "น้ำดื่ม", "กำลัง", "คำตอบ") does not match the original text; a search that ends at ำ (e.g. "น้ำ") may still match.
+- **What is not affected.** The glyphs: what you see and print on the page is correct.
 - **Why the obvious fix fails.** Disabling `ccmp` keeps ำ as one glyph, but then the nikhahit collides with a tone mark.
 - **How the tests handle it.** The vitest folds "ำา" back to "ำ" before comparing extracted text (`receipt.test.ts`).
 

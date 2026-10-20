@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blockedReasonTh, isOrderOverdue, isOrderReady, orderIdRange, orderNumber, orderStatusLabelTh, orderStatusTone, parseBlocked } from "./format";
+import { blockedReasonTh, isOrderOverdue, studentDisplayName, isOrderReady, orderIdRange, orderNumber, orderStatusLabelTh, orderStatusTone, parseBlocked } from "./format";
 
 describe("orderStatusLabelTh", () => {
   const READY = "2026-10-21T03:00:00+00:00";
@@ -97,5 +97,27 @@ describe("isOrderOverdue", () => {
   });
   it("is false for other statuses", () => {
     expect(isOrderOverdue("completed", "2026-10-01T00:00:00Z", now)).toBe(false);
+  });
+});
+
+describe("isOrderOverdue (ready orders and the receipt)", () => {
+  const now = Date.parse("2026-10-20T10:00:00Z");
+  it("counts a ready order past its deadline as overdue too (status stays pending_pickup)", () => {
+    expect(isOrderOverdue("pending_pickup", "2026-10-19T10:00:00Z", now)).toBe(true);
+  });
+  it("is false for an expired order (already released)", () => {
+    expect(isOrderOverdue("expired", "2026-10-19T10:00:00Z", now)).toBe(false);
+  });
+});
+
+describe("studentDisplayName", () => {
+  it.each([
+    ["น้องหนึ่ง", "นักเรียน หนึ่ง", "น้องหนึ่ง"],
+    ["  น้องหนึ่ง  ", "นักเรียน หนึ่ง", "น้องหนึ่ง"],
+    ["   ", "นักเรียน หนึ่ง", "นักเรียน หนึ่ง"],
+    ["", "นักเรียน หนึ่ง", "นักเรียน หนึ่ง"],
+    [null, "นักเรียน หนึ่ง", "นักเรียน หนึ่ง"],
+  ])("display %j, full %j -> %j", (display, full, expected) => {
+    expect(studentDisplayName(display, full)).toBe(expected);
   });
 });

@@ -7,7 +7,7 @@ import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { requireUser } from "@/lib/auth/dal";
 import { isStaffRole } from "@/lib/auth/routes";
 import { formatBangkok } from "@/lib/datetime";
-import { isOrderReady, orderNumber, orderStatusLabelTh, orderStatusTone } from "@/lib/orders/format";
+import { isOrderOverdue, isOrderReady, orderNumber, orderStatusLabelTh, orderStatusTone, OVERDUE_NOTICE_TH } from "@/lib/orders/format";
 import { getOrder } from "@/lib/orders/queries";
 import { isUuid } from "@/lib/uuid";
 
@@ -34,6 +34,8 @@ async function Order({ params }: { params: Promise<{ id: string }> }) {
   const order = await getOrder(id);
   if (!order) notFound();
   const pending = order.status === "pending_pickup";
+  // still pending_pickup but past expires_at: expire_orders (hourly) will release it and refund
+  const overdue = isOrderOverdue(order.status, order.expiresAt);
   const staff = isStaffRole(user.role);
 
   return (
@@ -53,7 +55,11 @@ async function Order({ params }: { params: Promise<{ id: string }> }) {
         {staff && order.studentName ? <p className="mt-2 text-sm break-words">{order.studentName}</p> : null}
       </header>
 
-      {pending ? (
+      {pending && overdue ? (
+        <p data-testid="order-overdue" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+          {OVERDUE_NOTICE_TH}
+        </p>
+      ) : pending ? (
         <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
           {isOrderReady(order.status, order.readyAt) ? "ของพร้อมแล้ว รับที่แผนกก่อนวันที่" : "รับของที่แผนกก่อนวันที่"}{" "}
           {formatBangkok(order.expiresAt)} ถ้าไม่มารับ ออเดอร์จะหมดอายุและได้แต้มคืน

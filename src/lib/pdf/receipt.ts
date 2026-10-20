@@ -1,7 +1,7 @@
 import pdfmake from "pdfmake";
 import type { Content, TDocumentDefinitions } from "pdfmake/interfaces";
 import { formatBangkok } from "@/lib/datetime";
-import { orderStatusLabelTh } from "@/lib/orders/format";
+import { isOrderOverdue, OVERDUE_NOTICE_TH } from "@/lib/orders/format";
 import { FONT_DIR, measureSarabun, PDF_FONTS } from "./fonts";
 import { wrapThai } from "./thai-wrap";
 
@@ -13,17 +13,26 @@ export type ReceiptData = {
   orderNo: string;
   createdAt: Date;
   studentName: string;
+  /** The Thai status label (printed). */
   status: string;
+  /** orders.status as stored (pending_pickup, completed, ...). */
+  rawStatus: string;
+  /** orders.ready_at (staff prepared the reward), or null. */
+  readyAt: Date | null;
   expiresAt: Date;
   items: { name: string; qty: number; unitCost: number }[];
   totalPoints: number;
 };
 
-const PENDING_LABELS = new Set([orderStatusLabelTh("pending_pickup", null), orderStatusLabelTh("pending_pickup", "ready")]);
+export type ReceiptPhase = "pending" | "overdue" | "done";
 
-/** รอเตรียมของ / พร้อมรับ: the order still waits for pickup (ReceiptData.status is the Thai label). */
-export function isPendingLabel(status: string): boolean {
-  return PENDING_LABELS.has(status);
+/**
+ * pending: waits for pickup before the deadline; overdue: still pending_pickup but past expires_at
+ * (expire_orders will refund it); done: completed / cancelled / expired. From the raw status.
+ */
+export function receiptPhase(order: ReceiptData, now: Date = new Date()): ReceiptPhase {
+  if (order.rawStatus !== "pending_pickup") return "done";
+  return isOrderOverdue(order.rawStatus, order.expiresAt.toISOString(), now.getTime()) ? "overdue" : "pending";
 }
 
 const number = new Intl.NumberFormat("th-TH");
@@ -57,8 +66,8 @@ function line(label: string, value: string): Content {
   };
 }
 
-function definition(order: ReceiptData): TDocumentDefinitions {
-  const pending = isPendingLabel(order.status);
+function definition(order: ReceiptData, now: Date): TDocumentDefinitions {
+  const phase = receiptPhase(order, now);
   const head = (text: string, alignment: "left" | "right" = "left") => ({ text, bold: true, fillColor: "#dcfce7", alignment });
   return {
     pageSize: "A5",
@@ -102,19 +111,24 @@ function definition(order: ReceiptData): TDocumentDefinitions {
         ],
         margin: [CELL_PADDING, 0, CELL_PADDING, 12],
       },
-      pending
+      phase === "pending"
         ? { text: thai(`รับของที่แผนกก่อนวันที่ ${formatBangkok(order.expiresAt.toISOString())}`, CONTENT_WIDTH, BODY, true), bold: true }
-        : { text: thai(`สถานะสุดท้าย: ${order.status}`, CONTENT_WIDTH, BODY, true), bold: true },
-      { text: "แสดงใบนี้ที่แผนกเพื่อรับของ", color: GRAY, alignment: "center", margin: [0, 18, 0, 0] },
+        : phase === "overdue"
+          ? { text: thai(OVERDUE_NOTICE_TH, CONTENT_WIDTH, BODY, true), bold: true }
+          : { text: thai(`สถานะสุดท้าย: ${order.status}`, CONTENT_WIDTH, BODY, true), bold: true },
+      // only an order that can still be picked up gets the "show this at the counter" footer
+      ...(phase === "pending"
+        ? [{ text: "แสดงใบนี้ที่แผนกเพื่อรับของ", color: GRAY, alignment: "center" as const, margin: [0, 18, 0, 0] as [number, number, number, number] }]
+        : []),
     ],
   };
 }
 
-/** The receipt as PDF bytes. */
-export async function renderReceipt(order: ReceiptData): Promise<Uint8Array> {
+/** The receipt as PDF bytes. `now` decides pending vs overdue (tests pass a fixed time). */
+export async function renderReceipt(order: ReceiptData, now: Date = new Date()): Promise<Uint8Array> {
   pdfmake.setFonts(PDF_FONTS);
   pdfmake.setUrlAccessPolicy(() => false);
   pdfmake.setLocalAccessPolicy((file) => file.startsWith(FONT_DIR));
-  const buffer = await pdfmake.createPdf(definition(order)).getBuffer();
+  const buffer = await pdfmake.createPdf(definition(order, now)).getBuffer();
   return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 }

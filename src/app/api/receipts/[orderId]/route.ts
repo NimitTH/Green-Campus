@@ -28,7 +28,17 @@ export async function GET(_request: NextRequest, ctx: RouteContext<"/api/receipt
   if (!order) return status(404);
 
   const data = toReceiptData(order);
-  const pdf = await renderReceipt(data);
+  let pdf: Uint8Array;
+  try {
+    pdf = await renderReceipt(data);
+  } catch (error) {
+    // Logged server-side only; the browser gets a generic message (no stack, no order data).
+    console.error("receipt render failed", data.orderNo, error);
+    return new Response("สร้างใบเสร็จไม่สำเร็จ กรุณาลองใหม่อีกครั้ง (Receipt could not be generated.)", {
+      status: 500,
+      headers: { ...NO_STORE, "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
   return new Response(new Blob([pdf as Uint8Array<ArrayBuffer>], { type: "application/pdf" }), {
     status: 200,
     headers: {

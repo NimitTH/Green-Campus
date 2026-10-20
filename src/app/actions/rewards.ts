@@ -20,6 +20,7 @@ const STAFF_ONLY = "เฉพาะครูและผู้ดูแลเท
 const ADMIN_ONLY = "เฉพาะผู้ดูแลระบบเท่านั้นที่ลบของรางวัลได้ ครูปิดการแลกแทนได้";
 const NOT_FOUND = "ไม่พบของรางวัลนี้ อาจถูกลบไปแล้ว";
 const HAS_ORDERS = "ลบไม่ได้ เพราะมีคนแลกไปแล้ว ให้ปิดการแลกแทน";
+const STOCK_CHANGED = "สต็อกเปลี่ยนระหว่างแก้ไข กรุณาโหลดใหม่";
 const BAD_IMAGE = "รูปของรางวัลไม่ถูกต้อง กรุณาเลือกรูปใหม่แล้วบันทึกอีกครั้ง";
 const IMAGE_PATH_RE = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jpg$/i;
 
@@ -29,6 +30,11 @@ export type SaveRewardInput = RewardInput & {
   mode: "create" | "update";
   /** Object path in reward-images ({id}/{uuid}.jpg) when a new image was uploaded. */
   imagePath?: string | null;
+  /**
+   * Update: the stock the edit form was loaded with (a hidden form value, R91). Stock is written
+   * only when the teacher changed it, and only if the row still has this value.
+   */
+  loadedStock?: string;
 };
 
 export type SaveRewardResult =
@@ -39,8 +45,11 @@ function isSaveInput(value: unknown): value is SaveRewardInput {
   if (!isRewardInputShape(value)) return false;
   const v = value as unknown as Record<string, unknown>;
   if (typeof v.id !== "string" || (v.mode !== "create" && v.mode !== "update")) return false;
+  if (v.loadedStock !== undefined && typeof v.loadedStock !== "string") return false;
   return v.imagePath === undefined || v.imagePath === null || typeof v.imagePath === "string";
 }
+
+const STOCK_RE = /^\d{1,12}$/;
 
 /** Create or update a reward. Staff only. Returns the previous image path on update, for cleanup. */
 export async function saveReward(
@@ -62,18 +71,29 @@ export async function saveReward(
 
   const supabase = await createServerClient();
   if (input.mode === "update") {
+    // R91: checkout / cancel / expiry change stock while the form is open. Writing back the value
+    // the form loaded would undo them, so stock is only written when the teacher changed it, and
+    // then only while the row still holds the loaded value (compare-and-set).
+    const loadedText = input.loadedStock?.trim() ?? "";
+    if (!STOCK_RE.test(loadedText)) return { ok: false, error: GENERIC_ERROR_TH };
+    const loadedStock = Number(loadedText);
+    const stockChanged = result.value.stock !== loadedStock;
+    const { stock, ...rest } = result.value;
+    const fields = { ...rest, ...(stockChanged ? { stock } : {}), ...(imagePath ? { image_path: imagePath } : {}) };
+
     const { data: before } = await supabase.from("rewards").select("image_path").eq("id", input.id).maybeSingle();
-    const { data, error } = await supabase
-      .from("rewards")
-      .update(imagePath ? { ...result.value, image_path: imagePath } : result.value)
-      .eq("id", input.id)
-      .select("id")
-      .maybeSingle();
+    let update = supabase.from("rewards").update(fields).eq("id", input.id);
+    if (stockChanged) update = update.eq("stock", loadedStock);
+    const { data, error } = await update.select("id").maybeSingle();
     if (error) {
       console.error("saveReward update failed", error.code, error.message);
       return { ok: false, error: GENERIC_ERROR_TH };
     }
-    if (!data) return { ok: false, error: NOT_FOUND };
+    if (!data) {
+      // 0 rows: either the reward is gone, or (stock edit) its stock moved since the form loaded
+      if (stockChanged && before) return { ok: false, error: STOCK_CHANGED };
+      return { ok: false, error: NOT_FOUND };
+    }
     revalidateRewardPages();
     const previous = (before as { image_path: string | null } | null)?.image_path ?? null;
     return { ok: true, id: input.id, previousImagePath: imagePath && previous !== imagePath ? previous : null };

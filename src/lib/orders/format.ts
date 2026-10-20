@@ -33,6 +33,14 @@ export function isOrderOverdue(status: string, expiresAt: string, now: number = 
   return status === "pending_pickup" && Date.parse(expiresAt) <= now;
 }
 
+/** Shown instead of the pickup deadline for an overdue pending order (order page and receipt). */
+export const OVERDUE_NOTICE_TH = "เลยกำหนดรับแล้ว ระบบจะคืนแต้มให้อัตโนมัติ";
+
+/** display_name (trimmed) when it is not blank, else full_name: the same fallback as the SQL (btrim). */
+export function studentDisplayName(displayName: string | null | undefined, fullName: string): string {
+  return displayName?.trim() || fullName;
+}
+
 /** เลขที่ออเดอร์: the first 8 characters of the id, uppercased. */
 export function orderNumber(id: string): string {
   return id.slice(0, 8).toUpperCase();

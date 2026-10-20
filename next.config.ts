@@ -1,5 +1,8 @@
 import type { NextConfig } from "next";
 
+// The Sarabun files every PDF route reads at runtime (src/lib/pdf/fonts.ts).
+const PDF_FONT_FILES = ["./src/lib/pdf/fonts/*.ttf"];
+
 const nextConfig: NextConfig = {
   /* config options here */
   experimental: {
@@ -7,12 +10,15 @@ const nextConfig: NextConfig = {
   },
   cacheComponents: true,
   partialPrefetching: true,
-  // PDF routes (Task 14): pdfmake/pdfkit read their own data files from node_modules at runtime, so
-  // they are loaded with require() instead of being bundled, and the Sarabun files that
+  // PDF routes (Task 14): pdfmake/pdfkit and fontkit read their own data files from node_modules at
+  // runtime, so they are loaded with require() instead of being bundled, and the Sarabun files that
   // src/lib/pdf/fonts.ts reads from disk are added to the function trace (public/ is not in it).
-  serverExternalPackages: ["pdfmake"],
+  // Every route that renders a PDF must match a key below: the receipt today, the reports (phase 3)
+  // under /api/reports/. Add a key here for any other PDF route.
+  serverExternalPackages: ["pdfmake", "fontkit"],
   outputFileTracingIncludes: {
-    "/api/receipts/*": ["./src/lib/pdf/fonts/*.ttf"],
+    "/api/receipts/*": PDF_FONT_FILES,
+    "/api/reports/**": PDF_FONT_FILES,
   },
   turbopack: {
     rules: {

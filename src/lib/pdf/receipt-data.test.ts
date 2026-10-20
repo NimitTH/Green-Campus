@@ -25,6 +25,8 @@ describe("toReceiptData", () => {
       createdAt: new Date("2026-10-21T03:15:00Z"),
       studentName: "สมชาย ใจดี",
       status: "รอเตรียมของ",
+      rawStatus: "pending_pickup",
+      readyAt: null,
       expiresAt: new Date("2026-10-28T10:00:00Z"),
       items: [
         { name: "กระบอกน้ำ", qty: 2, unitCost: 20 },
@@ -40,7 +42,10 @@ describe("toReceiptData", () => {
     ["cancelled", null, "ยกเลิก"],
     ["expired", null, "หมดอายุ"],
   ])("status %s (ready_at %s) -> %s", (status, readyAt, label) => {
-    expect(toReceiptData({ ...base, status, readyAt }).status).toBe(label);
+    const data = toReceiptData({ ...base, status, readyAt });
+    expect(data.status).toBe(label);
+    expect(data.rawStatus).toBe(status);
+    expect(data.readyAt).toEqual(readyAt ? new Date(readyAt) : null);
   });
 
   it("uses a dash when the student has no profile name", () => {

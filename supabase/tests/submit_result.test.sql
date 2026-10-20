@@ -350,7 +350,9 @@ select lives_ok($$insert into storage.objects (bucket_id, name, owner)
 select throws_ok($$insert into storage.objects (bucket_id, name, owner)
   values ('evidence', '00000000-0000-0000-0000-000000003101/u3/e.jpg', '00000000-0000-0000-0000-000000003102')$$,
   '42501', null, 'student cannot upload into another student''s folder');
-select is((select count(*) from storage.objects where bucket_id = 'evidence'), 2::bigint,
+-- Counts are scoped to this test's users: evidence left behind by e2e runs must not change them.
+select is((select count(*) from storage.objects where bucket_id = 'evidence'
+            and name ~ '^00000000-0000-0000-0000-00000000310[12]/'), 2::bigint,
   'student reads only their own evidence objects');
 update storage.objects set name = '00000000-0000-0000-0000-000000003102/u2/renamed.jpg' where bucket_id = 'evidence';
 select throws_ok($$delete from storage.objects where bucket_id = 'evidence'$$, null, null, 'direct SQL delete of storage objects is refused (storage.protect_delete trigger)');
@@ -360,7 +362,8 @@ select is((select count(*) from storage.objects where bucket_id = 'evidence' and
 
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000003201","role":"authenticated"}', true);
-select is((select count(*) from storage.objects where bucket_id = 'evidence'), 12::bigint, 'staff read all evidence objects');
+select is((select count(*) from storage.objects where bucket_id = 'evidence'
+            and name ~ '^00000000-0000-0000-0000-00000000310[12]/'), 12::bigint, 'staff read all evidence objects');
 reset role;
 
 select * from finish();

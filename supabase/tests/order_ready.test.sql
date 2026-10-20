@@ -56,11 +56,11 @@ select isnt((select id from t_ids where name = 'o1'), null, 'checkout of s1 succ
 select is((select ready_at from public.orders where id = (select id from t_ids where name = 'o1')), null, 'a new order is not ready');
 select is((select status from public.orders where id = (select id from t_ids where name = 'o1')), 'pending_pickup', 'a new order is pending_pickup');
 select is((select count(*) from public.notifications where user_id = '00000000-0000-0000-0000-00000000b201'
-            and type = 'order_new' and title = 'มีออเดอร์ใหม่' and link = '/staff/orders'
+            and type = 'order_new' and title = 'มีออเดอร์ใหม่' and link = '/staff/orders?q=' || upper(left((select id from t_ids where name = 'o1')::text, 8))
             and body = 'นักเรียน หนึ่ง 3 ชิ้น รวม 30 แต้ม'), 1::bigint,
-  'the teacher gets one order_new (full_name, 3 pieces, 30 points, link /staff/orders)');
+  'the teacher gets one order_new (full_name, 3 pieces, 30 points, link /staff/orders?q=<order number>, 0016)');
 select is((select count(*) from public.notifications where user_id = '00000000-0000-0000-0000-00000000b301'
-            and type = 'order_new' and body = 'นักเรียน หนึ่ง 3 ชิ้น รวม 30 แต้ม' and link = '/staff/orders'), 1::bigint,
+            and type = 'order_new' and body = 'นักเรียน หนึ่ง 3 ชิ้น รวม 30 แต้ม' and link = '/staff/orders?q=' || upper(left((select id from t_ids where name = 'o1')::text, 8))), 1::bigint,
   'the admin gets one order_new');
 select is((select count(*) from public.profiles p where p.role in ('teacher', 'admin')
             and (select count(*) from public.notifications n where n.user_id = p.id and n.type = 'order_new'

@@ -229,7 +229,7 @@ test("cart: ยืนยันแลก is disabled without enough points and sh
   }
 });
 
-test("admin expires due orders with the button; stock and points come back", async ({ page }, testInfo) => {
+test("admin expires due orders with the button; stock and points come back", async ({ page, browser }, testInfo) => {
   const suffix = uniqueSuffix(testInfo.project.name);
   const name = `ของหมดอายุ ${suffix}`;
   let admin: TestUser | undefined;
@@ -242,6 +242,14 @@ test("admin expires due orders with the button; stock and points come back", asy
     const rewardId = await createRewardRow(name, 30, 3);
     const orderId = await checkoutAs(student, rewardId, 1);
     await makeOrderDue(orderId);
+
+    // overdue but not yet expired: the order page says so instead of the pickup deadline (4a)
+    const studentContext = await browser.newContext();
+    const studentPage = await studentContext.newPage();
+    await signIn(studentPage, student, `/orders/${orderId}`);
+    await expect(studentPage.getByTestId("order-overdue")).toHaveText("เลยกำหนดรับแล้ว ระบบจะคืนแต้มให้อัตโนมัติ");
+    await expect(studentPage.getByText("รับของที่แผนกก่อนวันที่")).toHaveCount(0);
+    await studentContext.close();
 
     await signIn(page, admin, "/staff/orders");
     await page.getByRole("button", { name: "ยกเลิกออเดอร์ที่หมดอายุ" }).click();

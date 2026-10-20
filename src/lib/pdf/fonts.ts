@@ -6,7 +6,9 @@ import * as fontkit from "fontkit";
 // The files live next to this module under src/lib/pdf/fonts, not in public/: public/ is served by
 // the CDN and is not part of a Vercel function. They are read from process.cwd() (the project root,
 // locally and inside the function) and next.config.ts outputFileTracingIncludes adds them to the
-// trace of every route that renders a PDF.
+// trace of every route that renders a PDF. A NEW PDF route must be covered by a key there
+// ("/api/receipts/*" and "/api/reports/**" today), or its deployed function will not find the
+// files (ENOENT at render time, it works locally because the whole project is on disk).
 
 export const FONT_DIR = path.join(process.cwd(), "src", "lib", "pdf", "fonts");
 const FILE_NAMES = { normal: "Sarabun-Regular.ttf", bold: "Sarabun-Bold.ttf" } as const;

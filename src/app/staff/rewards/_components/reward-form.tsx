@@ -45,6 +45,9 @@ export function RewardForm({
   const newId = useRef(uniqueId());
   const rewardId = id ?? newId.current;
   const [values, setValues] = useState<RewardInput>(initial);
+  // The stock this form was loaded with (R91): the save only writes stock if the teacher changed
+  // it, and only while the row still holds this value.
+  const loadedStock = initial.stock;
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState<string | null>(null);
@@ -91,7 +94,7 @@ export function RewardForm({
       const imagePath = file ? await upload(file) : null;
       setStage("กำลังบันทึก...");
       const result = await withTimeout(
-        saveReward({ ...values, id: rewardId, mode: id ? "update" : "create", imagePath }),
+        saveReward({ ...values, id: rewardId, mode: id ? "update" : "create", imagePath, ...(id ? { loadedStock } : {}) }),
         REQUEST_TIMEOUT_MS,
       );
       if (!result.ok) {
@@ -122,6 +125,7 @@ export function RewardForm({
 
   return (
     <form onSubmit={onSubmit} noValidate>
+      {id ? <input type="hidden" name="loadedStock" value={loadedStock} /> : null}
       {error ? (
         <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
           {error}

@@ -1,6 +1,6 @@
 import "server-only";
 import { createServerClient } from "@/lib/supabase/server";
-import { orderIdRange } from "./format";
+import { orderIdRange, studentDisplayName } from "./format";
 
 // Read helpers for order pages. They run as the signed-in user, so RLS decides what is visible
 // (students: their own orders; staff: every order, 0002). Callers check the role via the DAL.
@@ -82,7 +82,7 @@ export async function getOrder(id: string): Promise<OrderDetail | null> {
   return {
     ...summary(row),
     studentId: row.student_id,
-    studentName: student ? student.display_name || student.full_name : null,
+    studentName: student ? studentDisplayName(student.display_name, student.full_name) : null,
     completedAt: row.completed_at,
     lines: row.order_items
       .map((i) => ({ rewardId: i.reward_id, name: i.reward_name, qty: i.qty, unitCost: i.unit_cost }))
@@ -141,7 +141,7 @@ export async function listStaffOrders(query: string): Promise<StaffOrder[]> {
     const student = one(r.student);
     return {
       ...summary(r),
-      studentName: student ? student.display_name || student.full_name : "-",
+      studentName: student ? studentDisplayName(student.display_name, student.full_name) : "-",
       lines: r.order_items.map((i) => ({ name: i.reward_name, qty: i.qty })),
     };
   });
