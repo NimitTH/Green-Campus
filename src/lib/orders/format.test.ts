@@ -117,6 +117,9 @@ describe("studentDisplayName", () => {
     ["   ", "นักเรียน หนึ่ง", "นักเรียน หนึ่ง"],
     ["", "นักเรียน หนึ่ง", "นักเรียน หนึ่ง"],
     [null, "นักเรียน หนึ่ง", "นักเรียน หนึ่ง"],
+    [" ", "  นักเรียน หนึ่ง ", "นักเรียน หนึ่ง"],
+    ["", " ", "ไม่ระบุชื่อ"],
+    [null, "", "ไม่ระบุชื่อ"],
   ])("display %j, full %j -> %j", (display, full, expected) => {
     expect(studentDisplayName(display, full)).toBe(expected);
   });

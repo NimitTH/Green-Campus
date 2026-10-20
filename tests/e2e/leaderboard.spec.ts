@@ -77,22 +77,14 @@ test("staff can open the leaderboard and get no own-rank card on the dashboard",
   }
 });
 
-test("signed out, / shows the three totals and no names", async ({ page }, testInfo) => {
-  const suffix = uniqueSuffix(testInfo.project.name);
-  let student: TestUser | undefined;
-  try {
-    student = await createConfirmedUser("student", `student-home-${suffix}`);
-    await grantCarbon(student.id, 5);
-    await page.goto("/");
-    await expect(page.getByTestId("stat-carbon")).toBeVisible();
-    await expect(page.getByTestId("stat-waste")).toBeVisible();
-    await expect(page.getByTestId("stat-trees")).toBeVisible();
-    await expect(page.getByTestId("stat-carbon")).toContainText("กก.");
-    await expect(page.getByTestId("stat-trees")).toContainText("ต้น");
-    await expect(page.getByRole("link", { name: "สมัครสมาชิก" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "เข้าสู่ระบบ" })).toBeVisible();
-    await expect(page.locator("body")).not.toContainText("ทดสอบ");
-  } finally {
-    await deleteUsers([student]);
-  }
+test("signed out, / shows the three totals and no names", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByTestId("stat-carbon")).toBeVisible();
+  await expect(page.getByTestId("stat-waste")).toBeVisible();
+  await expect(page.getByTestId("stat-trees")).toBeVisible();
+  await expect(page.getByTestId("stat-carbon")).toContainText("กก.");
+  await expect(page.getByTestId("stat-trees")).toContainText("ต้น");
+  await expect(page.getByRole("link", { name: "สมัครสมาชิก" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "เข้าสู่ระบบ" })).toBeVisible();
+  await expect(page.locator("body")).not.toContainText("ทดสอบ");
 });

@@ -7,7 +7,7 @@ export async function RankCard() {
   let rank: number | null = null;
   try {
     const me = (await getLeaderboard("month")).find((r) => r.isMe);
-    if (me && me.carbonKg > 0) rank = me.rank;
+    if (me) rank = me.rank;
   } catch {
     return null;
   }

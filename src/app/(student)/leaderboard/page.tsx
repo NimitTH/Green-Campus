@@ -57,7 +57,7 @@ async function Leaderboard({ searchParams }: { searchParams: Search }) {
         <ol className="space-y-2">
           {rows.map((r, i) => (
             <li key={`${r.rank}-${i}`}>
-              {r.isMe && i >= 10 ? (
+              {r.isMe && r.rank !== null && r.rank > 10 ? (
                 <p aria-hidden="true" className="pb-2 text-center text-gray-500">
                   …
                 </p>
@@ -80,14 +80,20 @@ function Row({ row }: { row: LeaderboardRow }) {
       }`}
     >
       <span data-testid="lb-rank" className="w-8 shrink-0 text-center font-semibold">
-        {row.rank}
+        {row.rank ?? "-"}
       </span>
       <span className="min-w-0 flex-1 break-words">
         {row.displayName}
         {row.isMe ? <span className="ml-2 text-xs text-green-700 dark:text-green-400">(คุณ)</span> : null}
       </span>
       <span className="shrink-0 text-right font-semibold">
-        {formatKg(row.carbonKg)} <span className="text-xs font-normal">กก.</span>
+        {row.rank === null ? (
+          <span className="text-sm font-normal text-gray-600 dark:text-gray-400">ยังไม่มีอันดับ</span>
+        ) : (
+          <>
+            {formatKg(row.carbonKg)} <span className="text-xs font-normal">กก.</span>
+          </>
+        )}
       </span>
     </div>
   );

@@ -6,7 +6,7 @@
 --   redeem/refund, negative adjust), s102 ...d102 (no carbon), s103 ...d103 (blank names, carbon 0.5),
 --   teacher ...d201; activities ...d501 waste, ...d502 trees, ...d503 fixed
 begin;
-select plan(40);
+select plan(45);
 
 -- baseline for the delta tests (before anything below is inserted)
 create temp table t_base as select public.public_stats() as s;
@@ -38,7 +38,14 @@ insert into public.ledger_entries (student_id, kind, points, carbon_kg, created_
   ('00000000-0000-0000-0000-00000000d101', 'redeem', -50, 0, '2031-10-16 05:00+00'),
   ('00000000-0000-0000-0000-00000000d101', 'refund', 50, 0, '2031-10-17 05:00+00'),
   ('00000000-0000-0000-0000-00000000d103', 'earn', 1, 0.5, '2031-10-12 05:00+00'),
-  ('00000000-0000-0000-0000-00000000d201', 'adjust', 9, 9, '2031-10-12 05:00+00');
+  ('00000000-0000-0000-0000-00000000d201', 'adjust', 9, 9.75, '2031-10-12 05:00+00'),
+  ('00000000-0000-0000-0000-00000000d102', 'adjust', -3, -3, '2031-10-14 05:00+00');
+
+-- March 2032: ties at rank 10 (d111 50; d112..d119 40..33; d120, d121, d122 all 5)
+insert into public.ledger_entries (student_id, kind, points, carbon_kg, created_at)
+select ('00000000-0000-0000-0000-00000000d' || lpad(i::text, 3, '0'))::uuid, 'earn', 1,
+       case when i = 111 then 50 when i <= 119 then 40 - (i - 112) else 5 end, '2032-03-15 05:00+00'
+from generate_series(111, 122) i;
 
 -- activities and approved/pending/rejected submissions for public_stats
 insert into public.activities (id, title, starts_at, ends_at, status, type, unit_points, unit_carbon_kg) values
@@ -96,8 +103,8 @@ select is((select l.carbon_kg from public.leaderboard('month', '2031-10-31 17:00
 -- all time (own row only: other totals may include e2e leftovers)
 select is((select l.carbon_kg from public.leaderboard('all') l where l.is_me), 12.25::numeric, 'all time: 5.5 - 0.25 + 7');
 select is((select count(*) from public.leaderboard('month', '2031-12-15 05:00+00')), 1::bigint, 'an empty month still returns the caller row');
-select is((select l.rank || ':' || l.carbon_kg from public.leaderboard('month', '2031-12-15 05:00+00') l where l.is_me), '1:0',
-  'an empty month: caller at rank 1 with 0 carbon');
+select is((select l.rank is null and l.carbon_kg = 0 from public.leaderboard('month', '2031-12-15 05:00+00') l where l.is_me), true,
+  'an empty month: caller unranked (null rank) with 0 carbon');
 
 -- errors
 select throws_ok($$select * from public.leaderboard('week')$$, '22023', 'invalid_period', 'unknown period raises invalid_period');
@@ -116,8 +123,9 @@ reset role;
 -- a caller without carbon in the period (s102) -------------------------------------------------------------
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000d102","role":"authenticated"}', true);
-select is((select l.rank || ':' || l.carbon_kg from public.leaderboard('month', '2031-10-15 05:00+00') l where l.is_me), '15:0',
-  '0 carbon: own row ranked after the 14 students with carbon');
+select is((select l.rank is null and l.carbon_kg = 0 from public.leaderboard('month', '2031-10-15 05:00+00') l where l.is_me), true,
+  'negative October total (-3): unranked, shown as 0, not a negative number');
+select is((select l.carbon_kg from public.leaderboard('all') l where l.is_me), 0::numeric, 'all time: the same -3 is clamped to 0 in the row');
 select is((select count(*) from public.leaderboard('month', '2031-10-15 05:00+00')), 11::bigint, 'top 10 plus the caller row (0 carbon)');
 reset role;
 
@@ -126,7 +134,20 @@ set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000d201","role":"authenticated"}', true);
 select is((select count(*) from public.leaderboard('month', '2031-10-15 05:00+00')), 10::bigint, 'teacher: top 10 only');
 select is((select count(*) from public.leaderboard('month', '2031-10-15 05:00+00') l where l.is_me), 0::bigint, 'teacher: no is_me row');
-select is((select max(l.carbon_kg) from public.leaderboard('month', '2031-10-15 05:00+00') l), 12::numeric, 'the teacher ledger row (9) never ranks anyone');
+select is((select count(*) from public.leaderboard('month', '2031-10-15 05:00+00') l where l.carbon_kg = 9.75), 0::bigint, 'the teacher ledger row (9.75) never ranks anyone');
+reset role;
+
+-- ties at rank 10 (March 2032) ---------------------------------------------------------------------------------------
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000d111","role":"authenticated"}', true);
+select is((select count(*) from public.leaderboard('month', '2032-03-15 05:00+00')), 12::bigint, 'ties at rank 10: all three tied students are shown (12 rows)');
+select is((select count(*) from public.leaderboard('month', '2032-03-15 05:00+00') l where l.rank = 10), 3::bigint, 'equal carbon gives equal rank 10 for all three');
+select is((select array_agg(l.rank order by l.rank) from public.leaderboard('month', '2032-03-15 05:00+00') l), array[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10], 'ranks skip like rank(): 1..9, 10, 10, 10');
+reset role;
+-- the caller (s103, no March carbon) is unranked and comes after the board
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000d103","role":"authenticated"}', true);
+select is((select count(*) from public.leaderboard('month', '2032-03-15 05:00+00')), 13::bigint, 'the board plus the unranked caller row');
 reset role;
 
 -- anon cannot call leaderboard ---------------------------------------------------------------------------------------
@@ -142,7 +163,7 @@ select is((select array_agg(k order by k) from jsonb_object_keys((select s from 
   'anon public_stats has exactly the three keys');
 -- carbon delta = every student earn+adjust above (teacher 9 and redeem/refund excluded)
 select is(((select s from t_after) ->> 'carbon_kg')::numeric - ((select s from t_base) ->> 'carbon_kg')::numeric,
-  78::numeric + 12.25 + 0.5, 'carbon delta = ranked 78 + s101 12.25 + s103 0.5');
+  78::numeric + 12.25 + 0.5 - 3 + 357, 'carbon delta = ranked 78 + s101 12.25 + s103 0.5 + s102 -3 + March 357');
 select is(((select s from t_after) ->> 'waste_grams')::bigint - ((select s from t_base) ->> 'waste_grams')::bigint, 2000::bigint,
   'waste delta counts approved waste items only');
 select is(((select s from t_after) ->> 'trees')::bigint - ((select s from t_base) ->> 'trees')::bigint, 3::bigint,

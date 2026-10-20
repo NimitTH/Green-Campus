@@ -3,7 +3,7 @@
 -- Lock order: both functions below are read-only (no row locks), so the canonical lock order in
 -- the 0016 header is unchanged.
 --
--- * leaderboard(p_period, p_now): top 10 students by carbon (earn + adjust) for the Asia/Bangkok
+-- * leaderboard(p_period, p_now): every student with rank <= 10 (ties at 10 all shown) by carbon (earn + adjust) for the Asia/Bangkok
 --   calendar month containing p_now, or all time; plus the caller's own row. Signed-in only.
 -- * public_stats(): anonymous totals {carbon_kg, waste_grams, trees}; no individual data.
 -- * R99: profile_display_name(uuid) is no longer executable by signed-in users (it resolved any
@@ -61,12 +61,13 @@ begin
     where s.cb > 0
   ),
   top as (
-    select r.sid, r.nm, r.cb, r.rk, r.rn from ranked r where r.rn <= 10
+    select r.sid, r.nm, r.cb, r.rk, r.rn from ranked r where r.rk <= 10
   ),
   me as (
-    select r.sid, r.nm, r.cb, r.rk, r.rn from ranked r where r.sid = v_uid and r.rn > 10
+    select r.sid, r.nm, r.cb, r.rk, r.rn from ranked r where r.sid = v_uid and r.rk > 10
     union all
-    select s.sid, s.nm, s.cb, (select count(*) from ranked) + 1, (select count(*) from ranked) + 1
+    -- a student caller without a positive total (0 or negative): unranked, shown as 0
+    select s.sid, s.nm, 0::numeric, null::bigint, 0::bigint
     from scored s
     where s.sid = v_uid and v_is_student and not exists (select 1 from ranked r where r.sid = v_uid)
   )
