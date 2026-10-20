@@ -3,6 +3,7 @@ import { signIn } from "./helpers/auth";
 import { PNG_1X1 } from "./helpers/images";
 import {
   createConfirmedUser,
+  createOrderFor,
   createRewardRow,
   deleteRewardsByName,
   deleteUsers,
@@ -10,6 +11,7 @@ import {
   grantPoints,
   listCart,
   setRewardActive,
+  setRewardStock,
   signedInClient,
   type TestUser,
 } from "./helpers/supabase-admin";
@@ -28,6 +30,7 @@ test("staff creates a reward with an image, the student fills a cart and the tot
   const nameA = `สมุดรีไซเคิล ${suffix}`;
   const nameB = `ปากกา ${suffix}`;
   const nameC = `ถุงผ้า ${suffix}`;
+  const nameLate = `สต็อกหมดทีหลัง ${suffix}`;
   const nameOut = `หมดสต็อก ${suffix}`;
   let teacher: TestUser | undefined;
   let student: TestUser | undefined;
@@ -57,10 +60,11 @@ test("staff creates a reward with an image, the student fills a cart and the tot
     const idB = await createRewardRow(nameB, 30, 5);
     await createRewardRow(nameOut, 10, 0);
     const idC = await createRewardRow(nameC, 20, 5);
+    const idLate = await createRewardRow(nameLate, 5, 3);
 
     // student: balance 0 first
     await signIn(page, student, "/rewards");
-    await expect(page.getByTestId("balance")).toContainText("0");
+    await expect(page.getByTestId("balance")).toHaveText("0");
     await expect(card(page, nameA).locator("img")).toBeVisible();
     // out of stock: shown, button disabled
     await expect(card(page, nameOut)).toContainText("หมดแล้ว");
@@ -74,6 +78,12 @@ test("staff creates a reward with an image, the student fills a cart and the tot
     await card(page, nameB).getByRole("button", { name: "ใส่ตะกร้า" }).click();
     await expect(card(page, nameB).getByRole("status")).toContainText("ใส่ตะกร้าแล้ว");
     expect(await listCart(student.id)).toHaveLength(2);
+
+    // stock dropped to 0 after the page loaded: the server refuses the add
+    await setRewardStock(idLate, 0);
+    await card(page, nameLate).getByRole("button", { name: "ใส่ตะกร้า" }).click();
+    await expect(card(page, nameLate).getByRole("alert")).toContainText("หมดแล้ว");
+    expect((await listCart(student.id)).some((c) => c.reward_id === idLate)).toBe(false);
 
     // a reward deactivated after the page loaded cannot be added
     await setRewardActive(idC, false);
@@ -92,27 +102,27 @@ test("staff creates a reward with an image, the student fills a cart and the tot
     await page.getByRole("link", { name: "ตะกร้า" }).first().click();
     await expect(page).toHaveURL((url) => url.pathname === "/cart");
     await expect(line(page, nameA).getByTestId("cart-qty")).toHaveText("2");
-    await expect(line(page, nameA)).toContainText("80");
+    await expect(line(page, nameA).getByLabel("ยอดรวมรายการ")).toHaveText("80 แต้ม");
     await expect(line(page, nameA)).toContainText("สต็อกเหลือ 1 ชิ้น");
-    await expect(line(page, nameB)).toContainText("30");
-    await expect(page.getByTestId("cart-total")).toContainText("110");
+    await expect(line(page, nameB).getByLabel("ยอดรวมรายการ")).toHaveText("30 แต้ม");
+    await expect(page.getByTestId("cart-total")).toHaveText("110 แต้ม");
     await expect(page.getByText("แต้มไม่พอ")).toBeVisible();
 
     // enough points -> warning disappears
     await grantPoints(student.id, 200);
     await page.reload();
-    await expect(page.getByTestId("balance")).toContainText("200");
+    await expect(page.getByTestId("balance")).toHaveText("200 แต้ม");
     await expect(page.getByText("แต้มไม่พอ")).toHaveCount(0);
 
     // stepper: + on B gives 2 x 30; - twice removes the line
     await line(page, nameB).getByRole("button", { name: "เพิ่มจำนวน" }).click();
     await expect(line(page, nameB).getByTestId("cart-qty")).toHaveText("2");
-    await expect(page.getByTestId("cart-total")).toContainText("140");
+    await expect(page.getByTestId("cart-total")).toHaveText("140 แต้ม");
     await line(page, nameB).getByRole("button", { name: "ลดจำนวน" }).click();
     await expect(line(page, nameB).getByTestId("cart-qty")).toHaveText("1");
     await line(page, nameB).getByRole("button", { name: "ลดจำนวน" }).click();
     await expect(line(page, nameB)).toHaveCount(0);
-    await expect(page.getByTestId("cart-total")).toContainText("80");
+    await expect(page.getByTestId("cart-total")).toHaveText("80 แต้ม");
     expect((await listCart(student.id)).some((c) => c.reward_id === idB)).toBe(false);
 
     // remove button clears the last line
@@ -121,7 +131,7 @@ test("staff creates a reward with an image, the student fills a cart and the tot
     await expect(page.getByText("ตะกร้าว่าง")).toBeVisible();
     expect(await listCart(student.id)).toHaveLength(0);
   } finally {
-    await deleteRewardsByName([nameA, nameB, nameC, nameOut]);
+    await deleteRewardsByName([nameA, nameB, nameC, nameOut, nameLate]);
     await deleteUsers([teacher, student]);
   }
 });
@@ -150,5 +160,56 @@ test("staff browse /rewards without add buttons, and reopen an inactive reward i
   } finally {
     await deleteRewardsByName([open, closed]);
     await deleteUsers([teacher]);
+  }
+});
+
+test("an ordered reward cannot be deleted (admin sees the Thai message); teachers get no delete button", async ({ page, browser }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const name = `ของที่มีคนแลก ${suffix}`;
+  let admin: TestUser | undefined;
+  let teacher: TestUser | undefined;
+  let student: TestUser | undefined;
+
+  try {
+    admin = await createConfirmedUser("admin", `admin-del-${suffix}`);
+    teacher = await createConfirmedUser("teacher", `teacher-del-${suffix}`);
+    student = await createConfirmedUser("student", `student-del-${suffix}`);
+    const id = await createRewardRow(name, 10, 5);
+    await createOrderFor(student.id, id, 1, 10);
+
+    const teacherContext = await browser.newContext();
+    const teacherPage = await teacherContext.newPage();
+    await signIn(teacherPage, teacher, `/staff/rewards/${id}/edit`);
+    await expect(teacherPage.getByRole("button", { name: "บันทึกของรางวัล" })).toBeVisible();
+    await expect(teacherPage.getByRole("button", { name: /^ลบ/ })).toHaveCount(0);
+    await teacherContext.close();
+
+    await signIn(page, admin, `/staff/rewards/${id}/edit`);
+    // dispatchEvent: on a phone viewport the dev-only Next indicator sits over this bottom-left button
+    await page.getByRole("button", { name: `ลบ ${name}` }).dispatchEvent("click");
+    await page.getByRole("button", { name: "ยืนยันลบ" }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "ลบไม่ได้" })).toContainText("ลบไม่ได้ เพราะมีคนแลกไปแล้ว ให้ปิดการแลกแทน");
+    expect(await findReward(name)).not.toBeNull();
+  } finally {
+    await deleteUsers([student, teacher, admin]); // cascades the order before the reward goes
+    await deleteRewardsByName([name]);
+  }
+});
+
+test("the student header does not scroll sideways at 360 px", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  let student: TestUser | undefined;
+  try {
+    student = await createConfirmedUser("student", `student-narrow-${suffix}`);
+    await page.setViewportSize({ width: 360, height: 800 });
+    await signIn(page, student, "/rewards");
+    await expect(page.getByRole("navigation", { name: "เมนูหลัก" })).toBeVisible();
+    const { scrollWidth, clientWidth } = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth,
+    }));
+    expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
+  } finally {
+    await deleteUsers([student]);
   }
 });

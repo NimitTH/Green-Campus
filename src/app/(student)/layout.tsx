@@ -5,11 +5,11 @@ import { NotificationBell } from "@/components/NotificationBell";
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-1 flex-col">
-      <header className="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-800">
+      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-gray-200 px-4 py-3 dark:border-gray-800">
         <Link href="/dashboard" className="font-semibold text-green-700">
           Green Campus
         </Link>
-        <nav aria-label="เมนูหลัก" className="flex gap-4 text-sm">
+        <nav aria-label="เมนูหลัก" className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
           <Link href="/dashboard" className="hover:underline">
             หน้าหลัก
           </Link>

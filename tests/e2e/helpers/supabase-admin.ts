@@ -269,3 +269,22 @@ export async function listCart(studentId: string): Promise<{ reward_id: string; 
   if (error) throw new Error(`e2e: list cart failed: ${error.message}`);
   return (data ?? []) as { reward_id: string; qty: number }[];
 }
+
+export async function setRewardStock(id: string, stock: number): Promise<void> {
+  const { error } = await admin().from("rewards").update({ stock }).eq("id", id);
+  if (error) throw new Error(`e2e: set reward stock failed: ${error.message}`);
+}
+
+/** An order with one line for a reward, so the reward can no longer be deleted (order_items RESTRICT). */
+export async function createOrderFor(studentId: string, rewardId: string, qty: number, unitCost: number): Promise<void> {
+  const { data, error } = await admin()
+    .from("orders")
+    .insert({ student_id: studentId, total_points: qty * unitCost })
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(`e2e: create order failed: ${error?.message}`);
+  const { error: itemError } = await admin()
+    .from("order_items")
+    .insert({ order_id: (data as { id: string }).id, reward_id: rewardId, qty, unit_cost: unitCost });
+  if (itemError) throw new Error(`e2e: create order item failed: ${itemError.message}`);
+}
