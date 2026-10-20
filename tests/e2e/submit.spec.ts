@@ -78,7 +78,6 @@ test("student submits with a weigh code (wrong, then right) and sees it pending"
 });
 
 // Review Focus 1 (R28): two sessions submit with the same code at the same time -> one submission.
-// The loser now gets already_submitted: fixed is once per student and the participation lock serialises the pair.
 test("two concurrent submits with one code create exactly one submission", async ({}, testInfo) => {
   const suffix = uniqueSuffix(testInfo.project.name);
   const title = `กิจกรรมส่งพร้อมกัน ${suffix}`;
@@ -89,7 +88,7 @@ test("two concurrent submits with one code create exactly one submission", async
   try {
     teacher = await createConfirmedUser("teacher", `teacher-race-${suffix}`);
     student = await createConfirmedUser("student", `student-race-${suffix}`);
-    const activityId = await createJoinedCodeActivity(title, student.id);
+    const activityId = await createJoinedCodeActivity(title, student.id, { type: "trees", unit_points: 5 });
 
     const staff = await signedInClient(teacher);
     const { data: issued, error: issueError } = await staff.rpc("issue_weigh_code", {
@@ -111,7 +110,46 @@ test("two concurrent submits with one code create exactly one submission", async
       paths.push(path);
     }
 
-    const args = (path: string) => ({ p_activity_id: activityId, p_code: code, p_items: [], p_evidence_path: path });
+    const args = (path: string) => ({ p_activity_id: activityId, p_code: code, p_items: [{ quantity: 1 }], p_evidence_path: path });
+    const results = await Promise.all([a.rpc("submit_result", args(paths[0])), b.rpc("submit_result", args(paths[1]))]);
+    for (const r of results) expect(r.error).toBeNull();
+    const data = results.map((r) => r.data as { ok: boolean; error_code: string | null; submission_id: string | null });
+
+    expect(data.filter((d) => d.ok)).toHaveLength(1);
+    const loser = data.find((d) => !d.ok);
+    expect(loser).toEqual({ ok: false, error_code: "code_invalid", submission_id: null });
+
+    const rows = await listSubmissions(student.id, activityId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].id).toBe(data.find((d) => d.ok)!.submission_id);
+  } finally {
+    await deleteActivitiesByTitle(title);
+    await removeEvidence(uploaded);
+    await deleteUsers([teacher, student]);
+  }
+});
+
+test("two concurrent submits on a fixed activity create exactly one submission (already_submitted)", async ({}, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const title = `กิจกรรมครั้งเดียวพร้อมกัน ${suffix}`;
+  let student: TestUser | undefined;
+  const uploaded: string[] = [];
+
+  try {
+    student = await createConfirmedUser("student", `student-race-once-${suffix}`);
+    const activityId = await createJoinedCodeActivity(title, student.id, { requires_code: false });
+
+    const [a, b] = await Promise.all([signedInClient(student), signedInClient(student)]);
+    const paths: string[] = [];
+    for (const client of [a, b]) {
+      const path = `${student.id}/${randomUUID()}/evidence.png`;
+      const { error: uploadError } = await client.storage.from("evidence").upload(path, PNG_1X1, { contentType: "image/png" });
+      expect(uploadError).toBeNull();
+      uploaded.push(path);
+      paths.push(path);
+    }
+
+    const args = (path: string) => ({ p_activity_id: activityId, p_code: null, p_items: [], p_evidence_path: path });
     const results = await Promise.all([a.rpc("submit_result", args(paths[0])), b.rpc("submit_result", args(paths[1]))]);
     for (const r of results) expect(r.error).toBeNull();
     const data = results.map((r) => r.data as { ok: boolean; error_code: string | null; submission_id: string | null });
@@ -126,7 +164,7 @@ test("two concurrent submits with one code create exactly one submission", async
   } finally {
     await deleteActivitiesByTitle(title);
     await removeEvidence(uploaded);
-    await deleteUsers([teacher, student]);
+    await deleteUsers([student]);
   }
 });
 

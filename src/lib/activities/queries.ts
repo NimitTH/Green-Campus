@@ -63,7 +63,7 @@ export async function hasJoined(activityId: string, userId: string): Promise<boo
   return (count ?? 0) > 0;
 }
 
-/** True when a fixed activity already has a pending or approved submission by the user (rejected ones do not count). */
+/** True when the user has a pending or approved submission for the pair (rejected ones do not count). */
 export async function hasActiveSubmission(activityId: string, userId: string): Promise<boolean> {
   const supabase = await createServerClient();
   const { count, error } = await supabase

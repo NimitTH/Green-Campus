@@ -165,7 +165,7 @@ begin
       return jsonb_build_object('ok', false, 'error_code', 'code_required', 'submission_id', null);
     end if;
 
-    -- FOR UPDATE: a concurrent submit with the same code waits here, then re-reads the row,
+    -- FOR UPDATE (waste/trees; fixed is caught earlier by the participation lock): a concurrent submit with the same code waits here, then re-reads the row,
     -- sees used_at set, finds no active row and returns code_invalid (one submission only).
     select wc.* into v_code_row
     from public.weigh_codes wc

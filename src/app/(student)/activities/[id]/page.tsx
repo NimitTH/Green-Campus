@@ -52,12 +52,12 @@ async function ActivityDetail({ params }: { params: Promise<{ id: string }> }) {
   const state = joinState({ status: activity.status, endsAt: activity.ends_at, joined });
   const note = STATE_NOTE[state];
   // fixed activities: one pending/approved submission per student (the server enforces it)
-  const alreadySubmitted =
-    user.role === "student" && activity.type === "fixed" && joined && (await hasActiveSubmission(activity.id, user.id));
   const canSubmit =
     user.role === "student" &&
     state === "joined" &&
     inSubmitWindow({ status: activity.status, startsAt: activity.starts_at, endsAt: activity.ends_at });
+  const alreadySubmitted =
+    canSubmit && activity.type === "fixed" && (await hasActiveSubmission(activity.id, user.id));
 
   return (
     <article>
