@@ -21,6 +21,10 @@ export default defineConfig({
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
     { name: "mobile-chrome", use: { ...devices["Pixel 7"] } },
+    // Task 20 (R139): the demo scripts (scripts/demo). Not part of test:e2e: it seeds, resets and PURGES the
+    // local database (every user except real admins). Run only with `npm run test:seed` (the spec skips
+    // itself otherwise). Local Supabase only (CONFIRM_PROJECT_REF=local).
+    { name: "seed", testDir: "./tests/seed", timeout: 300_000, use: { ...devices["Desktop Chrome"] } },
   ],
   webServer: {
     command: "npm run dev",

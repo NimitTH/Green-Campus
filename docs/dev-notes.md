@@ -52,3 +52,21 @@
 - การเลือกไฟล์ค้างทำใน SQL `public.storage_orphan_candidates` (migration 0023, อ่านอย่างเดียว, เฉพาะ service_role)
   ส่วนการลบยังทำผ่าน Storage API เท่านั้น และตรวจซ้ำกับตารางอ้างอิงก่อนลบทุกชุด 100 ไฟล์
 - `export const maxDuration = 60` ในไฟล์ route: บน Hobby เพดานจริงเป็นของแพ็กเกจ อาจต่ำกว่านี้
+
+## ข้อมูลสาธิต (Task 20): `scripts/demo`
+
+- `npm run demo:seed` / `npm run demo:reset`: ลบข้อมูลตัวอย่างเดิมแล้วใส่ใหม่ (ผลเท่าเดิมทุกครั้ง) `npm run demo:purge`: ลบผู้ใช้ทุกคน
+  ที่ไม่ใช่ admin จริง (dry run เป็นค่าเริ่มต้น `-- --yes` = ลบจริง) รายละเอียดและคำสั่งบน Cloud: `docs/demo-checklist.md`
+- Node 24 รันไฟล์ `.ts` ตรง (type stripping) import ต้องมีนามสกุล `.ts` และห้ามใช้ alias `@/` (ไม่ผ่าน bundler)
+  `scripts/demo/package.json` ตั้ง `"type": "module"` ไว้ ตรวจชนิดด้วย `npx tsc -p scripts/tsconfig.json`
+  (โฟลเดอร์ `scripts` ไม่อยู่ใน `next build`)
+- ต้องตั้ง `CONFIRM_PROJECT_REF` ให้ตรงกับ ref ของ `NEXT_PUBLIC_SUPABASE_URL` และ `DATABASE_URL` (บนเครื่อง = `local`) ไม่ตรง = ไม่ทำอะไร
+  seed/reset ต้องมี `DEMO_PASSWORD` (อย่างน้อย 12 ตัว) ด้วย บนเครื่อง:
+  `CONFIRM_PROJECT_REF=local DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres DEMO_PASSWORD=<ค่าทดสอบ> npm run demo:reset`
+- ข้อมูลตัวอย่างระบุจาก: ผู้ใช้อีเมล `@seed.greencampus.example`, กิจกรรม/ของรางวัลชื่อขึ้นต้น `[ตัวอย่าง] `, บทความ slug ขึ้นต้น `seed-`
+  ทุกขั้นตอนทางธุรกิจผ่านฟังก์ชันจริง (join_activity, issue_weigh_code, submit_result, approve/reject, checkout, ...)
+  โดยสวมบทผู้ใช้แบบเดียวกับ pgTAP (`set local role authenticated` + `request.jwt.claims`) แล้วค่อยเลื่อนเวลาย้อนหลังเป็น postgres
+- เทสต์: `npm run test:seed` (Playwright project `seed`, ไม่อยู่ใน `npm run test:e2e`) **ลบผู้ใช้ทุกคนในฐานข้อมูลบนเครื่องที่ไม่ใช่ admin จริง**
+  แล้วจบด้วยฐานข้อมูลที่มี seed อยู่ (ใช้ทดสอบ `npx supabase test db` กับข้อมูล seed ได้) spec ข้ามตัวเองถ้าไม่ได้รันผ่าน `npm run test:seed`
+- `npm run test:e2e` รันเฉพาะ project `chromium` และ `mobile-chrome` (`--project=...`) ถ้าเรียก `npx playwright test` ตรงๆ
+  project `seed` จะถูกข้าม (skip) เอง

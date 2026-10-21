@@ -8,7 +8,11 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test --project=chromium --project=mobile-chrome",
+    "test:seed": "playwright test --project=seed",
+    "demo:seed": "node scripts/demo/seed.ts",
+    "demo:reset": "node scripts/demo/reset-demo.ts",
+    "demo:purge": "node scripts/demo/purge-users.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

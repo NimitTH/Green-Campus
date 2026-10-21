@@ -4,7 +4,7 @@
 -- attempts are committed, spec 7.1 item 4); only not_authenticated / not_student raise (42501).
 -- Two concurrent calls with one code (Review Focus 1) need two sessions: tests/e2e/submit.spec.ts.
 begin;
-select plan(108);
+select plan(109);
 
 -- ids
 --   s1 student ...3101 (participant everywhere)   s2 student ...3102 (participant of nothing)
@@ -258,9 +258,16 @@ select is((select count(*) from public.notifications where user_id in ('00000000
 select ok((select bool_and(n.title = 'มีผลส่งใหม่รอตรวจ' and n.body like '%น้องหนึ่ง%' and n.body like '%SR code%')
             from public.notifications n where n.user_id = '00000000-0000-0000-0000-000000003201'),
   'notification has the Thai title, the display name and the activity title');
-select is((select count(*) from public.notifications where type = 'submission_new'),
+-- per submission (not table-wide), so it also holds on a database with other data, e.g. the demo seed (R139)
+select is((select count(*) from public.notifications
+           where type = 'submission_new'
+             and link = '/staff/reviews/' || (select id from public.submissions where activity_id = '00000000-0000-0000-0000-000000003504')),
   (select count(*) from public.profiles where role in ('teacher', 'admin')),
   'exactly one notification per staff profile');
+select is((select count(*) from public.notifications
+           where type = 'submission_new'
+             and user_id in ('00000000-0000-0000-0000-000000003201', '00000000-0000-0000-0000-000000003301')),
+  2::bigint, 'no other submission_new so far (the failed submits above notified nobody)');
 
 -- (ง) expired code
 insert into public.weigh_codes (activity_id, student_id, code, issued_by, expires_at) values

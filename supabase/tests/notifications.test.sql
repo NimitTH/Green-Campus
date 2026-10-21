@@ -52,15 +52,17 @@ select is((select count(*)::int from public.notifications), 0, 'anon sees no not
 reset role;
 
 -- activity_opened trigger ---------------------------------------------------------------------
+-- Counted per activity link (not table-wide), so the test also passes on a database that already holds
+-- other notifications, e.g. the demo seed (Task 20, R139).
 create temp table nt_students as select count(*)::int as n from public.profiles where role = 'student';
 
 insert into public.activities (id, title, starts_at, ends_at, status, type, unit_points) values
   ('00000000-0000-0000-0000-000000005501', 'NT draft', now(), now() + interval '1 day', 'draft', 'fixed', 1);
-select is((select count(*)::int from public.notifications where type = 'activity_opened'), 0,
+select is((select count(*)::int from public.notifications where type = 'activity_opened' and link = '/activities/00000000-0000-0000-0000-000000005501'), 0,
   'insert as draft creates no notification');
 
 update public.activities set status = 'open' where id = '00000000-0000-0000-0000-000000005501';
-select is((select count(*)::int from public.notifications where type = 'activity_opened'),
+select is((select count(*)::int from public.notifications where type = 'activity_opened' and link = '/activities/00000000-0000-0000-0000-000000005501'),
           (select n from nt_students), 'draft -> open notifies every student');
 select is((select count(*)::int from public.notifications
            where type = 'activity_opened' and user_id = '00000000-0000-0000-0000-000000005201'), 0,
@@ -72,15 +74,15 @@ select is((select count(*)::int from public.notifications
   'notification has the Thai title, activity title and link');
 
 update public.activities set status = 'open', title = 'NT draft 2' where id = '00000000-0000-0000-0000-000000005501';
-select is((select count(*)::int from public.notifications where type = 'activity_opened'),
+select is((select count(*)::int from public.notifications where type = 'activity_opened' and link = '/activities/00000000-0000-0000-0000-000000005501'),
           (select n from nt_students), 'open -> open creates none');
 
 update public.activities set status = 'closed' where id = '00000000-0000-0000-0000-000000005501';
-select is((select count(*)::int from public.notifications where type = 'activity_opened'),
+select is((select count(*)::int from public.notifications where type = 'activity_opened' and link = '/activities/00000000-0000-0000-0000-000000005501'),
           (select n from nt_students), 'open -> closed creates none');
 
 update public.activities set status = 'open' where id = '00000000-0000-0000-0000-000000005501';
-select is((select count(*)::int from public.notifications where type = 'activity_opened'),
+select is((select count(*)::int from public.notifications where type = 'activity_opened' and link = '/activities/00000000-0000-0000-0000-000000005501'),
           (select n from nt_students) * 2, 're-opening a closed activity notifies again');
 
 insert into public.activities (id, title, starts_at, ends_at, status, type, unit_points) values

@@ -462,3 +462,25 @@ export async function createActivityRow(title: string, fields: Record<string, un
   if (error || !data) throw new Error(`e2e: create activity failed: ${error?.message}`);
   return data.id as string;
 }
+
+// Full flow (Task 20) ---------------------------------------------------------------------------------
+
+/**
+ * Confirm the e-mail of a user who signed up through /register (local config: enable_confirmations = true),
+ * as the other specs' createConfirmedUser does at creation. Returns the user as a TestUser.
+ */
+export async function confirmSignedUpUser(email: string, password: string): Promise<TestUser> {
+  const target = email.toLowerCase();
+  for (let page = 1; page <= 20; page++) {
+    const { data, error } = await admin().auth.admin.listUsers({ page, perPage: 200 });
+    if (error) throw new Error(`e2e: listUsers failed: ${error.message}`);
+    const user = data.users.find((u) => u.email?.toLowerCase() === target);
+    if (user) {
+      const { error: confirmError } = await admin().auth.admin.updateUserById(user.id, { email_confirm: true });
+      if (confirmError) throw new Error(`e2e: confirm e-mail failed: ${confirmError.message}`);
+      return { id: user.id, email: target, password, role: "student" };
+    }
+    if (data.users.length < 200) break;
+  }
+  throw new Error("e2e: signed-up user not found");
+}
