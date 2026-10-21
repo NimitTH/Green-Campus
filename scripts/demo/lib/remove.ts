@@ -41,6 +41,8 @@ export async function removeSeedData(ctx: Ctx): Promise<RemovalCounts> {
   let userIds: string[] = [];
   let rewardImages: string[] = [];
   let articleIds: string[] = [];
+  let evidence: string[] = [];
+  let articleImages: string[] = [];
 
   await db.query("begin");
   try {
@@ -62,6 +64,9 @@ export async function removeSeedData(ctx: Ctx): Promise<RemovalCounts> {
       [SEED_SLUG_PREFIX, userIds],
     );
     articleIds = articles.rows.map((r) => r.id);
+    // every storage path is collected now, before the rows that point at them are deleted (fix round 1)
+    evidence = await objectsInFolders(db, "evidence", userIds);
+    articleImages = await objectsInFolders(db, "article-images", articleIds);
 
     // Refuse if a user outside the seed domain has rows on seed content (we would have to delete them).
     const { rows: blocked } = await db.query<{ n: number }>(
@@ -121,14 +126,21 @@ export async function removeSeedData(ctx: Ctx): Promise<RemovalCounts> {
     throw e;
   }
 
-  // Storage (API only), then the auth users.
-  counts["storage evidence"] = await removeObjects(admin, "evidence", await objectsInFolders(ctx.db, "evidence", userIds));
-  counts["storage reward-images"] = await removeObjects(admin, "reward-images", rewardImages);
-  counts["storage article-images"] = await removeObjects(
-    admin,
-    "article-images",
-    await objectsInFolders(ctx.db, "article-images", articleIds),
-  );
+  // Storage (API only), then the auth users. The paths were collected before the commit. If a removal fails
+  // here: evidence lives in the seed users' folders and those users still exist, so a rerun recomputes and
+  // removes it; reward-images / article-images objects whose rows are gone are no longer referenced, so the
+  // daily orphan cleanup (Task 19, > 24 h) removes them. The failure message gives the counts.
+  const plan = { evidence: evidence.length, "reward-images": rewardImages.length, "article-images": articleImages.length };
+  try {
+    counts["storage evidence"] = await removeObjects(admin, "evidence", evidence);
+    counts["storage reward-images"] = await removeObjects(admin, "reward-images", rewardImages);
+    counts["storage article-images"] = await removeObjects(admin, "article-images", articleImages);
+  } catch (e) {
+    throw new Error(
+      `${(e as Error).message}; files to remove were ${JSON.stringify(plan)}: rerun demo:reset for evidence; ` +
+        "unreferenced reward/article images are removed by the daily orphan cleanup",
+    );
+  }
   let deleted = 0;
   for (const id of userIds) {
     const { error } = await admin.auth.admin.deleteUser(id);

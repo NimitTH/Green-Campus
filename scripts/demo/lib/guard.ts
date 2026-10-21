@@ -19,34 +19,92 @@ export function projectRefFromUrl(url: string | undefined): string | null {
   return m ? m[1] : null;
 }
 
+/** The pg connection config built from the checked URL fields (R141): pg never parses the raw string. */
+export type DbConfig = {
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+  database: string;
+  ssl: false | { rejectUnauthorized: boolean };
+};
+
+export type ParsedDbUrl = { ok: true; ref: string | null; config: DbConfig } | { ok: false; reason: string };
+
+// The only query parameter accepted. pg (pg-connection-string) lets ?host=, ?user=, ?hostaddr=, ?port=,
+// ?options=, ... override the URL parts, so every other parameter is refused (R141).
+const SSL_MODES: Record<string, DbConfig["ssl"]> = {
+  disable: false,
+  prefer: { rejectUnauthorized: false },
+  require: { rejectUnauthorized: false },
+  "no-verify": { rejectUnauthorized: false },
+  "verify-ca": { rejectUnauthorized: true },
+  "verify-full": { rejectUnauthorized: true },
+};
+const HOST_RE = /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$|^\[::1\]$/;
+
 /**
- * The project a Postgres URL points at: localhost -> `local`; the Supabase pooler user `postgres.<ref>`
- * -> `<ref>`; a direct host `db.<ref>.supabase.co` -> `<ref>`; anything else -> null.
+ * Parse DATABASE_URL strictly: postgres(ql) scheme, one plain host name (no list, no socket path), optional
+ * port, a database name, and no query parameter except sslmode. The project it points at: localhost ->
+ * `local`; the Supabase pooler user `postgres.<ref>` -> `<ref>`; a direct host `db.<ref>.supabase.co` ->
+ * `<ref>`; otherwise ref null. Without sslmode: no TLS locally, TLS (no certificate check) elsewhere.
  */
-export function projectRefFromDbUrl(dbUrl: string | undefined): string | null {
-  if (!dbUrl) return null;
+export function parseDbUrl(dbUrl: string | undefined): ParsedDbUrl {
+  if (!dbUrl) return { ok: false, reason: "DATABASE_URL is not set" };
   let u: URL;
   try {
     u = new URL(dbUrl);
   } catch {
-    return null;
+    return { ok: false, reason: "DATABASE_URL is not a valid URL" };
   }
-  if (u.protocol !== "postgres:" && u.protocol !== "postgresql:") return null;
+  if (u.protocol !== "postgres:" && u.protocol !== "postgresql:") return { ok: false, reason: "scheme must be postgres:// or postgresql://" };
   const host = u.hostname.toLowerCase();
-  const user = decodeURIComponent(u.username);
-  if (LOCAL_HOSTS.has(host)) return "local";
+  if (!host) return { ok: false, reason: "DATABASE_URL has no host" };
+  if (!HOST_RE.test(host)) return { ok: false, reason: "DATABASE_URL host must be one plain host name" };
+  if (u.hash) return { ok: false, reason: "DATABASE_URL must not have a #fragment" };
+  let ssl: DbConfig["ssl"] | undefined;
+  for (const [key, value] of u.searchParams) {
+    if (key !== "sslmode" || ssl !== undefined) return { ok: false, reason: `query parameter "${key}" is not allowed (only sslmode)` };
+    if (!(value in SSL_MODES)) return { ok: false, reason: "unknown sslmode" };
+    ssl = SSL_MODES[value];
+  }
+  let user: string;
+  let password: string;
+  let database: string;
+  try {
+    user = decodeURIComponent(u.username);
+    password = decodeURIComponent(u.password);
+    database = decodeURIComponent(u.pathname.replace(/^\//, ""));
+  } catch {
+    return { ok: false, reason: "DATABASE_URL has a bad %-escape" };
+  }
+  if (!user) return { ok: false, reason: "DATABASE_URL has no user" };
+  if (!database || database.includes("/")) return { ok: false, reason: "DATABASE_URL must name one database" };
+  const port = u.port ? Number(u.port) : 5432;
+  const local = LOCAL_HOSTS.has(host);
   const pooler = /^postgres\.([a-z0-9]+)$/.exec(user);
-  if (pooler) return pooler[1];
   const direct = /^db\.([a-z0-9]+)\.supabase\.co$/.exec(host);
-  return direct ? direct[1] : null;
+  const ref = local ? "local" : pooler ? pooler[1] : direct ? direct[1] : null;
+  return {
+    ok: true,
+    ref,
+    config: { host, port, user, password, database, ssl: ssl ?? (local ? false : { rejectUnauthorized: false }) },
+  };
 }
 
-export type GuardResult = { ok: true; ref: string } | { ok: false; message: string };
+/** The project ref of a DATABASE_URL, or null when it is refused or points elsewhere. */
+export function projectRefFromDbUrl(dbUrl: string | undefined): string | null {
+  const p = parseDbUrl(dbUrl);
+  return p.ok ? p.ref : null;
+}
+
+export type GuardResult = { ok: true; ref: string; db: DbConfig } | { ok: false; message: string };
 
 /** CONFIRM_PROJECT_REF must equal the ref of both NEXT_PUBLIC_SUPABASE_URL and DATABASE_URL. */
 export function checkTarget(env: Record<string, string | undefined>): GuardResult {
   const apiRef = projectRefFromUrl(env.NEXT_PUBLIC_SUPABASE_URL);
-  const dbRef = projectRefFromDbUrl(env.DATABASE_URL);
+  const parsed = parseDbUrl(env.DATABASE_URL);
+  const dbRef = parsed.ok ? parsed.ref : null;
   const confirm = env.CONFIRM_PROJECT_REF ?? "";
   if (!apiRef) {
     return {
@@ -55,6 +113,15 @@ export function checkTarget(env: Record<string, string | undefined>): GuardResul
         "ไม่รัน: อ่าน project ref จาก NEXT_PUBLIC_SUPABASE_URL ไม่ได้ (ต้องเป็น https://<ref>.supabase.co หรือ localhost)\n" +
         "Refusing to run: cannot derive a project ref from NEXT_PUBLIC_SUPABASE_URL (expected https://<ref>.supabase.co or localhost). " +
         "Nothing was changed. (CONFIRM_PROJECT_REF is checked against it.)",
+    };
+  }
+  if (!parsed.ok) {
+    return {
+      ok: false,
+      message:
+        `ไม่รัน: DATABASE_URL ใช้ไม่ได้ (${parsed.reason}) ห้ามมีพารามิเตอร์อื่นนอกจาก sslmode\n` +
+        `Refusing to run: DATABASE_URL is refused (${parsed.reason}). Only ?sslmode= is allowed. Nothing was changed. ` +
+        "(CONFIRM_PROJECT_REF is checked against it.)",
     };
   }
   if (!dbRef) {
@@ -84,7 +151,7 @@ export function checkTarget(env: Record<string, string | undefined>): GuardResul
         "Nothing was changed.",
     };
   }
-  return { ok: true, ref: apiRef };
+  return { ok: true, ref: apiRef, db: parsed.config };
 }
 
 export const MIN_DEMO_PASSWORD_LENGTH = 12;

@@ -37,36 +37,59 @@ ref อ่านจาก `NEXT_PUBLIC_SUPABASE_URL` (`https://<ref>.supabase.co
 | `DEMO_PASSWORD` | รหัสผ่านบัญชีสาธิต 3 บัญชี (seed/reset เท่านั้น) | ตั้งเอง อย่างน้อย 12 ตัวอักษร |
 | `CONFIRM_PROJECT_REF` | ยืนยันว่าตั้งใจรันกับโปรเจกต์นี้ | `<ref>` จาก Project URL |
 
-- สคริปต์อ่าน `.env.local` ด้วย แต่ค่าที่ตั้งใน shell มาก่อนเสมอ บน Cloud ให้ตั้ง `NEXT_PUBLIC_SUPABASE_URL` และ
-  `SUPABASE_SECRET_KEY` ของโปรเจกต์ Cloud ใน shell (ไม่ต้องแก้ `.env.local` ที่ชี้เครื่องตัวเอง)
-- `CONFIRM_PROJECT_REF` อ่านจาก shell เท่านั้น (ใส่ใน `.env.local` ไม่มีผล) ต้องพิมพ์ใหม่ทุกครั้งที่จะรัน
+- สคริปต์อ่าน `.env.local` เอง (ค่าที่ตั้งใน shell มาก่อนเสมอ)
+- `CONFIRM_PROJECT_REF` อ่านจาก shell เท่านั้น (ใส่ใน `.env.local` ไม่มีผล) ต้องพิมพ์ใหม่ทุกครั้งที่จะรัน (ไม่ใช่ความลับ)
+- `DATABASE_URL` ห้ามมีพารามิเตอร์อื่นนอกจาก `?sslmode=...` (เช่น `?host=`, `?user=`, `?options=` จะถูกปฏิเสธ เพราะเปลี่ยนปลายทางได้)
 - ใช้ **Session pooler** (พอร์ต 5432) ไม่ใช้ Transaction pooler (6543) ส่วน Direct connection (`db.<ref>.supabase.co`) ของแพ็กเกจฟรีเป็น IPv6 อาจต่อจากบ้าน/ฮอตสปอตไม่ได้
-- ปิดหน้าต่าง terminal หลังรันเสร็จ (ค่าใน shell หายไปด้วย)
+
+### ไม่พิมพ์ความลับลงบรรทัดคำสั่ง (กันค้างใน history)
+
+1. ใส่ค่า Cloud ใน `.env.local` ชั่วคราว (ไฟล์นี้ไม่เข้า git; สคริปต์อ่านให้เอง): สำรองไฟล์เดิมก่อน แล้วแก้ 3 บรรทัด
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=https://<ref>.supabase.co
+   SUPABASE_SECRET_KEY=<secret key>
+   DATABASE_URL=postgresql://postgres.<ref>:<db-password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+   ```
+   (จะใส่ `DEMO_PASSWORD=<...>` ในไฟล์นี้ด้วยก็ได้ แทนการพิมพ์ในข้อ 2) ใช้เสร็จแล้ว **คืนไฟล์เดิม** ทันที
+   (ระหว่างนี้ `npm run dev` บนเครื่องจะชี้ Cloud)
+2. รันคำสั่ง โดยให้ `DEMO_PASSWORD` ถูกถามแบบไม่แสดงตัวอักษร
 
 PowerShell (Windows):
 
 ```powershell
-$env:NEXT_PUBLIC_SUPABASE_URL = "https://<ref>.supabase.co"
-$env:SUPABASE_SECRET_KEY = "<secret key>"
-$env:DATABASE_URL = "postgresql://postgres.<ref>:<db-password>@aws-0-<region>.pooler.supabase.com:5432/postgres"
 $env:CONFIRM_PROJECT_REF = "<ref>"
-$env:DEMO_PASSWORD = "<รหัสผ่านบัญชีสาธิต อย่างน้อย 12 ตัว>"
+npm run demo:purge              # dry run: แสดงจำนวนผู้ใช้ที่จะลบแยกตามบทบาท ไม่ลบอะไร
+npm run demo:purge -- --yes     # ลบจริง (อ่านคำเตือนด้านล่างก่อน)
 
-npm run demo:purge              # dry run: แสดงจำนวนที่จะลบเท่านั้น ไม่ลบ
-npm run demo:purge -- --yes     # ลบผู้ใช้ทุกคนที่ไม่ใช่ admin จริง (role admin และ is_demo = false) พร้อมรูปหลักฐาน
+$s = Read-Host "DEMO_PASSWORD" -AsSecureString
+$env:DEMO_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s))
 npm run demo:reset              # ลบข้อมูลตัวอย่างเดิม แล้วสร้างบัญชีสาธิต 3 บัญชี + ข้อมูลตัวอย่างใหม่
+Remove-Item Env:DEMO_PASSWORD, Env:CONFIRM_PROJECT_REF
 ```
 
 Git Bash:
 
 ```bash
-export NEXT_PUBLIC_SUPABASE_URL="https://<ref>.supabase.co" SUPABASE_SECRET_KEY="<secret key>"
-export DATABASE_URL="postgresql://postgres.<ref>:<db-password>@aws-0-<region>.pooler.supabase.com:5432/postgres"
-export CONFIRM_PROJECT_REF="<ref>" DEMO_PASSWORD="<รหัสผ่านบัญชีสาธิต>"
-npm run demo:purge              # ดูจำนวนก่อน แล้วค่อยรันบรรทัดถัดไป
+export CONFIRM_PROJECT_REF="<ref>"
+npm run demo:purge              # dry run: ดูจำนวนก่อน แล้วค่อยรันบรรทัดถัดไป
 npm run demo:purge -- --yes
+
+read -rs -p "DEMO_PASSWORD: " DEMO_PASSWORD; echo; export DEMO_PASSWORD
 npm run demo:reset
+unset DEMO_PASSWORD CONFIRM_PROJECT_REF
 ```
+
+- ถ้าเผลอพิมพ์ความลับลงบรรทัดคำสั่งตรงๆ: PowerShell ลบไฟล์ history ที่ `(Get-PSReadLineOption).HistorySavePath` (และ `Clear-History`),
+  Git Bash ใช้ `history -c` แล้วลบบรรทัดนั้นใน `~/.bash_history` และควรเปลี่ยนค่านั้น (secret key / รหัสผ่านฐานข้อมูล / DEMO_PASSWORD)
+- ปิดหน้าต่าง terminal หลังรันเสร็จ
+
+### คำเตือน
+
+- **`demo:purge -- --yes` ลบผู้ใช้ทุกคนยกเว้น admin จริง (role admin และ is_demo = false) รวมถึงครูจริงด้วย** พร้อมรูปหลักฐานของพวกเขา
+  dry run (ไม่มี `--yes`) แสดงจำนวนที่จะลบแยกตามบทบาท (student / teacher / admin (demo) ...) ให้ตรวจก่อนทุกครั้ง
+  ถ้าต้องเก็บบัญชีครูจริงไว้ อย่ารัน purge (หลัง purge ต้องสร้างบัญชีครูใหม่และให้ admin ตั้งบทบาท)
+- **อย่าตั้งชื่อกิจกรรมหรือของรางวัลจริงขึ้นต้นด้วย `[ตัวอย่าง] ` และอย่าใช้ slug บทความขึ้นต้นด้วย `seed-`** สคริปต์ถือว่าเป็นข้อมูลตัวอย่าง
+  `demo:seed` / `demo:reset` จะลบทิ้ง (กิจกรรมที่บัญชีสาธิตสร้างไว้ก็ถูกลบด้วย)
 
 ลำดับที่ใช้ก่อนวันสาธิต: `demo:purge` (ดูจำนวน) → `demo:purge -- --yes` (ถ้าต้องการล้างผู้ใช้ที่ทดลองไว้) → `demo:reset`
 หลัง purge จะเหลือเฉพาะ admin จริง ผู้ใช้ที่ demo admin เคยเปลี่ยนบทบาทจึงหายไปด้วย (demo admin เปลี่ยน admin จริงไม่ได้อยู่แล้ว)
@@ -76,6 +99,8 @@ purge ไม่ยอมรันถ้าไม่มี admin จริงเ�
   หรือแลกของรางวัลตัวอย่างไว้ reset จะไม่ทำอะไรและบอกให้รัน `demo:purge` ก่อน
 - `demo:seed` ทำงานเหมือน `demo:reset` (รันซ้ำได้ ผลเท่าเดิม)
 - สคริปต์พิมพ์เฉพาะจำนวน ไม่พิมพ์อีเมล id หรือรหัสผ่าน
+- ถ้าการลบไฟล์ใน Storage ล้มเหลวหลังลบแถวแล้ว ข้อความจะบอกจำนวนไฟล์: รัน `demo:reset` อีกครั้ง (รูปหลักฐานลบตามโฟลเดอร์ผู้ใช้)
+  ส่วนรูปของรางวัล/บทความที่ไม่มีแถวอ้างถึงแล้ว งานล้างรูปค้างรายวันลบให้ (เก่ากว่า 24 ชั่วโมง)
 
 ## ก่อนวันสาธิต 1-2 วัน
 
@@ -96,9 +121,19 @@ purge ไม่ยอมรันถ้าไม่มี admin จริงเ�
 - [ ] รู้วิธี **ปิดการยืนยันอีเมล** ถ้า SMTP มีปัญหาในวันจริง (spec §8.6 แผนสำรอง ไม่ต้องแก้โค้ด):
       Authentication > Sign In / Providers > Email > ปิด "Confirm email" (ชื่อเมนูอาจเปลี่ยนตามเวอร์ชัน Dashboard)
       เมื่อปิด ผู้สมัครเข้าสู่ระบบได้ทันที (เว็บพาไป `/dashboard` เอง) หลังสาธิตเปิดกลับ
-- [ ] แผนสำรองสุดท้าย: รันบนโน้ตบุ๊กแบบ local (`npx supabase start`, `npm run dev`, แล้ว
-      `CONFIRM_PROJECT_REF=local DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres DEMO_PASSWORD=<...> npm run demo:reset`)
-      เปิด http://localhost:3000 บนโน้ตบุ๊กเท่านั้น (มือถือผู้ชมเข้า localhost ไม่ได้)
+- [ ] แผนสำรองสุดท้าย: รันบนโน้ตบุ๊กแบบ local (`npx supabase start`, `npm run dev`) แล้วรีเซ็ตข้อมูลบนเครื่อง
+      (ค่าของ stack บนเครื่องไม่ใช่ความลับ ส่วน `DEMO_PASSWORD` ใช้ค่าทดลองได้) เปิด http://localhost:3000 บนโน้ตบุ๊กเท่านั้น
+      (มือถือผู้ชมเข้า localhost ไม่ได้)
+
+      PowerShell:
+      ```powershell
+      $env:CONFIRM_PROJECT_REF = "local"; $env:DATABASE_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres"; $env:DEMO_PASSWORD = "<ค่าทดลอง อย่างน้อย 12 ตัว>"
+      npm run demo:reset
+      ```
+      Git Bash:
+      ```bash
+      CONFIRM_PROJECT_REF=local DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres DEMO_PASSWORD='<ค่าทดลอง>' npm run demo:reset
+      ```
 
 ## สคริปต์นำเสนอ 8-10 นาที
 

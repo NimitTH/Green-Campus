@@ -127,6 +127,65 @@ test("guard: ref derivation from the Supabase URL and DATABASE_URL", async () =>
   expect(projectRefFromDbUrl("postgresql://postgres:x@some-other-host:5432/postgres")).toBeNull();
 });
 
+test("guard (R141): DATABASE_URL query parameters cannot redirect the target; pg gets the checked fields", async () => {
+  const guard = (await import(pathToFileURL(path.join(ROOT, "scripts", "demo", "lib", "guard.ts")).href)) as typeof import("../../scripts/demo/lib/guard");
+  const { projectRefFromDbUrl, parseDbUrl, checkTarget } = guard;
+  const LOCAL = "postgresql://postgres:pw@127.0.0.1:54322/postgres";
+  // pg-connection-string lets ?host= / ?user= / ?hostaddr= ... override the URL parts: all refused
+  for (const q of [
+    "?host=aws-0-x.pooler.supabase.com&user=postgres.realref",
+    "?host=aws-0-x.pooler.supabase.com",
+    "?user=postgres.realref",
+    "?hostaddr=10.0.0.1",
+    "?port=6543",
+    "?options=-c%20search_path%3Dx",
+    "?service=prod",
+    "?application_name=x",
+    "?sslrootcert=/tmp/ca.pem",
+    "?sslmode=require&host=evil",
+  ]) {
+    expect(projectRefFromDbUrl(LOCAL + q), q).toBeNull();
+    const parsed = parseDbUrl(LOCAL + q);
+    expect(parsed.ok, q).toBe(false);
+    const target = checkTarget({ NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321", DATABASE_URL: LOCAL + q, CONFIRM_PROJECT_REF: "local" });
+    expect(target.ok, q).toBe(false);
+  }
+  // other schemes, a missing host, several hosts, a socket path: refused
+  for (const bad of [
+    "mysql://postgres:pw@127.0.0.1:3306/postgres",
+    "postgresql:///postgres",
+    "postgresql://postgres:pw@/postgres",
+    "postgresql://postgres:pw@127.0.0.1,aws-0-x.pooler.supabase.com/postgres",
+    "postgresql://postgres:pw@%2Fvar%2Frun%2Fpostgresql/postgres",
+    "postgresql://postgres:pw@127.0.0.1:54322/",
+  ]) {
+    expect(parseDbUrl(bad).ok, bad).toBe(false);
+    expect(projectRefFromDbUrl(bad), bad).toBeNull();
+  }
+  // sslmode is the only allowed parameter
+  const withSsl = parseDbUrl("postgresql://postgres.abcdefghijklmnop:p%40ss@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require");
+  expect(withSsl).toEqual({
+    ok: true,
+    ref: "abcdefghijklmnop",
+    config: {
+      host: "aws-0-ap-southeast-1.pooler.supabase.com",
+      port: 5432,
+      user: "postgres.abcdefghijklmnop",
+      password: "p@ss",
+      database: "postgres",
+      ssl: { rejectUnauthorized: false },
+    },
+  });
+  expect(parseDbUrl("postgresql://postgres:pw@127.0.0.1:54322/postgres?sslmode=bogus").ok).toBe(false);
+  // the config pg receives is built from exactly the fields that were checked
+  const local = checkTarget({ NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321", DATABASE_URL: LOCAL, CONFIRM_PROJECT_REF: "local" });
+  expect(local).toEqual({
+    ok: true,
+    ref: "local",
+    db: { host: "127.0.0.1", port: 54322, user: "postgres", password: "pw", database: "postgres", ssl: false },
+  });
+});
+
 test("a wrong CONFIRM_PROJECT_REF (or a bad DEMO_PASSWORD) exits non-zero and changes nothing", async () => {
   const before = await counts();
   for (const [script, args] of [["seed", []], ["reset-demo", []], ["purge-users", ["--yes"]]] as const) {
@@ -140,6 +199,10 @@ test("a wrong CONFIRM_PROJECT_REF (or a bad DEMO_PASSWORD) exits non-zero and ch
       DATABASE_URL: "postgresql://postgres.abcdefghijklmnop:x@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres",
     });
     expect(mismatch.status, `${script} db mismatch`).not.toBe(0);
+    // R141: a local-looking URL whose ?host= would send pg elsewhere
+    const redirected = run(script, [...args], { DATABASE_URL: `${LOCAL_DB}?host=aws-0-x.pooler.supabase.com&user=postgres.realref` });
+    expect(redirected.status, `${script} ?host bypass`).not.toBe(0);
+    expect(redirected.stderr, `${script} ?host bypass`).toContain("DATABASE_URL");
   }
   for (const pw of [undefined, "short-pass"]) {
     for (const script of ["seed", "reset-demo"] as const) {

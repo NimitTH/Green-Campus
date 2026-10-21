@@ -54,7 +54,8 @@ export async function openContext(opts: { needDemoPassword: boolean }): Promise<
   const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL!, env.SUPABASE_SECRET_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const db = new pg.Client({ connectionString: env.DATABASE_URL, application_name: "green-campus-demo-scripts" });
+  // R141: pg gets exactly the fields the guard checked, never the raw string (whose ?host=/?user= would win)
+  const db = new pg.Client({ ...target.db, application_name: "green-campus-demo-scripts" });
   await db.connect();
   return {
     ref: target.ref,
