@@ -74,6 +74,15 @@ async function StaffHome() {
             เพิ่ม แก้ไข สต็อก และเปิด/ปิดการแลก
           </span>
         </Link>
+        <Link
+          href="/staff/reports"
+          className="block rounded-2xl border border-gray-200 p-4 font-semibold hover:border-green-600 dark:border-gray-800"
+        >
+          รายงาน
+          <span className="block text-sm font-normal text-gray-600 dark:text-gray-400">
+            สรุปรายกิจกรรมและรายนักเรียน ดาวน์โหลด CSV
+          </span>
+        </Link>
       </nav>
       <section className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-gray-600 dark:border-gray-700 dark:text-gray-400">
         ยังไม่มีข้อมูล

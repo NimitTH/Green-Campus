@@ -57,7 +57,8 @@ insert into public.submissions (id, activity_id, student_id, status) values
   ('00000000-0000-0000-0000-000000004612', '00000000-0000-0000-0000-000000004501', '00000000-0000-0000-0000-000000004101', 'pending'),
   ('00000000-0000-0000-0000-000000004613', '00000000-0000-0000-0000-000000004502', '00000000-0000-0000-0000-000000004102', 'pending'),
   ('00000000-0000-0000-0000-000000004614', '00000000-0000-0000-0000-000000004501', '00000000-0000-0000-0000-000000004102', 'pending');
-insert into public.waste_categories (name, points_per_kg, carbon_kg_per_kg) values ('RV big', 2000000, 0);
+-- 0018: category codes are fixed (four, unique), so reuse the seed 'other' row as the huge-rate category
+update public.waste_categories set name = 'RV big', points_per_kg = 2000000, carbon_kg_per_kg = 0 where code = 'other';
 insert into public.submission_items (submission_id, waste_category_id, quantity) values
   ('00000000-0000-0000-0000-000000004601', (select id from public.waste_categories where name = 'พลาสติก'), 1500),
   ('00000000-0000-0000-0000-000000004602', (select id from public.waste_categories where name = 'พลาสติก'), 150),

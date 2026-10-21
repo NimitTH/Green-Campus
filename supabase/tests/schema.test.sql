@@ -10,8 +10,10 @@ insert into public.profiles (id, role, full_name) values
   ('00000000-0000-0000-0000-0000000000a1', 'student', 'Student One'),
   ('00000000-0000-0000-0000-0000000000b1', 'teacher', 'Teacher One')
 on conflict (id) do update set role = excluded.role, full_name = excluded.full_name;
-insert into public.waste_categories (id, name, points_per_kg, carbon_kg_per_kg, source_note) values
-  ('00000000-0000-0000-0000-0000000000c1', 'plastic', 10, 1.5, 'test');
+-- 0018: codes are unique and fixed, so replace the seed plastic row with the fixture
+delete from public.waste_categories where code = 'plastic';
+insert into public.waste_categories (id, name, code, points_per_kg, carbon_kg_per_kg, source_note) values
+  ('00000000-0000-0000-0000-0000000000c1', 'plastic', 'plastic', 10, 1.5, 'test');
 insert into public.activities (id, title, starts_at, ends_at, status, type, requires_code, unit_points, created_by) values
   ('00000000-0000-0000-0000-0000000000d1', 'Waste act', now(), now() + interval '1 day', 'open', 'waste', true, 0, '00000000-0000-0000-0000-0000000000b1'),
   ('00000000-0000-0000-0000-0000000000d2', 'Trees act', now(), now() + interval '1 day', 'open', 'trees', false, 5, '00000000-0000-0000-0000-0000000000b1'),

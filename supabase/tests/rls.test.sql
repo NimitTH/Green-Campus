@@ -18,8 +18,10 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-000000000201', 'teacher1@example.test', '{"full_name":"ครู หนึ่ง"}'::jsonb),
   ('00000000-0000-0000-0000-000000000301', 'admin1@example.test', '{"full_name":"แอดมิน หนึ่ง"}'::jsonb);
 
-insert into public.waste_categories (id, name, points_per_kg, carbon_kg_per_kg, source_note) values
-  ('00000000-0000-0000-0000-000000000401', 'rls-test-plastic', 10, 1.5, 'test');
+-- 0018: codes are unique and fixed, so replace the seed plastic row with the fixture
+delete from public.waste_categories where code = 'plastic';
+insert into public.waste_categories (id, name, code, points_per_kg, carbon_kg_per_kg, source_note) values
+  ('00000000-0000-0000-0000-000000000401', 'rls-test-plastic', 'plastic', 10, 1.5, 'test');
 insert into public.activities (id, title, starts_at, ends_at, status, type) values
   ('00000000-0000-0000-0000-000000000501', 'Open act', now(), now() + interval '1 day', 'open', 'waste'),
   ('00000000-0000-0000-0000-000000000502', 'Draft act', now(), now() + interval '1 day', 'draft', 'fixed');
