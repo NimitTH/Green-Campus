@@ -4,7 +4,7 @@
 -- ids: student S ...f201, teacher T ...f202, admin A ...f203
 --   articles: published P ...f251, draft D ...f252, teacher-made N ...f253
 begin;
-select plan(48);
+select plan(50);
 
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-00000000f201', 'art-s1@example.test', '{"full_name":"นักเรียน บทความ"}'::jsonb),
@@ -119,8 +119,16 @@ select throws_ok($$insert into public.articles (title, slug, body) values ('x', 
   '23514', null, 'a body over 20000 characters is rejected');
 select throws_ok($$insert into public.articles (title, slug, cover_path) values ('x', 'art-bad-cover-f2', '../evil.jpg')$$,
   '23514', null, 'a cover_path outside {id}/{uuid}.jpg is rejected');
-select lives_ok($$insert into public.articles (title, slug, cover_path) values ('x', 'art-good-cover-f2',
-  '00000000-0000-0000-0000-00000000f251/00000000-0000-0000-0000-00000000f2aa.jpg')$$, 'a {id}/{uuid}.jpg cover_path is accepted');
+select lives_ok($$insert into public.articles (id, title, slug, cover_path) values ('00000000-0000-0000-0000-00000000f254', 'x',
+  'art-good-cover-f2', '00000000-0000-0000-0000-00000000f254/00000000-0000-0000-0000-00000000f2aa.jpg')$$,
+  'a cover_path under the article''s own id is accepted');
+-- 0022: the cover folder must be the article's own id
+select throws_ok($$insert into public.articles (id, title, slug, cover_path) values ('00000000-0000-0000-0000-00000000f255', 'x',
+  'art-foreign-cover-f2', '00000000-0000-0000-0000-00000000f251/00000000-0000-0000-0000-00000000f2ab.jpg')$$,
+  '23514', null, 'a cover_path under another article''s id is rejected');
+select throws_ok($$update public.articles set cover_path = '00000000-0000-0000-0000-00000000f254/00000000-0000-0000-0000-00000000f2ac.jpg'
+  where id = '00000000-0000-0000-0000-00000000f251'$$,
+  '23514', null, 'an update cannot point a cover at another article''s folder');
 
 -- 42-48: article-images objects: staff write, others cannot --------------------------------------
 set local role authenticated;

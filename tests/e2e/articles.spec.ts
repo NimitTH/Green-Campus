@@ -17,9 +17,9 @@ function uniqueSuffix(projectName: string): string {
 }
 
 async function fillArticle(page: Page, fields: { title: string; slug: string; body: string }) {
-  await page.getByLabel("ชื่อบทความ").fill(fields.title);
-  await page.getByLabel(/^slug/).fill(fields.slug);
-  await page.getByLabel("เนื้อหา").fill(fields.body);
+  await page.getByLabel("ชื่อบทความ").filter({ visible: true }).fill(fields.title);
+  await page.getByLabel(/^slug/).filter({ visible: true }).fill(fields.slug);
+  await page.getByLabel("เนื้อหา").filter({ visible: true }).fill(fields.body);
 }
 
 test("a teacher writes and publishes an article; anonymous visitors see it, and it 404s once unpublished", async ({ page, browser }, testInfo) => {
@@ -38,8 +38,8 @@ test("a teacher writes and publishes an article; anonymous visitors see it, and 
 
     // a draft with a cover; the body has markup that must show as plain text
     await fillArticle(page, { title, slug, body: "ย่อหน้าแรก <b>ไม่หนา</b>\nบรรทัดที่สอง\n\nย่อหน้าที่สอง" });
-    await page.getByLabel("รูปปก").setInputFiles({ name: "cover.png", mimeType: "image/png", buffer: PNG_1X1 });
-    await page.getByRole("button", { name: "บันทึกบทความ" }).click();
+    await page.getByLabel("รูปปก").filter({ visible: true }).setInputFiles({ name: "cover.png", mimeType: "image/png", buffer: PNG_1X1 });
+    await page.getByRole("button", { name: "บันทึกบทความ" }).filter({ visible: true }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/staff/articles");
     const row = page.getByTestId("staff-article").filter({ hasText: title });
     await expect(row).toContainText("ฉบับร่าง");
@@ -55,7 +55,7 @@ test("a teacher writes and publishes an article; anonymous visitors see it, and 
     // the same slug again is refused in Thai
     await page.getByRole("link", { name: "เขียนบทความ" }).click();
     await fillArticle(page, { title: dupTitle, slug, body: "ซ้ำ" });
-    await page.getByRole("button", { name: "บันทึกบทความ" }).click();
+    await page.getByRole("button", { name: "บันทึกบทความ" }).filter({ visible: true }).click();
     await expect(page.getByText("slug นี้ถูกใช้แล้ว")).toBeVisible();
     await page.getByRole("link", { name: "ยกเลิก", exact: true }).click();
 
@@ -81,7 +81,7 @@ test("a teacher writes and publishes an article; anonymous visitors see it, and 
 
     // teachers cannot delete (admin only)
     await page.getByRole("link", { name: `แก้ไข ${title}` }).click();
-    await expect(page.getByLabel("ชื่อบทความ")).toHaveValue(title);
+    await expect(page.getByLabel("ชื่อบทความ").filter({ visible: true })).toHaveValue(title);
     await expect(page.getByRole("heading", { name: "ลบบทความ" })).toHaveCount(0);
     await page.getByRole("link", { name: "ยกเลิก", exact: true }).click();
 
@@ -108,9 +108,9 @@ test("a blank slug is generated; an admin deletes the article and its cover", as
     adminUser = await createConfirmedUser("admin", `admin-art-${suffix}`);
     await signIn(page, adminUser, "/staff/articles/new");
     await fillArticle(page, { title, slug: "", body: "เนื้อหาที่จะถูกลบ" });
-    await page.getByLabel("รูปปก").setInputFiles({ name: "cover.png", mimeType: "image/png", buffer: PNG_1X1 });
-    await page.getByLabel(/^เผยแพร่/).check();
-    await page.getByRole("button", { name: "บันทึกบทความ" }).click();
+    await page.getByLabel("รูปปก").filter({ visible: true }).setInputFiles({ name: "cover.png", mimeType: "image/png", buffer: PNG_1X1 });
+    await page.getByLabel(/^เผยแพร่/).filter({ visible: true }).check();
+    await page.getByRole("button", { name: "บันทึกบทความ" }).filter({ visible: true }).click();
     const row = page.getByTestId("staff-article").filter({ hasText: title });
     await expect(row).toContainText("เผยแพร่แล้ว");
     const slug = await row.getAttribute("data-slug");

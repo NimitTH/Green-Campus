@@ -1,9 +1,9 @@
 -- Part A polish (Task 18 Part B, R126; spec 8.1-8.3).
 -- Whitespace-aware name rules (profiles check, handle_new_user, profile_display_name), the
 -- set_user_role pre-check, and anon UPDATE on waste_categories. Per-id predicates only; rolls back.
--- ids: admin A ...f301, teacher T ...f302, students S1 ...f303, S2 ...f304; sign-ups ...f305, ...f306
+-- ids: admin A ...f301, teacher T ...f302, students S1 ...f303, S2 ...f304; sign-ups ...f305, ...f306, ...f307
 begin;
-select plan(22);
+select plan(24);
 
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-00000000f301', 'pol-a1@example.test', '{"full_name":"แอดมิน ขัดเกลา"}'::jsonb),
@@ -38,6 +38,14 @@ select is((select full_name from public.profiles where id = '00000000-0000-0000-
   'a signup name is trimmed of newlines and tabs');
 select is((select display_name from public.profiles where id = '00000000-0000-0000-0000-00000000f306'), 'สมหญิง ใจงาม',
   'the signup display_name is the trimmed name');
+-- 0022: clipping display_name to 50 must not leave trailing whitespace (49 letters, a space, more)
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-00000000f307', 'pol-signup-clip@example.test',
+   jsonb_build_object('full_name', repeat('ก', 49) || ' ' || repeat('ข', 10)));
+select is((select display_name from public.profiles where id = '00000000-0000-0000-0000-00000000f307'), repeat('ก', 49),
+  'a display_name clipped to 50 is trimmed again');
+select is((select full_name from public.profiles where id = '00000000-0000-0000-0000-00000000f307'),
+  repeat('ก', 49) || ' ' || repeat('ข', 10), 'the full_name of that signup is kept whole');
 
 -- 10-15: profile_display_name fallbacks ---------------------------------------------------------------
 update public.profiles set display_name = E'\n' where id = '00000000-0000-0000-0000-00000000f303';

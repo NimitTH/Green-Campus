@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { saveReward } from "@/app/actions/rewards";
 import { errorMessageTh, uploadErrorCode } from "@/lib/errors";
 import { ImageError, resizeToJpeg } from "@/lib/image";
@@ -41,6 +41,10 @@ export function RewardForm({
   imageUrl?: string | null;
 }) {
   const router = useRouter();
+  // Unique per form instance: Cache Components keep a visited form alive (hidden) next to the
+  // visible one (e.g. "new" and "edit"), and fixed ids would point labels at the hidden inputs.
+  const uid = useId();
+  const f = (name: string) => `${uid}-${name}`;
   // A new reward's id, chosen once per form so a retry reuses it.
   const newId = useRef(uniqueId());
   const rewardId = id ?? newId.current;
@@ -54,6 +58,7 @@ export function RewardForm({
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<RewardFieldErrors>({});
   const busyRef = useRef(false);
+  const fileInput = useRef<HTMLInputElement>(null);
   // The photo already uploaded for this file: a retry after a failed save reuses it.
   const uploaded = useRef<{ file: File; path: string } | null>(null);
 
@@ -107,6 +112,18 @@ export function RewardForm({
         await createBrowserClient().storage.from(BUCKET).remove([result.previousImagePath]).catch(() => undefined);
       }
       done = true;
+      // Cache Components keep this page alive (hidden in <Activity>) after the navigation below, so the
+      // next "เพิ่มของรางวัล" / "แก้ไข" can come back to this same form: never leave it busy, and start a
+      // new reward with a new id (reusing the saved one would hit the primary key, 23505).
+      if (!id) {
+        newId.current = uniqueId();
+        setValues(initial);
+      }
+      uploaded.current = null;
+      setFile(null);
+      if (fileInput.current) fileInput.current.value = "";
+      busyRef.current = false;
+      setBusy(false);
       router.push("/staff/rewards");
       router.refresh();
     } catch (e) {
@@ -138,55 +155,55 @@ export function RewardForm({
       ) : null}
 
       <div className="mb-4">
-        <label htmlFor="name" className="mb-1 block text-sm font-medium">
+        <label htmlFor={f("name")} className="mb-1 block text-sm font-medium">
           ชื่อของรางวัล
         </label>
         <input
-          id="name"
+          id={f("name")}
           value={values.name}
           onChange={(e) => set("name", e.target.value)}
           aria-invalid={fieldErrors.name ? true : undefined}
-          aria-describedby={fieldErrors.name ? "name-error" : undefined}
+          aria-describedby={fieldErrors.name ? f("name-error") : undefined}
           className={inputClass}
         />
-        <FieldError id="name-error" message={fieldErrors.name} />
+        <FieldError id={f("name-error")} message={fieldErrors.name} />
       </div>
 
       <div className="grid gap-x-4 sm:grid-cols-2">
         <div className="mb-4">
-          <label htmlFor="pointsCost" className="mb-1 block text-sm font-medium">
+          <label htmlFor={f("pointsCost")} className="mb-1 block text-sm font-medium">
             แต้มที่ใช้แลก
           </label>
           <input
-            id="pointsCost"
+            id={f("pointsCost")}
             inputMode="numeric"
             value={values.pointsCost}
             onChange={(e) => set("pointsCost", e.target.value)}
             aria-invalid={fieldErrors.pointsCost ? true : undefined}
-            aria-describedby={fieldErrors.pointsCost ? "pointsCost-error" : undefined}
+            aria-describedby={fieldErrors.pointsCost ? f("pointsCost-error") : undefined}
             className={inputClass}
           />
-          <FieldError id="pointsCost-error" message={fieldErrors.pointsCost} />
+          <FieldError id={f("pointsCost-error")} message={fieldErrors.pointsCost} />
         </div>
         <div className="mb-4">
-          <label htmlFor="stock" className="mb-1 block text-sm font-medium">
+          <label htmlFor={f("stock")} className="mb-1 block text-sm font-medium">
             จำนวนในสต็อก
           </label>
           <input
-            id="stock"
+            id={f("stock")}
             inputMode="numeric"
             value={values.stock}
             onChange={(e) => set("stock", e.target.value)}
             aria-invalid={fieldErrors.stock ? true : undefined}
-            aria-describedby={fieldErrors.stock ? "stock-error" : undefined}
+            aria-describedby={fieldErrors.stock ? f("stock-error") : undefined}
             className={inputClass}
           />
-          <FieldError id="stock-error" message={fieldErrors.stock} />
+          <FieldError id={f("stock-error")} message={fieldErrors.stock} />
         </div>
       </div>
 
       <div className="mb-4">
-        <label htmlFor="image" className="mb-1 block text-sm font-medium">
+        <label htmlFor={f("image")} className="mb-1 block text-sm font-medium">
           รูปของรางวัล (ไม่บังคับ)
         </label>
         {imageUrl ? (
@@ -194,7 +211,8 @@ export function RewardForm({
           <img src={imageUrl} alt="รูปปัจจุบัน" className="mb-2 h-24 w-24 rounded-lg object-cover" />
         ) : null}
         <input
-          id="image"
+          ref={fileInput}
+          id={f("image")}
           type="file"
           accept="image/*"
           className="block w-full text-sm"
@@ -207,13 +225,13 @@ export function RewardForm({
 
       <div className="mb-6 flex items-center gap-2">
         <input
-          id="active"
+          id={f("active")}
           type="checkbox"
           checked={values.active}
           onChange={(e) => set("active", e.target.checked)}
           className="h-5 w-5 accent-green-700"
         />
-        <label htmlFor="active" className="text-sm">
+        <label htmlFor={f("active")} className="text-sm">
           เปิดให้แลก (นักเรียนเห็นและใส่ตะกร้าได้)
         </label>
       </div>

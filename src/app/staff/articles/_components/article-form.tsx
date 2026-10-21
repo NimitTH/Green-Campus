@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { saveArticle } from "@/app/actions/articles";
 import { ARTICLE_BUCKET, ARTICLE_LIMITS, type ArticleFieldErrors, type ArticleInput } from "@/lib/articles/format";
 import { errorMessageTh, uploadErrorCode } from "@/lib/errors";
@@ -43,6 +43,10 @@ export function ArticleForm({
   updatedAt?: string;
 }) {
   const router = useRouter();
+  // Unique per form instance: Cache Components keep a visited form alive (hidden) next to the
+  // visible one (e.g. "new" and "edit"), and fixed ids would point labels at the hidden inputs.
+  const uid = useId();
+  const f = (name: string) => `${uid}-${name}`;
   // A new article's id, chosen once per form so a retry reuses it.
   const newId = useRef(uniqueId());
   const articleId = id ?? newId.current;
@@ -152,26 +156,26 @@ export function ArticleForm({
       ) : null}
 
       <div className="mb-4">
-        <label htmlFor="title" className="mb-1 block text-sm font-medium">
+        <label htmlFor={f("title")} className="mb-1 block text-sm font-medium">
           ชื่อบทความ
         </label>
         <input
-          id="title"
+          id={f("title")}
           value={values.title}
           onChange={(e) => set("title", e.target.value)}
           aria-invalid={fieldErrors.title ? true : undefined}
-          aria-describedby={fieldErrors.title ? "title-error" : undefined}
+          aria-describedby={fieldErrors.title ? f("title-error") : undefined}
           className={inputClass}
         />
-        <FieldError id="title-error" message={fieldErrors.title} />
+        <FieldError id={f("title-error")} message={fieldErrors.title} />
       </div>
 
       <div className="mb-4">
-        <label htmlFor="slug" className="mb-1 block text-sm font-medium">
+        <label htmlFor={f("slug")} className="mb-1 block text-sm font-medium">
           slug (ส่วนท้ายของลิงก์ ไม่บังคับ)
         </label>
         <input
-          id="slug"
+          id={f("slug")}
           value={values.slug}
           onChange={(e) => set("slug", e.target.value)}
           autoCapitalize="none"
@@ -179,37 +183,37 @@ export function ArticleForm({
           spellCheck={false}
           placeholder="เช่น lod-kaya-plastic"
           aria-invalid={fieldErrors.slug ? true : undefined}
-          aria-describedby={fieldErrors.slug ? "slug-error slug-hint" : "slug-hint"}
+          aria-describedby={fieldErrors.slug ? `${f("slug-error")} ${f("slug-hint")}` : f("slug-hint")}
           className={inputClass}
         />
-        <p id="slug-hint" className="mt-1 text-xs text-gray-500">
+        <p id={f("slug-hint")} className="mt-1 text-xs text-gray-500">
           ใช้ a-z, 0-9 และขีด (-) ไม่เกิน {ARTICLE_LIMITS.slugMax} ตัว{" "}
           {id ? "เว้นว่างเพื่อใช้ slug เดิม" : "เว้นว่างให้ระบบสร้างให้"}
         </p>
-        <FieldError id="slug-error" message={fieldErrors.slug} />
+        <FieldError id={f("slug-error")} message={fieldErrors.slug} />
       </div>
 
       <div className="mb-4">
-        <label htmlFor="body" className="mb-1 block text-sm font-medium">
+        <label htmlFor={f("body")} className="mb-1 block text-sm font-medium">
           เนื้อหา
         </label>
         <textarea
-          id="body"
+          id={f("body")}
           rows={12}
           value={values.body}
           onChange={(e) => set("body", e.target.value)}
           aria-invalid={fieldErrors.body ? true : undefined}
-          aria-describedby={fieldErrors.body ? "body-error body-hint" : "body-hint"}
+          aria-describedby={fieldErrors.body ? `${f("body-error")} ${f("body-hint")}` : f("body-hint")}
           className={inputClass}
         />
-        <p id="body-hint" className="mt-1 text-xs text-gray-500">
+        <p id={f("body-hint")} className="mt-1 text-xs text-gray-500">
           ข้อความล้วน เว้นบรรทัดว่างหนึ่งบรรทัดเพื่อขึ้นย่อหน้าใหม่
         </p>
-        <FieldError id="body-error" message={fieldErrors.body} />
+        <FieldError id={f("body-error")} message={fieldErrors.body} />
       </div>
 
       <div className="mb-4">
-        <label htmlFor="cover" className="mb-1 block text-sm font-medium">
+        <label htmlFor={f("cover")} className="mb-1 block text-sm font-medium">
           รูปปก (ไม่บังคับ)
         </label>
         {coverUrl && !removeCover ? (
@@ -218,7 +222,7 @@ export function ArticleForm({
         ) : null}
         <input
           ref={fileInput}
-          id="cover"
+          id={f("cover")}
           type="file"
           accept="image/*"
           className="block w-full text-sm"
@@ -228,13 +232,13 @@ export function ArticleForm({
         {id && coverUrl ? (
           <div className="mt-2 flex items-center gap-2">
             <input
-              id="removeCover"
+              id={f("removeCover")}
               type="checkbox"
               checked={removeCover}
               onChange={(e) => setRemoveCover(e.target.checked)}
               className="h-5 w-5 accent-green-700"
             />
-            <label htmlFor="removeCover" className="text-sm">
+            <label htmlFor={f("removeCover")} className="text-sm">
               ลบรูปปก
             </label>
           </div>
@@ -243,13 +247,13 @@ export function ArticleForm({
 
       <div className="mb-6 flex items-center gap-2">
         <input
-          id="published"
+          id={f("published")}
           type="checkbox"
           checked={values.published}
           onChange={(e) => set("published", e.target.checked)}
           className="h-5 w-5 accent-green-700"
         />
-        <label htmlFor="published" className="text-sm">
+        <label htmlFor={f("published")} className="text-sm">
           เผยแพร่ (ทุกคนเห็นที่หน้าบทความ)
         </label>
       </div>
