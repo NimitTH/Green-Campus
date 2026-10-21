@@ -10,6 +10,7 @@ type Opts = {
   pageCap?: number; // server-side max rows per rpc page
   becomesReferenced?: string[]; // referenced at re-check time only
   rpcError?: boolean;
+  noProgress?: boolean; // candidate rpc keeps returning the same name
   recheckError?: boolean;
   removeError?: boolean;
 };
@@ -18,8 +19,16 @@ type Opts = {
 function fake(o: Opts = {}) {
   const calls: string[] = [];
   const removed: string[][] = [];
-  const rpc = vi.fn(async (fn: string, a: { p_bucket: string; p_after: string; p_limit: number }) => {
+  const recheckSizes: number[] = [];
+  const rpc = vi.fn(async (fn: string, a: { p_bucket: string; p_after: string; p_limit: number; p_names?: string[] }) => {
+    if (fn === "storage_referenced_names") {
+      calls.push(`recheck:${a.p_bucket}`);
+      recheckSizes.push(a.p_names!.length);
+      if (o.recheckError) return { data: null, error: { message: "boom" } };
+      return { data: a.p_names!.filter((n) => o.becomesReferenced?.includes(n)), error: null };
+    }
     calls.push(`rpc:${a.p_bucket}`);
+    if (o.noProgress) return { data: [{ name: "a.jpg", created_at: "x" }], error: null };
     if (o.rpcError) return { data: null, error: { message: "secret path boom" } };
     const limit = Math.min(a.p_limit, o.pageCap ?? 1000);
     const rows = (o.files?.[a.p_bucket] ?? []).filter((n) => n > a.p_after).slice(0, limit);
@@ -27,14 +36,8 @@ function fake(o: Opts = {}) {
   });
   const client = {
     rpc,
-    from: (table: string) => ({
-      select: (column: string) => ({
-        in: async (_c: string, batch: string[]) => {
-          calls.push(`recheck:${table}`);
-          if (o.recheckError) return { data: null, error: { message: "boom" } };
-          return { data: batch.filter((n) => o.becomesReferenced?.includes(n)).map((n) => ({ [column]: n })), error: null };
-        },
-      }),
+    from: vi.fn(() => {
+      throw new Error("re-check must not use a GET .in() query");
     }),
     storage: {
       from: (bucket: string) => ({
@@ -47,7 +50,7 @@ function fake(o: Opts = {}) {
       }),
     },
   } as unknown as SupabaseClient;
-  return { client, calls, removed, rpc };
+  return { client, calls, removed, rpc, recheckSizes };
 }
 
 describe("runCleanup", () => {
@@ -112,8 +115,22 @@ describe("runCleanup", () => {
   it("calls candidates, then re-check, then remove", async () => {
     const f = fake({ files: { evidence: ["a.jpg"] } });
     await runCleanup(f.client, { dryRun: false, now: NOW });
-    const e = f.calls.filter((c) => c.endsWith("evidence") || c.endsWith("submissions"));
-    expect(e).toEqual(["rpc:evidence", "rpc:evidence", "recheck:submissions", "remove:evidence"]);
+    const e = f.calls.filter((c) => c.endsWith("evidence"));
+    expect(e).toEqual(["rpc:evidence", "rpc:evidence", "recheck:evidence", "remove:evidence"]);
+  });
+
+  it("re-checks through rpc(storage_referenced_names) with at most 100 names, never a GET .in()", async () => {
+    const f = fake({ files: { evidence: names(250) } });
+    await runCleanup(f.client, { dryRun: false, now: NOW });
+    expect(f.rpc.mock.calls.filter((c) => c[0] === "storage_referenced_names").length).toBe(3);
+    expect(f.recheckSizes).toEqual([100, 100, 50]);
+    expect((f.client.from as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBe(0);
+  });
+
+  it("throws when the candidate pages make no progress (never loops forever)", async () => {
+    const f = fake({ noProgress: true });
+    await expect(runCleanup(f.client, { dryRun: false, now: NOW })).rejects.toMatchObject({ stage: "list_failed:evidence" });
+    expect(f.calls.some((c) => c.startsWith("remove"))).toBe(false);
   });
 
   it("dry run makes no remove() calls but counts", async () => {

@@ -48,6 +48,10 @@ describe("GET /api/cron/cleanup-orphans", () => {
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(runCleanup).toHaveBeenCalledWith(expect.anything(), { dryRun: false });
   });
+  it("accepts a secret with a trailing newline in the env (compares the trimmed value)", async () => {
+    vi.stubEnv("CRON_SECRET", "test-secret\n");
+    expect((await GET(req("Bearer test-secret"))).status).toBe(200);
+  });
   it("declares maxDuration 60", () => {
     expect(maxDuration).toBe(60);
   });

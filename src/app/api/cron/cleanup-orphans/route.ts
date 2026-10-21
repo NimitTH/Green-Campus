@@ -27,8 +27,8 @@ function authorized(header: string | null, secret: string): boolean {
 }
 
 export async function GET(request: NextRequest): Promise<Response> {
-  const secret = process.env.CRON_SECRET;
-  if (!secret?.trim()) return json(500, { error: "cron_not_configured" });
+  const secret = process.env.CRON_SECRET?.trim(); // a trailing newline in the Vercel env must not lock us out
+  if (!secret) return json(500, { error: "cron_not_configured" });
   if (!authorized(request.headers.get("authorization"), secret)) return json(401, { error: "unauthorized" });
 
   const dryRun = request.nextUrl.searchParams.get("dry") === "1";

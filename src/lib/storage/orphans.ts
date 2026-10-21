@@ -1,19 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Orphan image cleanup (Task 19, R129-R133; spec 8.4). Candidates come from one read-only SQL function
-// (migration 0023, keyset-paged by name, service_role only); objects are DELETED only through the Storage
+// (migrations 0023/0024, keyset-paged by name in byte order, service_role only); objects are DELETED only through the Storage
 // API. Before every remove() batch the batch is re-checked against the referencing column, so a file that
 // became referenced after listing is never removed. Any read error aborts the run with no further deletes.
 
 export const BUCKETS = ["evidence", "reward-images", "article-images"] as const;
 export type Bucket = (typeof BUCKETS)[number];
-
-/** The column that references each bucket's objects by full path. */
-export const REFERENCES: Record<Bucket, { table: string; column: string }> = {
-  evidence: { table: "submissions", column: "evidence_path" },
-  "reward-images": { table: "rewards", column: "image_path" },
-  "article-images": { table: "articles", column: "cover_path" },
-};
 
 export const MIN_AGE_MS = 24 * 60 * 60_000;
 export const REMOVE_BATCH = 100;
@@ -64,13 +57,11 @@ async function listCandidates(client: SupabaseClient, bucket: Bucket, cutoff: st
   return { names, capped };
 }
 
-/** The names in `batch` that a row references right now. */
+/** The names in `batch` that a row references right now. A POST rpc: a GET .in() list of 100 long paths exceeds the URL limit. */
 async function referencedNow(client: SupabaseClient, bucket: Bucket, batch: string[]): Promise<Set<string>> {
-  const { table, column } = REFERENCES[bucket];
-  const { data, error } = await client.from(table).select(column).in(column, batch);
+  const { data, error } = await client.rpc("storage_referenced_names", { p_bucket: bucket, p_names: batch });
   if (error) throw new CleanupError("recheck_failed");
-  const rows = (data ?? []) as unknown as Record<string, string | null>[];
-  return new Set(rows.map((r) => r[column]).filter((v): v is string => !!v));
+  return new Set(((data ?? []) as string[]).filter((v) => typeof v === "string"));
 }
 
 export async function runCleanup(client: SupabaseClient, opts: { dryRun: boolean; now?: Date }): Promise<CleanupResult> {
