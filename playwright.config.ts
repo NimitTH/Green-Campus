@@ -26,6 +26,10 @@ export default defineConfig({
     command: "npm run dev",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
+    // Task 19: the cron route fails closed without CRON_SECRET. A fixed, obviously-fake value for local
+    // runs only (never CI, never a real secret). A dev server started by hand needs the same value:
+    // CRON_SECRET=e2e-cron-secret npm run dev. tests/e2e/cleanup-orphans.spec.ts reads the same default.
+    env: process.env.CI ? {} : { CRON_SECRET: process.env.CRON_SECRET || "e2e-cron-secret" },
     timeout: 180_000,
   },
 });

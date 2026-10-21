@@ -31,3 +31,18 @@
 - ดูรายงานเมื่อมีเทสต์ล้ม: `npx playwright show-report` (trace เก็บไว้เฉพาะเทสต์ที่ล้ม)
 - เทสต์อยู่ที่ `tests/e2e/*.spec.ts`; Vitest อ่านเฉพาะ `src/**/*.test.ts` จึงไม่ชนกัน
   ไฟล์ e2e ถูกยกเว้นจาก `tsconfig.json` เพื่อให้ `npm run build` ไม่ขึ้นกับ Playwright
+
+## Deploy: Cron / CRON_SECRET (ล้างรูปค้าง, Task 19)
+
+- `vercel.json` ตั้ง Vercel Cron เรียก `GET /api/cron/cleanup-orphans` วันละครั้ง (`0 19 * * *` UTC = 02:00 เวลาไทย)
+  ลบรูปใน bucket `evidence`, `reward-images`, `article-images` ที่ไม่มีแถวใดอ้างถึงและเก่ากว่า 24 ชั่วโมง ผ่าน Storage API
+- ต้องตั้งตัวแปร `CRON_SECRET` ใน Vercel (Project Settings > Environment Variables) Vercel จะส่ง
+  `Authorization: Bearer <CRON_SECRET>` ให้ cron เอง สร้างค่าด้วย `openssl rand -hex 32` หรือ
+  `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` ห้ามเก็บค่าจริงลง git
+  ถ้าไม่ตั้ง route จะตอบ 500 `cron_not_configured` และไม่ลบอะไร
+- แพ็กเกจ Hobby: cron รันได้วันละครั้งเท่านั้น และเวลาจริงอาจคลาดภายในชั่วโมงที่ตั้งไว้ (ปัจจุบันใช้วันละครั้ง เหมาะกับ Hobby)
+- หลัง deploy ลองเรียกแบบไม่ลบก่อน: `curl -H "Authorization: Bearer $CRON_SECRET" "https://<โดเมน>/api/cron/cleanup-orphans?dry=1"`
+  จะได้ `{deleted, byBucket, scanned, dryRun, capped}` (`deleted` ในโหมด dry = จำนวนที่จะลบ)
+- รันครั้งละไม่เกิน 2000 ไฟล์ (`capped: true` = ยังเหลือ รอบถัดไปจะทำต่อ)
+- e2e บนเครื่องใช้ค่าทดสอบ `e2e-cron-secret` ที่ `playwright.config.ts` ตั้งให้ dev server เอง (เฉพาะนอก CI) ถ้าเปิด
+  `npm run dev` เองก่อนรันเทสต์ ให้เปิดด้วย `CRON_SECRET=e2e-cron-secret npm run dev`
