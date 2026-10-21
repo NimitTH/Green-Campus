@@ -18,7 +18,6 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-000000000201', 'teacher1@example.test', '{"full_name":"ครู หนึ่ง"}'::jsonb),
   ('00000000-0000-0000-0000-000000000301', 'admin1@example.test', '{"full_name":"แอดมิน หนึ่ง"}'::jsonb);
 
--- 0018: codes are unique and fixed, so replace the seed plastic row with the fixture
 -- 0018: category codes are unique and fixed (and submission_items keep seed rows alive), so reuse the seed plastic row
 update public.waste_categories set name = 'rls-test-plastic', points_per_kg = 10, carbon_kg_per_kg = 1.5, source_note = 'test' where code = 'plastic';
 insert into public.activities (id, title, starts_at, ends_at, status, type) values
