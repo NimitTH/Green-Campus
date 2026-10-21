@@ -48,9 +48,7 @@ async function Reports({ searchParams }: { searchParams: SearchParams }) {
   const fallback = bangkokMonthRange(new Date());
   const parsed = parseDateRange(one(params.from) ?? fallback.from, one(params.to) ?? fallback.to);
   const range = parsed.ok ? parsed : fallback;
-  const [activities, students] = parsed.ok
-    ? await Promise.all([getActivityReport(range.from, range.to), getStudentReport(range.from, range.to)])
-    : [[], []];
+  const [activities, students] = await Promise.all([getActivityReport(range.from, range.to), getStudentReport(range.from, range.to)]);
   const query = `from=${range.from}&to=${range.to}`;
 
   return (
@@ -85,8 +83,9 @@ async function Reports({ searchParams }: { searchParams: SearchParams }) {
           <li>นับเฉพาะผลที่อนุมัติแล้ว ของกิจกรรมที่จบแล้ว (ปิดกิจกรรมหรือเลยเวลาสิ้นสุด) ไม่นับกิจกรรมฉบับร่าง</li>
           <li>เลือกช่วงตามวันที่กิจกรรมจบ (เวลาประเทศไทย) ผลที่อนุมัติหลังกิจกรรมจบแล้วจึงยังนับในช่วงของกิจกรรมนั้น</li>
           <li>แต้มและ carbon นับจากรายการที่ระบบบันทึกตอนอนุมัติ ไม่รวมการปรับแต้ม การแลกของรางวัล และการคืนแต้ม</li>
-          <li>
-            ตัวเลขจึงอาจไม่ตรงกับแดชบอร์ด ซึ่งนับตามวันที่แต้มถูกบันทึก และรวมการปรับแต้มด้วย
+          <li data-testid="dashboard-note">
+            แดชบอร์ดและอันดับนับทันทีที่ผลได้รับอนุมัติ แม้กิจกรรมยังไม่จบ และรวมการปรับแต้มด้วย ตัวเลขจึงอาจสูงกว่ารายงานชั่วคราว
+            ส่วนแต้มคงเหลือหักการแลกของแล้ว จึงอาจต่ำกว่าแต้มในรายงาน
           </li>
         </ul>
       </section>
@@ -128,8 +127,8 @@ async function Reports({ searchParams }: { searchParams: SearchParams }) {
                 </tr>
               </thead>
               <tbody>
-                {activities.map((r) => (
-                  <tr key={`${r.endsOn}-${r.title}`} className="border-t border-gray-200 dark:border-gray-800">
+                {activities.map((r, i) => (
+                  <tr key={i} className="border-t border-gray-200 dark:border-gray-800">
                     <td className={`${td} whitespace-normal`}>{r.title}</td>
                     <td className={td}>{day(r.endsOn)}</td>
                     <td className={td}>{number.format(r.participants)}</td>
@@ -170,8 +169,8 @@ async function Reports({ searchParams }: { searchParams: SearchParams }) {
                 </tr>
               </thead>
               <tbody>
-                {students.map((r) => (
-                  <tr key={r.fullName} className="border-t border-gray-200 dark:border-gray-800">
+                {students.map((r, i) => (
+                  <tr key={i} className="border-t border-gray-200 dark:border-gray-800">
                     <td className={`${td} whitespace-normal`}>{r.fullName}</td>
                     <td className={td}>{number.format(r.points)}</td>
                     <td className={td}>{decimal.format(r.carbonKg)}</td>

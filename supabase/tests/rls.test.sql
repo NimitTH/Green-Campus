@@ -19,9 +19,8 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-000000000301', 'admin1@example.test', '{"full_name":"แอดมิน หนึ่ง"}'::jsonb);
 
 -- 0018: codes are unique and fixed, so replace the seed plastic row with the fixture
-delete from public.waste_categories where code = 'plastic';
-insert into public.waste_categories (id, name, code, points_per_kg, carbon_kg_per_kg, source_note) values
-  ('00000000-0000-0000-0000-000000000401', 'rls-test-plastic', 'plastic', 10, 1.5, 'test');
+-- 0018: category codes are unique and fixed (and submission_items keep seed rows alive), so reuse the seed plastic row
+update public.waste_categories set name = 'rls-test-plastic', points_per_kg = 10, carbon_kg_per_kg = 1.5, source_note = 'test' where code = 'plastic';
 insert into public.activities (id, title, starts_at, ends_at, status, type) values
   ('00000000-0000-0000-0000-000000000501', 'Open act', now(), now() + interval '1 day', 'open', 'waste'),
   ('00000000-0000-0000-0000-000000000502', 'Draft act', now(), now() + interval '1 day', 'draft', 'fixed');
@@ -32,8 +31,8 @@ insert into public.submissions (id, activity_id, student_id) values
   ('00000000-0000-0000-0000-000000000601', '00000000-0000-0000-0000-000000000501', '00000000-0000-0000-0000-000000000101'),
   ('00000000-0000-0000-0000-000000000602', '00000000-0000-0000-0000-000000000501', '00000000-0000-0000-0000-000000000102');
 insert into public.submission_items (submission_id, waste_category_id, quantity) values
-  ('00000000-0000-0000-0000-000000000601', '00000000-0000-0000-0000-000000000401', 500),
-  ('00000000-0000-0000-0000-000000000602', '00000000-0000-0000-0000-000000000401', 300);
+  ('00000000-0000-0000-0000-000000000601', (select id from public.waste_categories where code = 'plastic'), 500),
+  ('00000000-0000-0000-0000-000000000602', (select id from public.waste_categories where code = 'plastic'), 300);
 insert into public.ledger_entries (student_id, kind, points, carbon_kg) values
   ('00000000-0000-0000-0000-000000000101', 'earn', 5, 0.5),
   ('00000000-0000-0000-0000-000000000102', 'earn', 3, 0.3);
@@ -132,7 +131,7 @@ select is((select count(*) from public.rewards where id in
 select is((select count(*) from public.articles where id in
   ('00000000-0000-0000-0000-000000000801', '00000000-0000-0000-0000-000000000802')),
   1::bigint, 'student sees published article only');
-select is((select count(*) from public.waste_categories where id = '00000000-0000-0000-0000-000000000401'),
+select is((select count(*) from public.waste_categories where id = (select id from public.waste_categories where code = 'plastic')),
   1::bigint, 'student can read waste_categories');
 select throws_ok($$insert into public.activities (title, starts_at, ends_at, type)
   values ('X', now(), now() + interval '1 day', 'fixed')$$,
@@ -214,8 +213,8 @@ select is((select count(*) from public.activities where id = '00000000-0000-0000
   0::bigint, 'activity deleted by teacher');
 select throws_ok($$delete from public.activities where id = '00000000-0000-0000-0000-000000000501'$$,
   '23503', null, 'teacher cannot delete activity that has results');
-update public.waste_categories set points_per_kg = 999 where id = '00000000-0000-0000-0000-000000000401';
-select is((select points_per_kg from public.waste_categories where id = '00000000-0000-0000-0000-000000000401'),
+update public.waste_categories set points_per_kg = 999 where id = (select id from public.waste_categories where code = 'plastic');
+select is((select points_per_kg from public.waste_categories where id = (select id from public.waste_categories where code = 'plastic')),
   10, 'teacher cannot edit waste_categories (0 rows updated)');
 select throws_ok($$insert into public.ledger_entries (student_id, kind, points, carbon_kg)
   values ('00000000-0000-0000-0000-000000000101', 'adjust', 100, 0)$$,
@@ -232,9 +231,9 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000
 
 select ok(public.is_admin(), 'admin: is_admin() true');
 select ok(public.is_staff(), 'admin: is_staff() true');
-select lives_ok($$update public.waste_categories set points_per_kg = 12 where id = '00000000-0000-0000-0000-000000000401'$$,
+select lives_ok($$update public.waste_categories set points_per_kg = 12 where id = (select id from public.waste_categories where code = 'plastic')$$,
   'admin can edit waste_categories');
-select is((select points_per_kg from public.waste_categories where id = '00000000-0000-0000-0000-000000000401'),
+select is((select points_per_kg from public.waste_categories where id = (select id from public.waste_categories where code = 'plastic')),
   12, 'waste category rate updated by admin');
 select lives_ok($$delete from public.activities where id = '00000000-0000-0000-0000-000000000502'$$,
   'admin can delete activity without results');

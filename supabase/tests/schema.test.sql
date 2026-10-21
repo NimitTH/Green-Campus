@@ -10,10 +10,8 @@ insert into public.profiles (id, role, full_name) values
   ('00000000-0000-0000-0000-0000000000a1', 'student', 'Student One'),
   ('00000000-0000-0000-0000-0000000000b1', 'teacher', 'Teacher One')
 on conflict (id) do update set role = excluded.role, full_name = excluded.full_name;
--- 0018: codes are unique and fixed, so replace the seed plastic row with the fixture
-delete from public.waste_categories where code = 'plastic';
-insert into public.waste_categories (id, name, code, points_per_kg, carbon_kg_per_kg, source_note) values
-  ('00000000-0000-0000-0000-0000000000c1', 'plastic', 'plastic', 10, 1.5, 'test');
+-- 0018: category codes are unique and fixed (and submission_items keep seed rows alive), so reuse the seed plastic row
+update public.waste_categories set name = 'plastic', points_per_kg = 10, carbon_kg_per_kg = 1.5, source_note = 'test' where code = 'plastic';
 insert into public.activities (id, title, starts_at, ends_at, status, type, requires_code, unit_points, created_by) values
   ('00000000-0000-0000-0000-0000000000d1', 'Waste act', now(), now() + interval '1 day', 'open', 'waste', true, 0, '00000000-0000-0000-0000-0000000000b1'),
   ('00000000-0000-0000-0000-0000000000d2', 'Trees act', now(), now() + interval '1 day', 'open', 'trees', false, 5, '00000000-0000-0000-0000-0000000000b1'),
@@ -57,16 +55,16 @@ select throws_ok($$insert into public.submission_items (submission_id, waste_cat
   values ('00000000-0000-0000-0000-0000000000e1', null, 500)$$,
   '23514', null, 'waste item without category rejected');
 select throws_ok($$insert into public.submission_items (submission_id, waste_category_id, quantity)
-  values ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000c1', 0)$$,
+  values ('00000000-0000-0000-0000-0000000000e1', (select id from public.waste_categories where code = 'plastic'), 0)$$,
   '23514', null, 'quantity 0 rejected');
 select throws_ok($$insert into public.submission_items (submission_id, waste_category_id, quantity)
-  values ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000c1', -5)$$,
+  values ('00000000-0000-0000-0000-0000000000e1', (select id from public.waste_categories where code = 'plastic'), -5)$$,
   '23514', null, 'negative quantity rejected');
 select lives_ok($$insert into public.submission_items (submission_id, waste_category_id, quantity)
-  values ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000c1', 500)$$,
+  values ('00000000-0000-0000-0000-0000000000e1', (select id from public.waste_categories where code = 'plastic'), 500)$$,
   'valid waste item inserts');
 select throws_ok($$insert into public.submission_items (submission_id, waste_category_id, quantity)
-  values ('00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-0000000000c1', 10)$$,
+  values ('00000000-0000-0000-0000-0000000000e2', (select id from public.waste_categories where code = 'plastic'), 10)$$,
   '23514', null, 'trees item with category rejected');
 select lives_ok($$insert into public.submission_items (submission_id, waste_category_id, quantity)
   values ('00000000-0000-0000-0000-0000000000e2', null, 10)$$,

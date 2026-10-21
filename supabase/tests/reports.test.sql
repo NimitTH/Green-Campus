@@ -5,7 +5,7 @@
 --   activities ...e501 waste, ...e502 trees, ...e503 fixed, ...e504 draft, ...e505 boundary, ...e506 empty,
 --   ...e507 open (not ended), ...e508 ended by time (2001)
 begin;
-select plan(41);
+select plan(46);
 
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-00000000e101', 'rp-a@example.test', '{"full_name":"RP A นักเรียน"}'::jsonb),
@@ -50,7 +50,8 @@ insert into public.submission_items (submission_id, waste_category_id, quantity)
   ('00000000-0000-0000-0000-00000000e603', (select id from public.waste_categories where code = 'plastic'), 999),
   ('00000000-0000-0000-0000-00000000e604', (select id from public.waste_categories where code = 'paper'), 999),
   ('00000000-0000-0000-0000-00000000e605', null, 3),
-  ('00000000-0000-0000-0000-00000000e606', null, 4);
+  ('00000000-0000-0000-0000-00000000e606', null, 4),
+  ('00000000-0000-0000-0000-00000000e607', null, 1);
 
 -- earn rows are the source of points/carbon; adjust and redeem rows that point at a submission never count
 insert into public.ledger_entries (student_id, kind, points, carbon_kg, ref_submission_id) values
@@ -77,6 +78,10 @@ select ok(not has_function_privilege('anon', 'public.report_activities(date, dat
 select ok(not has_function_privilege('anon', 'public.report_students(date, date)', 'execute'), 'anon cannot execute report_students');
 select ok(has_function_privilege('authenticated', 'public.report_students(date, date)', 'execute'), 'authenticated can execute report_students (staff check inside)');
 
+select ok(has_function_privilege('authenticated', 'public.report_activities(date, date)', 'execute'), 'authenticated can execute report_activities (staff check inside)');
+select ok(has_function_privilege('service_role', 'public.report_activities(date, date)', 'execute'), 'service_role can execute report_activities');
+select ok(has_function_privilege('service_role', 'public.report_students(date, date)', 'execute'), 'service_role can execute report_students');
+
 -- 9-12: denied --------------------------------------------------------------------------------------------
 set local role anon;
 select throws_ok($$select * from public.report_activities('2033-05-01', '2033-05-31')$$, '42501', null, 'anon is denied report_activities');
@@ -88,6 +93,13 @@ select throws_ok($$select * from public.report_activities('2033-05-01', '2033-05
 select throws_ok($$select * from public.report_students('2033-05-01', '2033-05-31')$$, '42501', 'not_staff', 'a student gets not_staff from report_students');
 reset role;
 
+-- an authenticated role without a sub claim has no auth.uid(): not_authenticated
+set local role authenticated;
+select set_config('request.jwt.claims', '{"role":"authenticated"}', true);
+select throws_ok($$select * from public.report_activities('2033-05-01', '2033-05-31')$$, '42501', 'not_authenticated', 'no sub claim: not_authenticated (activities)');
+select throws_ok($$select * from public.report_students('2033-05-01', '2033-05-31')$$, '42501', 'not_authenticated', 'no sub claim: not_authenticated (students)');
+reset role;
+
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000e201","role":"authenticated"}', true);
 
@@ -96,7 +108,7 @@ select throws_ok($$select * from public.report_activities('2033-05-31', '2033-05
 select throws_ok($$select * from public.report_students('2033-05-31', '2033-05-01')$$, '22023', 'invalid_range', 'from > to raises invalid_range (students)');
 
 -- 15-25: report_activities, May 2033 --------------------------------------------------------------------------
-select is((select array_agg(title order by ends_on, title) from public.report_activities('2033-05-01', '2033-05-31')),
+select is((select array_agg(title) from public.report_activities('2033-05-01', '2033-05-31')),
   array['R waste', 'R trees', 'R fixed', 'R empty'],
   'closed activities in range only (draft and not-yet-ended open excluded), ordered by ends_on then title');
 select is((select row(participants, approved_submissions, grams_plastic, grams_paper, grams_metal_glass, grams_other, trees, points, carbon_kg)::text
@@ -105,9 +117,9 @@ select is((select row(participants, approved_submissions, grams_plastic, grams_p
 select is((select row(participants, approved_submissions, trees, points, carbon_kg)::text
            from public.report_activities('2033-05-01', '2033-05-31') where title = 'R trees'),
   '(0,2,7,35,17.500)', 'trees activity: trees summed from approved items');
-select is((select row(approved_submissions, trees, points, carbon_kg)::text
+select is((select row(approved_submissions, grams_plastic + grams_paper + grams_metal_glass + grams_other, trees, points, carbon_kg)::text
            from public.report_activities('2033-05-01', '2033-05-31') where title = 'R fixed'),
-  '(1,0,10,0.000)', 'fixed activity: points from the earn row');
+  '(1,0,0,10,0.000)', 'fixed activity: points from the earn row; its quantity-1 item is neither trees nor grams');
 select is((select row(participants, approved_submissions, grams_plastic, trees, points, carbon_kg)::text
            from public.report_activities('2033-05-01', '2033-05-31') where title = 'R empty'),
   '(1,0,0,0,0,0.000)', 'an ended activity without approved results is listed with zeros, participants shown');
@@ -122,7 +134,7 @@ select is((select array_agg(title) from public.report_activities('2033-06-30', '
 select is((select array_agg(title) from public.report_activities('2001-03-01', '2001-03-31')), array['R past'], 'an open activity past ends_at counts as ended');
 
 -- 26-31: report_students ---------------------------------------------------------------------------------------
-select is((select array_agg(full_name order by carbon_kg desc, full_name) from public.report_students('2033-05-01', '2033-05-31')),
+select is((select array_agg(full_name) from public.report_students('2033-05-01', '2033-05-31')),
   array['RP B นักเรียน', 'RP A นักเรียน'], 'students with approved results in ended activities only (C only has draft/open ones)');
 select is((select row(points, carbon_kg, grams_total, trees)::text from public.report_students('2033-05-01', '2033-05-31') where full_name = 'RP A นักเรียน'),
   '(45,10.000,2000,3)', 'student A totals (earn rows only, waste grams only)');

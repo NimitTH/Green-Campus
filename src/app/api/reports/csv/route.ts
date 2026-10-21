@@ -18,17 +18,17 @@ function text(code: 400 | 401 | 403 | 500, body: string): Response {
 }
 
 export async function GET(request: NextRequest): Promise<Response> {
+  const user = await getCurrentUser();
+  if (!user) return text(401, "กรุณาเข้าสู่ระบบ");
+  if (!isStaffRole(user.role)) return text(403, "เฉพาะครูและผู้ดูแลระบบ");
+
+  const params = request.nextUrl.searchParams;
+  const kind = params.get("kind");
+  if (kind !== "activities" && kind !== "students") return text(400, "ประเภทรายงานไม่ถูกต้อง (activities หรือ students)");
+  const range = parseDateRange(params.get("from"), params.get("to"));
+  if (!range.ok) return text(400, range.message);
+
   try {
-    const user = await getCurrentUser();
-    if (!user) return text(401, "กรุณาเข้าสู่ระบบ");
-    if (!isStaffRole(user.role)) return text(403, "เฉพาะครูและผู้ดูแลระบบ");
-
-    const params = request.nextUrl.searchParams;
-    const kind = params.get("kind");
-    if (kind !== "activities" && kind !== "students") return text(400, "ประเภทรายงานไม่ถูกต้อง (activities หรือ students)");
-    const range = parseDateRange(params.get("from"), params.get("to"));
-    if (!range.ok) return text(400, range.message);
-
     const rows =
       kind === "activities"
         ? activityCsvRows(await getActivityReport(range.from, range.to))

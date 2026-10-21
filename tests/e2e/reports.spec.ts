@@ -22,7 +22,7 @@ const STUDENT_HEADER = "ชื่อ,แต้ม,carbon (kgCO2e),น้ำห�
 test("reports: staff previews and downloads both CSVs; student 403, anonymous 401, bad params 400", async ({ page, browser, baseURL }, testInfo) => {
   const suffix = uniqueSuffix(testInfo.project.name);
   const title = `รายงานทดสอบ ${suffix}`;
-  const year = testInfo.project.name === "chromium" ? 2033 : 2034;
+  const year = testInfo.project.name === "chromium" ? 2036 : 2037;
   const from = `${year}-05-01`;
   const to = `${year}-05-31`;
   let teacher: TestUser | undefined;
@@ -44,6 +44,23 @@ test("reports: staff previews and downloads both CSVs; student 403, anonymous 40
     const table = page.getByTestId("report-activities");
     await expect(table).toContainText(title);
     await expect(page.getByText("นับเฉพาะผลที่อนุมัติ")).toBeVisible();
+    await expect(page.getByTestId("dashboard-note")).toContainText("แดชบอร์ดและอันดับนับทันทีที่ผลได้รับอนุมัติ");
+
+    // an invalid range: the banner shows and the page falls back to the current month everywhere
+    // (form, CSV links and preview), the same as the default page
+    const csvHref = (p: typeof page) => p.getByRole("link", { name: "ดาวน์โหลด CSV รายกิจกรรม" }).getAttribute("href");
+    await page.goto("/staff/reports");
+    const defaultHref = await csvHref(page);
+    const defaultRows = await page.getByTestId("report-activities").locator("tbody tr").count();
+    const defaultEmpty = await page.getByText("ไม่มีกิจกรรมที่จบในช่วงนี้").count();
+    for (const q of ["from=2040-02-01&to=2040-01-01", "from=2030-01-01&to=2040-01-01"]) {
+      await page.goto(`/staff/reports?${q}`);
+      await expect(page.getByText("แสดงเดือนปัจจุบันแทน")).toBeVisible();
+      expect(await csvHref(page), q).toBe(defaultHref);
+      expect(await page.getByTestId("report-activities").locator("tbody tr").count(), q).toBe(defaultRows);
+      expect(await page.getByText("ไม่มีกิจกรรมที่จบในช่วงนี้").count(), q).toBe(defaultEmpty);
+    }
+    await page.goto(`/staff/reports?from=${from}&to=${to}`);
 
     // activities CSV through the download button
     const link = page.getByRole("link", { name: "ดาวน์โหลด CSV รายกิจกรรม" });
