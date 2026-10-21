@@ -17,6 +17,9 @@
 --   restore_pending_stock_on_profile_delete (0016, BEFORE DELETE on profiles): the profile row
 --                                   (locked by the DELETE itself) -> its pending orders by id
 --                                   FOR UPDATE -> their rewards by id FOR UPDATE
+--   adjust_ledger (0019):           the student's profile FOR NO KEY UPDATE only (then inserts)
+--   set_user_role (0019):           advisory lock hashtext('public.set_user_role') -> the target
+--                                   profile via its role UPDATE (NO KEY UPDATE); never FOR UPDATE
 -- Foreign keys: inserting a ledger_entries / notifications row takes FOR KEY SHARE on the
 -- referenced profile. cancel/expire do this while holding rewards, so any function that locks a
 -- profile and then rewards must use FOR NO KEY UPDATE (compatible with KEY SHARE), never FOR UPDATE.

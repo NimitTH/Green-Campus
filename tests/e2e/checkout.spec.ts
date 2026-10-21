@@ -99,7 +99,7 @@ test("earn -> cart -> ยืนยันแลก -> staff notified -> เตร
 
     // teacher: /staff -> ออเดอร์ -> เตรียมของเสร็จแล้ว
     await staffPage.goto("/staff");
-    await staffPage.getByRole("link", { name: /ออเดอร์/ }).click();
+    await staffPage.getByRole("navigation", { name: "เมนูครู" }).getByRole("link", { name: /ออเดอร์/ }).click();
     await expect(staffPage).toHaveURL((url) => url.pathname === "/staff/orders");
     await expect(staffPage.getByRole("button", { name: "ยกเลิกออเดอร์ที่หมดอายุ" })).toHaveCount(0); // admin only
     await expect(staffOrder(staffPage, orderId).getByTestId("order-status")).toHaveText("รอเตรียมของ");

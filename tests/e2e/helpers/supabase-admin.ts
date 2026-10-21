@@ -364,3 +364,36 @@ export async function grantCarbon(studentId: string, carbonKg: number, createdAt
     .insert({ student_id: studentId, kind: "earn", points: 0, carbon_kg: carbonKg, note: "e2e", ...(createdAt ? { created_at: createdAt } : {}) });
   if (error) throw new Error(`e2e: grant carbon failed: ${error.message}`);
 }
+
+// Admin tools (Task 18) --------------------------------------------------------------------------
+
+/** Give a test user a unique full name (service role), so admin searches find exactly that user. */
+export async function setFullName(userId: string, fullName: string): Promise<void> {
+  const { error } = await admin().from("profiles").update({ full_name: fullName, display_name: null }).eq("id", userId);
+  if (error) throw new Error(`e2e: set full name failed: ${error.message}`);
+}
+
+export async function profileRole(userId: string): Promise<string | null> {
+  const { data, error } = await admin().from("profiles").select("role").eq("id", userId).maybeSingle();
+  if (error) throw new Error(`e2e: profile role failed: ${error.message}`);
+  return (data as { role: string } | null)?.role ?? null;
+}
+
+export type RateSnapshot = { name: string; points_per_kg: number; carbon_kg_per_kg: number | string; source_note: string | null };
+
+/** The editable columns of a waste category by code (service role). */
+export async function rateByCode(code: string): Promise<RateSnapshot> {
+  const { data, error } = await admin()
+    .from("waste_categories")
+    .select("name, points_per_kg, carbon_kg_per_kg, source_note")
+    .eq("code", code)
+    .single();
+  if (error || !data) throw new Error(`e2e: rate ${code} not found: ${error?.message}`);
+  return data as RateSnapshot;
+}
+
+/** Put a waste category back exactly as snapshotted (shared row: always restore in finally). */
+export async function restoreRate(code: string, snapshot: RateSnapshot): Promise<void> {
+  const { error } = await admin().from("waste_categories").update(snapshot).eq("code", code);
+  if (error) console.warn(`e2e cleanup: restore rate ${code} failed: ${error.message}`);
+}

@@ -21,6 +21,9 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-00000000d103', 'lb-s3@example.test', '{"full_name":"LB Blank"}'::jsonb),
   ('00000000-0000-0000-0000-00000000d201', 'lb-t1@example.test', '{"full_name":"LB ครู"}'::jsonb);
 update public.profiles set role = 'teacher' where id = '00000000-0000-0000-0000-00000000d201';
+-- 0019 forbids a blank full_name; drop that check inside this (rolled back) test so the ไม่ระบุชื่อ
+-- fallback for rows from before 0019 stays covered.
+alter table public.profiles drop constraint profiles_full_name_length;
 update public.profiles set display_name = '  ', full_name = ' ' where id = '00000000-0000-0000-0000-00000000d103';
 update public.profiles set display_name = 'เพื่อนสิบ' where id = '00000000-0000-0000-0000-00000000d111';
 

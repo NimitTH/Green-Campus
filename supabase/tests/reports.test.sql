@@ -161,8 +161,9 @@ select is((select row(grams_plastic, grams_paper, grams_metal_glass, grams_other
            from public.report_activities('2033-05-01', '2033-05-31') where title = 'R waste'),
   '(1500,500,250,100)', 'renaming categories does not move grams between columns');
 reset role;
-select throws_ok($$update public.waste_categories set code = 'glass' where code = 'other'$$, '23514', null, 'code must be one of the four');
-select throws_ok($$update public.waste_categories set code = 'plastic' where code = 'other'$$, '23505', null, 'code is unique');
+-- 0019 makes code immutable on UPDATE, so the constraints are probed with INSERTs (as postgres)
+select throws_ok($$insert into public.waste_categories (name, points_per_kg, carbon_kg_per_kg, code) values ('RP x', 1, 0, 'glass')$$, '23514', null, 'code must be one of the four');
+select throws_ok($$insert into public.waste_categories (name, points_per_kg, carbon_kg_per_kg, code) values ('RP y', 1, 0, 'plastic')$$, '23505', null, 'code is unique');
 
 -- 39-41: admin may call; null bound; activities row typing ----------------------------------------------------------
 update public.profiles set role = 'admin' where id = '00000000-0000-0000-0000-00000000e201';

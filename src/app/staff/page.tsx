@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { requireStaff } from "@/lib/auth/dal";
+import { isAdminRole } from "@/lib/auth/routes";
 import { PageSkeleton } from "../_components/page-skeleton";
 import { SignOutButton } from "../_components/sign-out-button";
+import { StaffStats } from "./_components/staff-stats";
 
 export const metadata: Metadata = { title: "ครูและผู้ดูแล | Green Campus" };
 
@@ -17,8 +19,27 @@ export default function StaffPage() {
   );
 }
 
+const linkClass = "block rounded-2xl border border-gray-200 p-4 font-semibold hover:border-green-600 dark:border-gray-800";
+const hintClass = "block text-sm font-normal text-gray-600 dark:text-gray-400";
+
+const MENU = [
+  { href: "/staff/reviews", label: "ตรวจผล", hint: "อนุมัติหรือปฏิเสธผลที่นักเรียนส่ง" },
+  { href: "/staff/activities", label: "จัดการกิจกรรม", hint: "สร้าง แก้ไข เปิด/ปิดกิจกรรม" },
+  { href: "/staff/weigh-station", label: "จุดชั่ง", hint: "ออกรหัส 6 หลักให้นักเรียนที่มาชั่ง" },
+  { href: "/staff/orders", label: "ออเดอร์", hint: "ยืนยันรับของ หรือยกเลิกออเดอร์ที่รอรับ" },
+  { href: "/staff/rewards", label: "ของรางวัล", hint: "เพิ่ม แก้ไข สต็อก และเปิด/ปิดการแลก" },
+  { href: "/staff/reports", label: "รายงาน", hint: "สรุปรายกิจกรรมและรายนักเรียน ดาวน์โหลด CSV" },
+] as const;
+
+// Spec 9.3: /staff/users and /staff/rates are admin only (the pages check again, requireAdmin).
+const ADMIN_MENU = [
+  { href: "/staff/users", label: "จัดการผู้ใช้", hint: "เปลี่ยนบทบาท และปรับแต้มนักเรียน" },
+  { href: "/staff/rates", label: "อัตราแต้มและ carbon", hint: "แก้ชื่อกลุ่มขยะ แต้มต่อกิโลกรัม และค่า carbon" },
+] as const;
+
 async function StaffHome() {
   const user = await requireStaff();
+  const menu = isAdminRole(user.role) ? [...MENU, ...ADMIN_MENU] : MENU;
   return (
     <>
       <div className="mb-6 flex items-center justify-between gap-3">
@@ -28,65 +49,17 @@ async function StaffHome() {
         </div>
         <SignOutButton />
       </div>
+      <Suspense fallback={<div aria-hidden="true" className="mb-6 h-40 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-900" />}>
+        <StaffStats />
+      </Suspense>
       <nav aria-label="เมนูครู" className="mb-4 grid gap-3 sm:grid-cols-2">
-        <Link
-          href="/staff/reviews"
-          className="block rounded-2xl border border-gray-200 p-4 font-semibold hover:border-green-600 dark:border-gray-800"
-        >
-          ตรวจผล
-          <span className="block text-sm font-normal text-gray-600 dark:text-gray-400">
-            อนุมัติหรือปฏิเสธผลที่นักเรียนส่ง
-          </span>
-        </Link>
-        <Link
-          href="/staff/activities"
-          className="block rounded-2xl border border-gray-200 p-4 font-semibold hover:border-green-600 dark:border-gray-800"
-        >
-          จัดการกิจกรรม
-          <span className="block text-sm font-normal text-gray-600 dark:text-gray-400">
-            สร้าง แก้ไข เปิด/ปิดกิจกรรม
-          </span>
-        </Link>
-        <Link
-          href="/staff/weigh-station"
-          className="block rounded-2xl border border-gray-200 p-4 font-semibold hover:border-green-600 dark:border-gray-800"
-        >
-          จุดชั่ง
-          <span className="block text-sm font-normal text-gray-600 dark:text-gray-400">
-            ออกรหัส 6 หลักให้นักเรียนที่มาชั่ง
-          </span>
-        </Link>
-        <Link
-          href="/staff/orders"
-          className="block rounded-2xl border border-gray-200 p-4 font-semibold hover:border-green-600 dark:border-gray-800"
-        >
-          ออเดอร์
-          <span className="block text-sm font-normal text-gray-600 dark:text-gray-400">
-            ยืนยันรับของ หรือยกเลิกออเดอร์ที่รอรับ
-          </span>
-        </Link>
-        <Link
-          href="/staff/rewards"
-          className="block rounded-2xl border border-gray-200 p-4 font-semibold hover:border-green-600 dark:border-gray-800"
-        >
-          ของรางวัล
-          <span className="block text-sm font-normal text-gray-600 dark:text-gray-400">
-            เพิ่ม แก้ไข สต็อก และเปิด/ปิดการแลก
-          </span>
-        </Link>
-        <Link
-          href="/staff/reports"
-          className="block rounded-2xl border border-gray-200 p-4 font-semibold hover:border-green-600 dark:border-gray-800"
-        >
-          รายงาน
-          <span className="block text-sm font-normal text-gray-600 dark:text-gray-400">
-            สรุปรายกิจกรรมและรายนักเรียน ดาวน์โหลด CSV
-          </span>
-        </Link>
+        {menu.map((m) => (
+          <Link key={m.href} href={m.href} className={linkClass}>
+            {m.label}
+            <span className={hintClass}>{m.hint}</span>
+          </Link>
+        ))}
       </nav>
-      <section className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-gray-600 dark:border-gray-700 dark:text-gray-400">
-        ยังไม่มีข้อมูล
-      </section>
     </>
   );
 }

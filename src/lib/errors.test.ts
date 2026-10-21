@@ -27,6 +27,37 @@ describe("errorMessageTh", () => {
   });
 });
 
+describe("admin errors (set_user_role / adjust_ledger, Task 18)", () => {
+  const codes = [
+    "invalid_role",
+    "user_not_found",
+    "demo_forbidden",
+    "last_admin",
+    "not_student_target",
+    "note_required",
+    "note_too_long",
+    "empty_adjust",
+    "invalid_adjust",
+    "insufficient_balance",
+    "insufficient_carbon",
+    "category_code_immutable",
+    "not_admin",
+  ];
+  it.each(codes)("has a Thai message for %s", (code) => {
+    expect(errorMessageTh(code)).not.toBe(GENERIC_ERROR_TH);
+    expect(errorMessageTh(code)).toMatch(/[฀-๿]/);
+    expect(errorCodeFromDb({ message: code })).toBe(code);
+  });
+  it("gives distinct messages", () => {
+    expect(new Set(codes.map(errorMessageTh)).size).toBe(codes.length);
+  });
+  it("uses the agreed wording for the adjust refusals", () => {
+    expect(errorMessageTh("insufficient_balance")).toContain("แต้มคงเหลือไม่พอ");
+    expect(errorMessageTh("insufficient_carbon")).toContain("carbon สะสมไม่พอ");
+    expect(errorMessageTh("note_required")).toContain("ต้องระบุเหตุผล");
+  });
+});
+
 describe("weigh code errors (issue_weigh_code)", () => {
   const codes = ["not_staff", "activity_not_found", "code_not_required", "not_participant", "out_of_window"];
   it.each(codes)("has a Thai message for %s", (code) => {

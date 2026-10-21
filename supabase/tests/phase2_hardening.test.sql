@@ -102,6 +102,8 @@ update public.profiles set display_name = '  น้องสี่  ' where id =
 select is(public.profile_display_name('00000000-0000-0000-0000-00000000c104'), 'น้องสี่', 'display_name wins, trimmed');
 update public.profiles set display_name = '   ' where id = '00000000-0000-0000-0000-00000000c104';
 select is(public.profile_display_name('00000000-0000-0000-0000-00000000c104'), 'นักเรียน สี่', 'a whitespace display_name falls back to full_name');
+-- 0019 forbids a blank full_name; drop that check inside this (rolled back) test to keep the fallback covered
+alter table public.profiles drop constraint profiles_full_name_length;
 update public.profiles set display_name = '', full_name = ' ' where id = '00000000-0000-0000-0000-00000000c104';
 select is(public.profile_display_name('00000000-0000-0000-0000-00000000c104'), 'ไม่ระบุชื่อ', 'blank display and full names give ไม่ระบุชื่อ');
 select is(public.profile_display_name('00000000-0000-0000-0000-00000000c999'), null, 'an unknown id gives null');
