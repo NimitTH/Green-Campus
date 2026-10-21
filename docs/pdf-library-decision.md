@@ -30,6 +30,7 @@
 | @react-pdf/renderer | 4.9.0 (React 19 peer OK) | [`pdf-spike/react-pdf.png`](pdf-spike/react-pdf.png) |
 | pdfmake | 0.3.12 | [`pdf-spike/pdfmake.png`](pdf-spike/pdfmake.png) |
 | (result) receipt | pdfmake 0.3.12 | [`pdf-spike/receipt-sample.png`](pdf-spike/receipt-sample.png) |
+| (result) summary report, Task 17 | pdfmake 0.3.12 | [`pdf-spike/summary-sample.png`](pdf-spike/summary-sample.png), empty range [`pdf-spike/summary-empty.png`](pdf-spike/summary-empty.png) |
 
 ## What each PNG shows
 

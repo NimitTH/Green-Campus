@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { expect, request as playwrightRequest, test } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 import {
@@ -134,3 +135,87 @@ test("reports: staff previews and downloads both CSVs; student 403, anonymous 40
     await deleteUsers([student, teacher]);
   }
 });
+
+// Plan Task 17 (R110-R112): the summary PDF download and its route's status codes. July of the same
+// far-future year as above, so this test and the CSV test never see each other's activities.
+test("reports pdf: staff downloads the summary PDF; student 403, anonymous 401, bad params 400", async ({ page, browser, baseURL }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  // short enough for the chart label column (a long title is cut with "…" in the PDF)
+  const title = `สรุป ${Math.random().toString(36).slice(2, 10)}`;
+  const year = testInfo.project.name === "chromium" ? 2036 : 2037;
+  const from = `${year}-07-01`;
+  const to = `${year}-07-31`;
+  let teacher: TestUser | undefined;
+  let student: TestUser | undefined;
+
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-pdf-${suffix}`);
+    student = await createConfirmedUser("student", `student-pdf-${suffix}`);
+    await createJoinedCodeActivity(title, student.id, {
+      type: "fixed",
+      status: "closed",
+      requires_code: false,
+      starts_at: `${year}-07-01T00:00:00Z`,
+      ends_at: `${year}-07-10T05:00:00Z`,
+    });
+
+    await signIn(page, teacher, "/staff/reports");
+    await page.goto(`/staff/reports?from=${from}&to=${to}`);
+    const link = page.getByRole("link", { name: "ดาวน์โหลด PDF สรุป" });
+    await expect(link).toHaveAttribute("href", `/api/reports/pdf?from=${from}&to=${to}`);
+    const [download] = await Promise.all([page.waitForEvent("download"), link.click()]);
+    expect(download.suggestedFilename()).toBe(`report-summary-${from}-${to}.pdf`);
+    const file = await download.path();
+    expect(readFileSync(file).subarray(0, 5).toString("latin1")).toBe("%PDF-");
+
+    const res = await page.request.get(`/api/reports/pdf?from=${from}&to=${to}`);
+    expect(res.status()).toBe(200);
+    expect(res.headers()["content-type"]).toBe("application/pdf");
+    expect(res.headers()["cache-control"]).toBe("private, no-store");
+    expect(res.headers()["content-disposition"]).toBe(`attachment; filename="report-summary-${from}-${to}.pdf"`);
+    const text = await pdfText(await res.body());
+    expect(text).toContain("รายงานสรุปผลกิจกรรม");
+    expect(text).toContain(title.replace(/\s/g, ""));
+
+    // an empty range still gives a valid one-page PDF with the empty message
+    const empty = await page.request.get("/api/reports/pdf?from=2040-01-01&to=2040-01-31");
+    expect(empty.status()).toBe(200);
+    expect(await pdfText(await empty.body())).toContain("ไม่มีข้อมูลในช่วงที่เลือก");
+
+    for (const q of ["from=2040-02-30&to=2040-03-01", "from=2040-02-01&to=2040-01-01", "from=2040-01-01", "from=2030-01-01&to=2040-01-01"]) {
+      const bad = await page.request.get(`/api/reports/pdf?${q}`);
+      expect(bad.status(), q).toBe(400);
+      expect(bad.headers()["cache-control"]).toBe("private, no-store");
+      expect(await bad.text()).toMatch(/[ก-๙]/);
+    }
+
+    const studentContext = await browser.newContext();
+    const studentPage = await studentContext.newPage();
+    await signIn(studentPage, student, "/dashboard");
+    const forbidden = await studentPage.request.get(`/api/reports/pdf?from=${from}&to=${to}`);
+    expect(forbidden.status()).toBe(403);
+    expect(forbidden.headers()["cache-control"]).toBe("private, no-store");
+    await studentContext.close();
+
+    const anon = await playwrightRequest.newContext({ baseURL });
+    expect((await anon.get(`/api/reports/pdf?from=${from}&to=${to}`)).status()).toBe(401);
+    await anon.dispose();
+  } finally {
+    await deleteActivitiesByTitle(title);
+    await deleteUsers([student, teacher]);
+  }
+});
+
+/** The PDF's text (whitespace removed), read with pdfjs-dist as in the unit tests. */
+async function pdfText(bytes: Buffer): Promise<string> {
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const task = getDocument({ data: new Uint8Array(bytes), useSystemFonts: false });
+  const doc = await task.promise;
+  let text = "";
+  for (let n = 1; n <= doc.numPages; n++) {
+    const content = await (await doc.getPage(n)).getTextContent();
+    text += content.items.map((i) => ("str" in i ? i.str : "")).join("");
+  }
+  await task.destroy();
+  return text.replace(/\s/g, "");
+}

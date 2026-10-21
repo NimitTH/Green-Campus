@@ -97,7 +97,9 @@ async function Reports({ searchParams }: { searchParams: SearchParams }) {
         <a href={`/api/reports/csv?kind=students&${query}`} className={buttonClass}>
           ดาวน์โหลด CSV รายนักเรียน
         </a>
-        {/* Task 17 adds the PDF download button here. */}
+        <a href={`/api/reports/pdf?${query}`} className={buttonClass}>
+          ดาวน์โหลด PDF สรุป
+        </a>
       </div>
 
       <section aria-labelledby="by-activity" className="mb-8">
