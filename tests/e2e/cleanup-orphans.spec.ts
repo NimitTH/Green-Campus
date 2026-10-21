@@ -21,7 +21,7 @@ import {
 // Database + HTTP only: chromium project only.
 
 const DB_URL = process.env.E2E_DB_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
-const SECRET = process.env.CRON_SECRET || "e2e-cron-secret";
+const SECRET = process.env.CI ? process.env.CRON_SECRET! : process.env.CRON_SECRET || "e2e-cron-secret";
 const ROUTE = "/api/cron/cleanup-orphans";
 
 test("orphan cleanup removes only old unreferenced images", async ({ request }, info) => {

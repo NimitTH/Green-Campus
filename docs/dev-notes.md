@@ -46,3 +46,9 @@
 - รันครั้งละไม่เกิน 2000 ไฟล์ (`capped: true` = ยังเหลือ รอบถัดไปจะทำต่อ)
 - e2e บนเครื่องใช้ค่าทดสอบ `e2e-cron-secret` ที่ `playwright.config.ts` ตั้งให้ dev server เอง (เฉพาะนอก CI) ถ้าเปิด
   `npm run dev` เองก่อนรันเทสต์ ให้เปิดด้วย `CRON_SECRET=e2e-cron-secret npm run dev`
+- CI: ถ้ารัน e2e ใน CI (`CI=1`) `playwright.config.ts` จะไม่ใส่ค่า `CRON_SECRET` ให้ ต้องตั้ง `CRON_SECRET` เป็นตัวแปรของ job เอง
+  (ค่าสุ่มสำหรับ CI เท่านั้น) ไม่เช่นนั้นเทสต์ `cleanup-orphans.spec.ts` จะได้ 500 `cron_not_configured`
+  (spec นี้อ่าน `process.env.CRON_SECRET` ตัวเดียวกัน)
+- การเลือกไฟล์ค้างทำใน SQL `public.storage_orphan_candidates` (migration 0023, อ่านอย่างเดียว, เฉพาะ service_role)
+  ส่วนการลบยังทำผ่าน Storage API เท่านั้น และตรวจซ้ำกับตารางอ้างอิงก่อนลบทุกชุด 100 ไฟล์
+- `export const maxDuration = 60` ในไฟล์ route: บน Hobby เพดานจริงเป็นของแพ็กเกจ อาจต่ำกว่านี้

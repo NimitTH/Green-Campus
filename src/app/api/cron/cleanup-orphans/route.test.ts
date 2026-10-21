@@ -6,7 +6,7 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({}) }));
 vi.mock("@/lib/storage/orphans", () => ({ runCleanup: (...a: unknown[]) => runCleanup(...a) }));
 
 import { NextRequest } from "next/server";
-import { GET } from "./route";
+import { GET, maxDuration } from "./route";
 
 const req = (auth?: string, qs = "") =>
   new NextRequest(`http://localhost/api/cron/cleanup-orphans${qs}`, { headers: auth ? { authorization: auth } : {} });
@@ -31,7 +31,7 @@ describe("GET /api/cron/cleanup-orphans", () => {
     expect(runCleanup).not.toHaveBeenCalled();
   });
   it("500 cron_not_configured when the secret is unset or empty, never runs", async () => {
-    for (const v of ["", undefined]) {
+    for (const v of ["", "   ", undefined]) {
       vi.stubEnv("CRON_SECRET", v as string);
       if (v === undefined) delete process.env.CRON_SECRET;
       const res = await GET(req("Bearer "));
@@ -48,15 +48,19 @@ describe("GET /api/cron/cleanup-orphans", () => {
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(runCleanup).toHaveBeenCalledWith(expect.anything(), { dryRun: false });
   });
+  it("declares maxDuration 60", () => {
+    expect(maxDuration).toBe(60);
+  });
   it("?dry=1 passes dryRun", async () => {
     await GET(req("Bearer test-secret", "?dry=1"));
     expect(runCleanup).toHaveBeenCalledWith(expect.anything(), { dryRun: true });
   });
   it("500 cleanup_failed on error, without leaking details", async () => {
-    runCleanup.mockRejectedValue(new Error("secret path"));
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    runCleanup.mockRejectedValue(Object.assign(new Error("secret path"), { stage: "recheck_failed" }));
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const res = await GET(req("Bearer test-secret"));
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ error: "cleanup_failed" });
+    expect(spy).toHaveBeenCalledWith("cleanup-orphans failed stage=recheck_failed");
   });
 });

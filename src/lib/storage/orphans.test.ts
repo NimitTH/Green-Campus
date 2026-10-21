@@ -1,93 +1,146 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { MAX_DELETIONS, REMOVE_BATCH, runCleanup, selectOrphans, type StoredObject } from "./orphans";
+import { CANDIDATE_PAGE, CleanupError, MAX_DELETIONS, REMOVE_BATCH, runCleanup } from "./orphans";
 
 const NOW = new Date("2026-10-21T12:00:00Z");
-const ago = (h: number) => new Date(NOW.getTime() - h * 3_600_000);
-const refs = (o: Partial<Record<string, string[]>> = {}) => ({
-  evidence: new Set(o.evidence ?? []),
-  "reward-images": new Set(o["reward-images"] ?? []),
-  "article-images": new Set(o["article-images"] ?? []),
-});
-const obj = (bucket: string, name: string, h: number): StoredObject => ({ bucket, name, createdAt: ago(h) });
+const names = (n: number, p = "f") => Array.from({ length: n }, (_, i) => `${p}${String(i).padStart(5, "0")}.jpg`);
 
-describe("selectOrphans", () => {
-  it("keeps an old referenced object", () => {
-    expect(selectOrphans([obj("evidence", "a/b/e.jpg", 100)], refs({ evidence: ["a/b/e.jpg"] }), NOW)).toEqual([]);
-  });
-  it("selects an orphan older than 24h", () => {
-    expect(selectOrphans([obj("evidence", "a/b/e.jpg", 25)], refs(), NOW)).toEqual([{ bucket: "evidence", name: "a/b/e.jpg" }]);
-  });
-  it("keeps a 1h-old orphan", () => {
-    expect(selectOrphans([obj("evidence", "x", 1)], refs(), NOW)).toEqual([]);
-  });
-  it("keeps an orphan of exactly 24h (strictly older only)", () => {
-    expect(selectOrphans([obj("evidence", "x", 24)], refs(), NOW)).toEqual([]);
-    expect(selectOrphans([{ bucket: "evidence", name: "x", createdAt: new Date(NOW.getTime() - 24 * 3_600_000 - 1) }], refs(), NOW)).toHaveLength(1);
-  });
-  it("ignores placeholders", () => {
-    expect(selectOrphans([obj("evidence", ".emptyFolderPlaceholder", 99), obj("evidence", "a/.emptyFolderPlaceholder", 99)], refs(), NOW)).toEqual([]);
-  });
-  it("isolates buckets: a name referenced elsewhere does not protect it", () => {
-    const r = selectOrphans([obj("reward-images", "same.jpg", 30)], refs({ evidence: ["same.jpg"], "article-images": ["same.jpg"] }), NOW);
-    expect(r).toEqual([{ bucket: "reward-images", name: "same.jpg" }]);
-  });
-  it("never touches unknown buckets", () => {
-    expect(selectOrphans([obj("avatars", "x", 99)], refs(), NOW)).toEqual([]);
-  });
-  it("skips invalid dates", () => {
-    expect(selectOrphans([{ bucket: "evidence", name: "x", createdAt: new Date("nope") }], refs(), NOW)).toEqual([]);
-  });
-});
+type Opts = {
+  files?: Record<string, string[]>; // candidate names per bucket (already old + unreferenced), sorted
+  pageCap?: number; // server-side max rows per rpc page
+  becomesReferenced?: string[]; // referenced at re-check time only
+  rpcError?: boolean;
+  recheckError?: boolean;
+  removeError?: boolean;
+};
 
-/** A fake client: one flat folder per bucket, `files` are old orphans; no rows referenced. */
-function fakeClient(files: Record<string, string[]>, removeSpy = vi.fn()) {
-  const created = ago(48).toISOString();
-  return {
-    removeSpy,
-    client: {
-      storage: {
-        from: (bucket: string) => ({
-          list: async (_prefix: string, opts: { limit: number; offset: number }) => ({
-            data: (files[bucket] ?? []).slice(opts.offset, opts.offset + opts.limit).map((n) => ({ name: n, id: "id", created_at: created })),
-            error: null,
-          }),
-          remove: async (names: string[]) => {
-            removeSpy(bucket, names);
-            return { data: names.map((name) => ({ name })), error: null };
-          },
-        }),
-      },
-      from: () => ({ select: () => ({ not: () => ({ range: async () => ({ data: [], error: null }) }) }) }),
-    } as unknown as SupabaseClient,
-  };
+/** A fake admin client that records the order of calls. */
+function fake(o: Opts = {}) {
+  const calls: string[] = [];
+  const removed: string[][] = [];
+  const rpc = vi.fn(async (fn: string, a: { p_bucket: string; p_after: string; p_limit: number }) => {
+    calls.push(`rpc:${a.p_bucket}`);
+    if (o.rpcError) return { data: null, error: { message: "secret path boom" } };
+    const limit = Math.min(a.p_limit, o.pageCap ?? 1000);
+    const rows = (o.files?.[a.p_bucket] ?? []).filter((n) => n > a.p_after).slice(0, limit);
+    return { data: rows.map((name) => ({ name, created_at: "2026-01-01T00:00:00Z" })), error: null };
+  });
+  const client = {
+    rpc,
+    from: (table: string) => ({
+      select: (column: string) => ({
+        in: async (_c: string, batch: string[]) => {
+          calls.push(`recheck:${table}`);
+          if (o.recheckError) return { data: null, error: { message: "boom" } };
+          return { data: batch.filter((n) => o.becomesReferenced?.includes(n)).map((n) => ({ [column]: n })), error: null };
+        },
+      }),
+    }),
+    storage: {
+      from: (bucket: string) => ({
+        remove: async (batch: string[]) => {
+          calls.push(`remove:${bucket}`);
+          if (o.removeError) return { data: null, error: { message: "boom" } };
+          removed.push(batch);
+          return { data: batch.map((name) => ({ name })), error: null };
+        },
+      }),
+    },
+  } as unknown as SupabaseClient;
+  return { client, calls, removed, rpc };
 }
-const names = (n: number) => Array.from({ length: n }, (_, i) => `f${i}.jpg`);
 
 describe("runCleanup", () => {
-  it("removes in batches of at most 100", async () => {
-    const { client, removeSpy } = fakeClient({ evidence: names(250) });
-    const r = await runCleanup(client, { dryRun: false, now: NOW });
-    expect(r.deleted).toBe(250);
-    expect(removeSpy.mock.calls.map((c) => c[1].length)).toEqual([REMOVE_BATCH, REMOVE_BATCH, 50]);
+  it("reads candidates across pages (>1000 rows) and removes them all in batches of 100", async () => {
+    const f = fake({ files: { evidence: names(1250) } });
+    const r = await runCleanup(f.client, { dryRun: false, now: NOW });
+    expect(r.deleted).toBe(1250);
+    expect(r.byBucket.evidence).toBe(1250);
+    expect(r.capped).toBe(false);
+    expect(f.removed.flat()).toEqual(names(1250));
+    expect(f.removed.every((b) => b.length <= REMOVE_BATCH)).toBe(true);
+    expect(f.removed.length).toBe(13);
+  });
+
+  it("keeps reading short pages (server max_rows 200 < page size) until an empty page", async () => {
+    const f = fake({ files: { evidence: names(1100) }, pageCap: 200 });
+    const r = await runCleanup(f.client, { dryRun: true, now: NOW });
+    expect(CANDIDATE_PAGE).toBeGreaterThan(200);
+    expect(r.deleted).toBe(1100);
+    expect(r.scanned).toBe(1100);
+  });
+
+  it("passes a strict 24h cutoff", async () => {
+    const f = fake();
+    await runCleanup(f.client, { dryRun: true, now: NOW });
+    expect(f.rpc.mock.calls[0][1]).toMatchObject({ p_older_than: "2026-10-20T12:00:00.000Z", p_after: "" });
+  });
+
+  it("does not remove a name that became referenced between listing and re-check", async () => {
+    const f = fake({ files: { evidence: ["a.jpg", "b.jpg", "c.jpg"] }, becomesReferenced: ["b.jpg"] });
+    const r = await runCleanup(f.client, { dryRun: false, now: NOW });
+    expect(f.removed).toEqual([["a.jpg", "c.jpg"]]);
+    expect(r.deleted).toBe(2);
+  });
+
+  it("makes no remove() when everything in a batch became referenced", async () => {
+    const f = fake({ files: { evidence: ["a.jpg"] }, becomesReferenced: ["a.jpg"] });
+    await runCleanup(f.client, { dryRun: false, now: NOW });
+    expect(f.calls.some((c) => c.startsWith("remove"))).toBe(false);
+  });
+
+  it("an error in the candidate query aborts with zero remove() calls", async () => {
+    const f = fake({ files: { evidence: ["a.jpg"] }, rpcError: true });
+    await expect(runCleanup(f.client, { dryRun: false, now: NOW })).rejects.toMatchObject({ stage: "list_failed:evidence" });
+    expect(f.calls.some((c) => c.startsWith("remove"))).toBe(false);
+  });
+
+  it("an error in the re-check aborts with zero remove() calls", async () => {
+    const f = fake({ files: { evidence: ["a.jpg"] }, recheckError: true });
+    await expect(runCleanup(f.client, { dryRun: false, now: NOW })).rejects.toMatchObject({ stage: "recheck_failed" });
+    expect(f.calls.some((c) => c.startsWith("remove"))).toBe(false);
+  });
+
+  it("a remove error aborts with a stage code that carries no error message", async () => {
+    const f = fake({ files: { evidence: names(250) }, removeError: true });
+    const err = await runCleanup(f.client, { dryRun: false, now: NOW }).catch((e) => e);
+    expect(err).toBeInstanceOf(CleanupError);
+    expect(err.message).toBe("remove_failed");
+    expect(f.calls.filter((c) => c.startsWith("remove")).length).toBe(1); // stops at the first failure
+  });
+
+  it("calls candidates, then re-check, then remove", async () => {
+    const f = fake({ files: { evidence: ["a.jpg"] } });
+    await runCleanup(f.client, { dryRun: false, now: NOW });
+    const e = f.calls.filter((c) => c.endsWith("evidence") || c.endsWith("submissions"));
+    expect(e).toEqual(["rpc:evidence", "rpc:evidence", "recheck:submissions", "remove:evidence"]);
+  });
+
+  it("dry run makes no remove() calls but counts", async () => {
+    const f = fake({ files: { evidence: names(3), "reward-images": names(2) } });
+    const r = await runCleanup(f.client, { dryRun: true, now: NOW });
+    expect(r).toMatchObject({ deleted: 5, dryRun: true, byBucket: { evidence: 3, "reward-images": 2, "article-images": 0 } });
+    expect(f.calls.some((c) => c.startsWith("remove"))).toBe(false);
+  });
+
+  it("caps at 2000 deletions per run and reports capped", async () => {
+    const f = fake({ files: { evidence: names(1500), "reward-images": names(1500) } });
+    const r = await runCleanup(f.client, { dryRun: false, now: NOW });
+    expect(r.deleted).toBe(MAX_DELETIONS);
+    expect(r.byBucket).toMatchObject({ evidence: 1500, "reward-images": 500 });
+    expect(r.capped).toBe(true);
+  });
+
+  it("is not capped at exactly 2000", async () => {
+    const f = fake({ files: { evidence: names(2000) } });
+    const r = await runCleanup(f.client, { dryRun: true, now: NOW });
+    expect(r.deleted).toBe(2000);
     expect(r.capped).toBe(false);
   });
-  it("paginates listing past 1000 objects", async () => {
-    const { client } = fakeClient({ evidence: names(1500) });
-    const r = await runCleanup(client, { dryRun: true, now: NOW });
-    expect(r.scanned).toBe(1500);
-  });
-  it("caps at 2000 deletions and reports capped", async () => {
-    const { client, removeSpy } = fakeClient({ evidence: names(1500), "reward-images": names(1500) });
-    const r = await runCleanup(client, { dryRun: false, now: NOW });
-    expect(r.deleted).toBe(MAX_DELETIONS);
-    expect(r.capped).toBe(true);
-    expect(removeSpy.mock.calls.every((c) => c[1].length <= REMOVE_BATCH)).toBe(true);
-  });
-  it("dry run counts but deletes nothing", async () => {
-    const { client, removeSpy } = fakeClient({ evidence: names(3) });
-    const r = await runCleanup(client, { dryRun: true, now: NOW });
-    expect(r).toMatchObject({ deleted: 3, dryRun: true, byBucket: { evidence: 3, "reward-images": 0, "article-images": 0 } });
-    expect(removeSpy).not.toHaveBeenCalled();
+
+  it("only touches the three known buckets", async () => {
+    const f = fake({ files: { evidence: ["a.jpg"], avatars: ["x.jpg"] } });
+    await runCleanup(f.client, { dryRun: false, now: NOW });
+    expect(f.calls.filter((c) => c.startsWith("remove"))).toEqual(["remove:evidence"]);
   });
 });
