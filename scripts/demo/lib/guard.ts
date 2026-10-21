@@ -65,7 +65,7 @@ export function parseDbUrl(dbUrl: string | undefined): ParsedDbUrl {
   let ssl: DbConfig["ssl"] | undefined;
   for (const [key, value] of u.searchParams) {
     if (key !== "sslmode" || ssl !== undefined) return { ok: false, reason: `query parameter "${key}" is not allowed (only sslmode)` };
-    if (!(value in SSL_MODES)) return { ok: false, reason: "unknown sslmode" };
+    if (!Object.hasOwn(SSL_MODES, value)) return { ok: false, reason: "unknown sslmode" };
     ssl = SSL_MODES[value];
   }
   let user: string;
@@ -79,11 +79,15 @@ export function parseDbUrl(dbUrl: string | undefined): ParsedDbUrl {
     return { ok: false, reason: "DATABASE_URL has a bad %-escape" };
   }
   if (!user) return { ok: false, reason: "DATABASE_URL has no user" };
+  // An empty password or port 0 would make pg fall back to PGPASSWORD / PGPORT from the environment.
+  if (!password) return { ok: false, reason: "DATABASE_URL has no password" };
   if (!database || database.includes("/")) return { ok: false, reason: "DATABASE_URL must name one database" };
   const port = u.port ? Number(u.port) : 5432;
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return { ok: false, reason: "DATABASE_URL has a bad port" };
   const local = LOCAL_HOSTS.has(host);
   const pooler = /^postgres\.([a-z0-9]+)$/.exec(user);
   const direct = /^db\.([a-z0-9]+)\.supabase\.co$/.exec(host);
+  if (pooler && direct && pooler[1] !== direct[1]) return { ok: false, reason: "DATABASE_URL user and host name different projects" };
   const ref = local ? "local" : pooler ? pooler[1] : direct ? direct[1] : null;
   return {
     ok: true,

@@ -177,6 +177,18 @@ test("guard (R141): DATABASE_URL query parameters cannot redirect the target; pg
     },
   });
   expect(parseDbUrl("postgresql://postgres:pw@127.0.0.1:54322/postgres?sslmode=bogus").ok).toBe(false);
+  // prototype keys are not sslmodes; an empty password or port 0 would let pg read PGPASSWORD / PGPORT;
+  // a pooler user and a direct host naming different projects are refused
+  for (const bad of [
+    "postgresql://postgres:pw@127.0.0.1:54322/postgres?sslmode=constructor",
+    "postgresql://postgres:pw@127.0.0.1:54322/postgres?sslmode=__proto__",
+    "postgresql://postgres@127.0.0.1:54322/postgres",
+    "postgresql://postgres:@127.0.0.1:54322/postgres",
+    "postgresql://postgres:pw@127.0.0.1:0/postgres",
+    "postgresql://postgres.aaaaaaaaaaaaaaaa:pw@db.bbbbbbbbbbbbbbbb.supabase.co:5432/postgres",
+  ]) {
+    expect(parseDbUrl(bad).ok, bad).toBe(false);
+  }
   // the config pg receives is built from exactly the fields that were checked
   const local = checkTarget({ NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321", DATABASE_URL: LOCAL, CONFIRM_PROJECT_REF: "local" });
   expect(local).toEqual({
