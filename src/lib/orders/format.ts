@@ -36,7 +36,7 @@ export function isOrderOverdue(status: string, expiresAt: string, now: number = 
 /** Shown instead of the pickup deadline for an overdue pending order (order page and receipt). */
 export const OVERDUE_NOTICE_TH = "เลยกำหนดรับแล้ว ระบบจะคืนแต้มให้อัตโนมัติ";
 
-/** display_name, else full_name, else ไม่ระบุชื่อ (all trimmed): the same fallback as profile_display_name (btrim). */
+/** display_name, else full_name, else ไม่ระบุชื่อ (all trimmed): the same fallback as profile_display_name (all whitespace trimmed, 0021). */
 export function studentDisplayName(displayName: string | null | undefined, fullName: string): string {
   return displayName?.trim() || fullName?.trim() || "ไม่ระบุชื่อ";
 }

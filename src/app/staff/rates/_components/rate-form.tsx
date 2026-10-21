@@ -18,22 +18,58 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 }
 
 /**
+ * One waste category card. The form inside is keyed by updated_at, so after a save it remounts with the
+ * new values and version. The "บันทึกแล้ว" message lives here, outside that key, so it survives the
+ * remount (R126.4); it clears when the admin edits again.
+ */
+export function RateCard(props: { id: string; code: string; initial: RateInput; updatedAt: string }) {
+  const [saved, setSaved] = useState(false);
+  return (
+    <div data-testid={`rate-${props.code}`} className="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+      {saved ? (
+        <p
+          role="status"
+          data-testid={`rate-${props.code}-saved`}
+          className="mb-3 rounded-lg bg-green-50 p-2 text-sm text-green-800 dark:bg-green-950 dark:text-green-300"
+        >
+          บันทึกแล้ว
+        </p>
+      ) : null}
+      <RateForm key={props.updatedAt} {...props} onSaved={() => setSaved(true)} onEdit={() => setSaved(false)} />
+    </div>
+  );
+}
+
+/**
  * One waste category (R120). The form keeps the updated_at it was loaded with; the save only writes
  * while the row still has it, so two admins never overwrite each other silently.
  */
-export function RateForm({ id, code, initial, updatedAt }: { id: string; code: string; initial: RateInput; updatedAt: string }) {
+function RateForm({
+  id,
+  code,
+  initial,
+  updatedAt,
+  onSaved,
+  onEdit,
+}: {
+  id: string;
+  code: string;
+  initial: RateInput;
+  updatedAt: string;
+  onSaved: () => void;
+  onEdit: () => void;
+}) {
   const router = useRouter();
   const [values, setValues] = useState<RateInput>(initial);
   const [fieldErrors, setFieldErrors] = useState<RateFieldErrors>({});
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const f = (name: keyof RateInput) => `rate-${code}-${name}`;
 
   function set<K extends keyof RateInput>(key: K, value: string) {
     setValues((prev) => ({ ...prev, [key]: value }));
-    setSaved(false);
+    onEdit();
   }
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -43,7 +79,7 @@ export function RateForm({ id, code, initial, updatedAt }: { id: string; code: s
     setBusy(true);
     setError(null);
     setFieldErrors({});
-    setSaved(false);
+    onEdit();
     try {
       const result = await saveRate({ ...values, id, loadedUpdatedAt: updatedAt });
       if (!result.ok) {
@@ -51,7 +87,7 @@ export function RateForm({ id, code, initial, updatedAt }: { id: string; code: s
         if (result.error) setError(result.error);
         return;
       }
-      setSaved(true);
+      onSaved();
       router.refresh();
     } catch {
       setError(GENERIC_ERROR_TH);
@@ -71,9 +107,7 @@ export function RateForm({ id, code, initial, updatedAt }: { id: string; code: s
     <form
       onSubmit={onSubmit}
       noValidate
-      data-testid={`rate-${code}`}
       aria-label={`อัตรา ${initial.name}`}
-      className="rounded-2xl border border-gray-200 p-4 dark:border-gray-800"
     >
       <input type="hidden" name="loadedUpdatedAt" value={updatedAt} />
       {error ? (
@@ -123,11 +157,6 @@ export function RateForm({ id, code, initial, updatedAt }: { id: string; code: s
         >
           {busy ? "กำลังบันทึก..." : "บันทึกอัตรา"}
         </button>
-        {saved ? (
-          <p role="status" className="text-sm text-green-800 dark:text-green-300">
-            บันทึกแล้ว
-          </p>
-        ) : null}
       </div>
     </form>
   );

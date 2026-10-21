@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { listRates } from "@/lib/admin/queries";
 import { requireAdmin } from "@/lib/auth/dal";
-import { RateForm } from "./_components/rate-form";
+import { RateCard } from "./_components/rate-form";
 
 export const metadata: Metadata = { title: "อัตราแต้มและ carbon | Green Campus" };
 
@@ -41,9 +41,9 @@ async function Rates() {
   return (
     <div className="space-y-4">
       {rates.map((r) => (
-        // keyed by updated_at: after a save the form remounts with the new values and version
-        <RateForm
-          key={`${r.id}-${r.updatedAt}`}
+        // keyed by id: the card and its saved message survive a save; the form inside is keyed by updated_at
+        <RateCard
+          key={r.id}
           id={r.id}
           code={r.code}
           updatedAt={r.updatedAt}

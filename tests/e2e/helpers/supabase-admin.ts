@@ -397,3 +397,68 @@ export async function restoreRate(code: string, snapshot: RateSnapshot): Promise
   const { error } = await admin().from("waste_categories").update(snapshot).eq("code", code);
   if (error) console.warn(`e2e cleanup: restore rate ${code} failed: ${error.message}`);
 }
+
+// Articles and profile (Task 18 Part B) -------------------------------------------------------------
+
+export type ArticleRow = { id: string; slug: string; title: string; published: boolean; cover_path: string | null };
+
+/** An article by slug (service role, drafts included), or null. */
+export async function findArticle(slug: string): Promise<ArticleRow | null> {
+  const { data, error } = await admin()
+    .from("articles")
+    .select("id, slug, title, published, cover_path")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (error) throw new Error(`e2e: find article failed: ${error.message}`);
+  return data as ArticleRow | null;
+}
+
+/** Whether an object exists in a bucket (service role). */
+export async function storageObjectExists(bucket: string, path: string): Promise<boolean> {
+  const slash = path.lastIndexOf("/");
+  const { data, error } = await admin()
+    .storage.from(bucket)
+    .list(path.slice(0, slash), { search: path.slice(slash + 1) });
+  if (error) throw new Error(`e2e: list ${bucket} failed: ${error.message}`);
+  return (data ?? []).some((o) => o.name === path.slice(slash + 1));
+}
+
+/** Remove articles by title with their whole cover folder (service role). */
+export async function deleteArticlesByTitle(titles: string[]): Promise<void> {
+  for (const title of titles) {
+    const { data } = await admin().from("articles").select("id").eq("title", title);
+    for (const row of (data ?? []) as { id: string }[]) {
+      const { data: objects } = await admin().storage.from("article-images").list(row.id);
+      const paths = (objects ?? []).map((o) => `${row.id}/${o.name}`);
+      if (paths.length > 0) await admin().storage.from("article-images").remove(paths);
+    }
+    const { error } = await admin().from("articles").delete().eq("title", title);
+    if (error) console.warn(`e2e cleanup: delete article "${title}" failed: ${error.message}`);
+  }
+}
+
+export async function profileNames(userId: string): Promise<{ full_name: string; display_name: string | null }> {
+  const { data, error } = await admin().from("profiles").select("full_name, display_name").eq("id", userId).single();
+  if (error || !data) throw new Error(`e2e: profile names failed: ${error?.message}`);
+  return data as { full_name: string; display_name: string | null };
+}
+
+/** An activity row (service role); `fields` overrides the defaults (open, fixed, ends in 1 day). */
+export async function createActivityRow(title: string, fields: Record<string, unknown> = {}): Promise<string> {
+  const now = Date.now();
+  const { data, error } = await admin()
+    .from("activities")
+    .insert({
+      title,
+      type: "fixed",
+      unit_points: 10,
+      status: "open",
+      starts_at: new Date(now - 2 * 60 * 60_000).toISOString(),
+      ends_at: new Date(now + 24 * 60 * 60_000).toISOString(),
+      ...fields,
+    })
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(`e2e: create activity failed: ${error?.message}`);
+  return data.id as string;
+}

@@ -28,6 +28,10 @@ describe("validateSignUp", () => {
   it("requires full name", () => {
     expect(validateSignUp({ ...ok, fullName: "" }).fullName).toBeDefined();
   });
+  it("limits the full name to 100 characters with a Thai message", () => {
+    expect(validateSignUp({ ...ok, fullName: "ก".repeat(101) }).fullName).toBe("ชื่อ-นามสกุลยาวได้ไม่เกิน 100 ตัวอักษร");
+    expect(validateSignUp({ ...ok, fullName: "ก".repeat(100) }).fullName).toBeUndefined();
+  });
   it("rejects bad email", () => {
     expect(validateSignUp({ ...ok, email: "nope" }).email).toBeDefined();
   });

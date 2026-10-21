@@ -31,6 +31,12 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           <Link href="/leaderboard" className="hover:underline">
             อันดับ
           </Link>
+          <Link href="/articles" className="hover:underline">
+            บทความ
+          </Link>
+          <Link href="/profile" className="hover:underline">
+            ฉัน
+          </Link>
         </nav>
         <NotificationBell />
       </header>

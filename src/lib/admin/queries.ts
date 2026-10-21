@@ -18,9 +18,11 @@ export type StaffStats = {
   openActivities: { id: string; title: string; endsAt: string }[];
 };
 
-/** Counts (head-only, no rows fetched), public_stats() totals and up to 5 open activities. */
+/** Counts (head-only, no rows fetched), public_stats() totals and up to 5 open, not yet ended activities. */
 export async function getStaffStats(): Promise<StaffStats> {
   const supabase = await createServerClient();
+  // open and not yet ended (an open activity past ends_at only takes late submissions; R126.3)
+  const nowIso = new Date().toISOString();
   const [reviews, pickup, ready, stats, activities] = await Promise.all([
     supabase.from("submissions").select("id", { count: "exact", head: true }).eq("status", "pending"),
     supabase.from("orders").select("id", { count: "exact", head: true }).eq("status", "pending_pickup"),
@@ -34,6 +36,7 @@ export async function getStaffStats(): Promise<StaffStats> {
       .from("activities")
       .select("id, title, ends_at")
       .eq("status", "open")
+      .gt("ends_at", nowIso)
       .order("ends_at", { ascending: true })
       .limit(5),
   ]);

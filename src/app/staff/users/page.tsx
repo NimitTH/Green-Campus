@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Badge } from "@/app/_components/activity-ui";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
@@ -54,6 +55,9 @@ async function Users({ searchParams }: { searchParams: SearchParams }) {
   const page = toPage(sp.page);
   const { users, total } = await listUsers(query, role, page);
   const pages = Math.max(1, Math.ceil(total / USERS_PAGE_SIZE));
+  // R126.5: a page past the end (stale link, hand-typed ?page=) goes to the last page that has rows,
+  // so the empty state never claims there are no users.
+  if (page > pages) redirect(pageHref(query, role, pages));
 
   return (
     <>

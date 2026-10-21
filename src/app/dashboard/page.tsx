@@ -36,7 +36,7 @@ async function DashboardContent() {
           <SignOutButton />
         </div>
       </div>
-      <nav aria-label="เมนูนักเรียน" className="mb-4">
+      <nav aria-label="เมนูนักเรียน" className="mb-4 grid gap-3 sm:grid-cols-3">
         <Link
           href="/activities"
           className="block rounded-2xl border border-gray-200 p-4 font-semibold hover:border-green-600 dark:border-gray-800"
@@ -45,6 +45,20 @@ async function DashboardContent() {
           <span className="block text-sm font-normal text-gray-600 dark:text-gray-400">
             ดูกิจกรรมที่เปิดรับและกดเข้าร่วม
           </span>
+        </Link>
+        <Link
+          href="/articles"
+          className="block rounded-2xl border border-gray-200 p-4 font-semibold hover:border-green-600 dark:border-gray-800"
+        >
+          บทความ
+          <span className="block text-sm font-normal text-gray-600 dark:text-gray-400">ความรู้เรื่องขยะและสิ่งแวดล้อม</span>
+        </Link>
+        <Link
+          href="/profile"
+          className="block rounded-2xl border border-gray-200 p-4 font-semibold hover:border-green-600 dark:border-gray-800"
+        >
+          โปรไฟล์
+          <span className="block text-sm font-normal text-gray-600 dark:text-gray-400">แก้ชื่อและชื่อที่แสดง</span>
         </Link>
       </nav>
       {isStaffRole(user.role) ? (

@@ -1,7 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 import {
+  createActivityRow,
   createConfirmedUser,
+  deleteActivitiesByTitle,
   deleteUsers,
   ledgerBalance,
   profileRole,
@@ -134,6 +136,10 @@ test("admin edits a rate; the value persists; a stale form is refused (restored 
     await points.fill(String(next));
     await form.getByRole("button", { name: "บันทึกอัตรา" }).click();
     await expect.poll(async () => (await rateByCode("plastic")).points_per_kg).toBe(next);
+    // R126.4: the message survives the form remount after the save
+    await expect(page.getByTestId("rate-plastic-saved")).toBeVisible();
+    await expect(page.getByTestId("rate-plastic").getByLabel("แต้มต่อกิโลกรัม")).toHaveValue(String(next));
+    await expect(page.getByTestId("rate-plastic-saved")).toHaveText("บันทึกแล้ว");
     await page.reload();
     await expect(page.getByTestId("rate-plastic").getByLabel("แต้มต่อกิโลกรัม")).toHaveValue(String(next));
 
@@ -170,9 +176,16 @@ test("teachers cannot open /staff/users or /staff/rates and see no admin links",
 
 test("the /staff dashboard shows the work and totals cards", async ({ page }, testInfo) => {
   const suffix = uniqueSuffix(testInfo.project.name);
+  const ended = `กิจกรรมจบแล้ว ${suffix}`;
   let teacher: TestUser | undefined;
   try {
     teacher = await createConfirmedUser("teacher", `teacher-ad-dash-${suffix}`);
+    // R126.3: an open activity whose end has passed is not listed (it would sort first by ends_at)
+    const now = Date.now();
+    await createActivityRow(ended, {
+      starts_at: new Date(now - 3 * 60 * 60_000).toISOString(),
+      ends_at: new Date(now - 60 * 60_000).toISOString(),
+    });
     await signIn(page, teacher, "/staff");
 
     const reviews = page.getByTestId("stat-pending-reviews");
@@ -191,7 +204,24 @@ test("the /staff dashboard shows the work and totals cards", async ({ page }, te
     await expect(totals).toContainText("ขยะที่เก็บ");
     await expect(totals).toContainText("ต้นไม้ที่ปลูก");
     await expect(page.getByTestId("stat-open-activities")).toContainText("กิจกรรมที่เปิดอยู่");
+    await expect(page.getByTestId("stat-open-activities")).not.toContainText(ended);
   } finally {
+    await deleteActivitiesByTitle(ended);
     await deleteUsers([teacher]);
+  }
+});
+
+test("a /staff/users page past the end goes to the last page instead of an empty list", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  let adminUser: TestUser | undefined;
+  try {
+    adminUser = await createConfirmedUser("admin", `admin-ad-page-${suffix}`);
+    await signIn(page, adminUser, "/staff/users");
+    await page.goto("/staff/users?page=99999");
+    await expect(page).toHaveURL((url) => url.pathname === "/staff/users" && url.searchParams.get("page") !== "99999");
+    await expect(page.getByTestId("admin-user").first()).toBeVisible();
+    await expect(page.getByText("ยังไม่มีผู้ใช้")).toHaveCount(0);
+  } finally {
+    await deleteUsers([adminUser]);
   }
 });

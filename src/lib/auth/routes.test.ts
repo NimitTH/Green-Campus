@@ -9,11 +9,11 @@ import {
 } from "./routes";
 
 describe("isProtectedPath", () => {
-  it.each(["/dashboard", "/dashboard/x", "/staff", "/staff/users", "/staff/reviews/1", "/activities", "/activities/abc", "/activities/abc/submit", "/my-submissions", "/notifications", "/rewards", "/cart", "/orders", "/orders/abc", "/leaderboard"])(
+  it.each(["/dashboard", "/dashboard/x", "/staff", "/staff/users", "/staff/reviews/1", "/activities", "/activities/abc", "/activities/abc/submit", "/my-submissions", "/notifications", "/rewards", "/cart", "/orders", "/orders/abc", "/leaderboard", "/profile"])(
     "%s needs a signed-in user",
     (p) => expect(isProtectedPath(p)).toBe(true),
   );
-  it.each(["/", "/login", "/register", "/forgot-password", "/reset-password", "/auth/callback", "/staffroom", "/dashboards", "/activitiesx"])(
+  it.each(["/", "/login", "/register", "/forgot-password", "/reset-password", "/auth/callback", "/staffroom", "/dashboards", "/activitiesx", "/articles", "/articles/a-0f2z9k1q", "/profiles"])(
     "%s is public",
     (p) => expect(isProtectedPath(p)).toBe(false),
   );

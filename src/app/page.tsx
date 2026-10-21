@@ -24,6 +24,9 @@ export default function Home() {
         >
           เข้าสู่ระบบ
         </Link>
+        <Link href="/articles" className="px-4 py-2 font-semibold text-green-700 underline">
+          บทความ
+        </Link>
       </div>
     </main>
   );

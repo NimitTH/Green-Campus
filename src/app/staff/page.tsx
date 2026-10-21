@@ -28,6 +28,8 @@ const MENU = [
   { href: "/staff/weigh-station", label: "จุดชั่ง", hint: "ออกรหัส 6 หลักให้นักเรียนที่มาชั่ง" },
   { href: "/staff/orders", label: "ออเดอร์", hint: "ยืนยันรับของ หรือยกเลิกออเดอร์ที่รอรับ" },
   { href: "/staff/rewards", label: "ของรางวัล", hint: "เพิ่ม แก้ไข สต็อก และเปิด/ปิดการแลก" },
+  { href: "/staff/articles", label: "บทความ", hint: "เขียน แก้ไข และเผยแพร่บทความความรู้" },
+  { href: "/profile", label: "โปรไฟล์", hint: "แก้ชื่อและชื่อที่แสดง" },
   { href: "/staff/reports", label: "รายงาน", hint: "สรุปรายกิจกรรมและรายนักเรียน ดาวน์โหลด CSV" },
 ] as const;
 

@@ -1,5 +1,7 @@
 // Thai messages for auth forms. Each one says what to do next (spec 9).
 
+import { validateFullName } from "@/lib/profile/validation";
+
 export const MIN_PASSWORD_LENGTH = 8;
 
 export type AuthField = "fullName" | "email" | "password" | "confirmPassword";
@@ -88,7 +90,8 @@ export function validateSignUp(input: {
   confirmPassword: string;
 }): FieldErrors {
   return compact({
-    fullName: input.fullName ? undefined : "กรอกชื่อ-นามสกุลจริง",
+    // same limits as /profile; handle_new_user still clips to 100 as a backstop (0019/0021)
+    fullName: validateFullName(input.fullName),
     email: validateEmail(input.email),
     password: validatePassword(input.password),
     confirmPassword: validateConfirm(input.password, input.confirmPassword),
