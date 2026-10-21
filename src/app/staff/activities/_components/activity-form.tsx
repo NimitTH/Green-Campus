@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useActionState, useId, useState } from "react";
 import { saveActivityForm, type ActivityFormState } from "@/app/actions/activities";
 import { typeLabelTh } from "@/lib/activities/labels";
 import {
@@ -40,28 +41,44 @@ function TextField({
   inputMode?: "decimal" | "numeric";
 }) {
   const error = errors?.[name];
+  // unique per instance: the new and edit forms can both be alive (hidden <Activity>)
+  const fid = useId();
   return (
     <div className="mb-4">
-      <label htmlFor={name} className="mb-1 block text-sm font-medium">
+      <label htmlFor={fid} className="mb-1 block text-sm font-medium">
         {label}
       </label>
       <input
-        id={name}
+        id={fid}
         name={name}
         type={type}
         inputMode={inputMode}
         defaultValue={defaultValue}
         aria-invalid={error ? true : undefined}
-        aria-describedby={error ? `${name}-error` : undefined}
+        aria-describedby={error ? `${fid}-error` : undefined}
         className={inputClass}
       />
       {hint && !error ? <p className="mt-1 text-xs text-gray-500">{hint}</p> : null}
-      <FieldError id={`${name}-error`} message={error} />
+      <FieldError id={`${fid}-error`} message={error} />
     </div>
   );
 }
 
-export function ActivityForm({
+type ActivityFormProps = { initial: ActivityInput; id?: string; hasParticipants?: boolean };
+
+/**
+ * Create / edit form. Cache Components keep a visited route alive in a hidden <Activity>, and this form's
+ * state (useActionState errors and values, the chosen type and code switch) cannot be reset from an event
+ * handler: a successful save ends in a server-side redirect, with no client callback. So the form is keyed
+ * on useRouter().bfcacheId, which changes on every fresh push/replace visit (a new form each time) and
+ * stays the same for back/forward (the draft comes back), per the Next docs (use-router, bfcacheId).
+ */
+export function ActivityForm(props: ActivityFormProps) {
+  const { bfcacheId } = useRouter();
+  return <ActivityFormFields key={bfcacheId} {...props} />;
+}
+
+function ActivityFormFields({
   initial,
   id,
   hasParticipants = false,
@@ -70,6 +87,8 @@ export function ActivityForm({
   id?: string;
   hasParticipants?: boolean;
 }) {
+  const uid = useId();
+  const f = (name: string) => `${uid}-${name}`;
   // Once students joined, a non-draft activity cannot go back to draft (activity_status_locked).
   const draftLocked = hasParticipants && initial.status !== "draft";
   const [state, action, pending] = useActionState<ActivityFormState, FormData>(saveActivityForm, undefined);
@@ -101,32 +120,32 @@ export function ActivityForm({
       <TextField label="ชื่อกิจกรรม" name="title" defaultValue={values.title} errors={errors} />
 
       <div className="mb-4">
-        <label htmlFor="description" className="mb-1 block text-sm font-medium">
+        <label htmlFor={f("description")} className="mb-1 block text-sm font-medium">
           รายละเอียด (ไม่บังคับ)
         </label>
         <textarea
-          id="description"
+          id={f("description")}
           name="description"
           rows={4}
           defaultValue={values.description}
           aria-invalid={errors?.description ? true : undefined}
-          aria-describedby={errors?.description ? "description-error" : undefined}
+          aria-describedby={errors?.description ? f("description-error") : undefined}
           className={inputClass}
         />
-        <FieldError id="description-error" message={errors?.description} />
+        <FieldError id={f("description-error")} message={errors?.description} />
       </div>
 
       <TextField label="สถานที่ (ไม่บังคับ)" name="location" defaultValue={values.location} errors={errors} />
 
       <div className="mb-4 flex items-center gap-2">
         <input
-          id="isOffsite"
+          id={f("isOffsite")}
           name="isOffsite"
           type="checkbox"
           defaultChecked={values.isOffsite}
           className="h-5 w-5 accent-green-700"
         />
-        <label htmlFor="isOffsite" className="text-sm">
+        <label htmlFor={f("isOffsite")} className="text-sm">
           จัดนอกโรงเรียน
         </label>
       </div>
@@ -150,7 +169,7 @@ export function ActivityForm({
         />
       </div>
 
-      <fieldset className="mb-4" aria-describedby={errors?.type ? "type-error" : undefined}>
+      <fieldset className="mb-4" aria-describedby={errors?.type ? f("type-error") : undefined}>
         <legend className="mb-1 block text-sm font-medium">ชนิดกิจกรรม</legend>
         <div className="grid gap-2 sm:grid-cols-3">
           {ACTIVITY_TYPES.map((t) => (
@@ -170,7 +189,7 @@ export function ActivityForm({
             </label>
           ))}
         </div>
-        <FieldError id="type-error" message={errors?.type} />
+        <FieldError id={f("type-error")} message={errors?.type} />
       </fieldset>
 
       {type === "waste" ? (
@@ -226,14 +245,14 @@ export function ActivityForm({
       <div className="mb-4">
         <div className="flex items-center gap-2">
           <input
-            id="requiresCode"
+            id={f("requiresCode")}
             name="requiresCode"
             type="checkbox"
             checked={requiresCode}
             onChange={(e) => setRequiresCode(e.target.checked)}
             className="h-5 w-5 accent-green-700"
           />
-          <label htmlFor="requiresCode" className="text-sm">
+          <label htmlFor={f("requiresCode")} className="text-sm">
             ต้องใช้รหัสยืนยันจากจุดชั่งเมื่อส่งผล
           </label>
         </div>
@@ -241,11 +260,11 @@ export function ActivityForm({
       </div>
 
       <div className="mb-6">
-        <label htmlFor="status" className="mb-1 block text-sm font-medium">
+        <label htmlFor={f("status")} className="mb-1 block text-sm font-medium">
           สถานะ
         </label>
         <select
-          id="status"
+          id={f("status")}
           name="status"
           defaultValue={values.status}
           aria-invalid={errors?.status ? true : undefined}
@@ -257,7 +276,7 @@ export function ActivityForm({
           <option value="open">เปิดรับ</option>
           <option value="closed">ปิดแล้ว</option>
         </select>
-        <FieldError id="status-error" message={errors?.status} />
+        <FieldError id={f("status-error")} message={errors?.status} />
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row-reverse">

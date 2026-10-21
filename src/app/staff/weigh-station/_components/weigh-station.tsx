@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { GENERIC_ERROR_TH } from "@/lib/errors";
 import {
   issueWeighCode,
@@ -18,11 +18,31 @@ function formatRemaining(ms: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-/** Live countdown to `expiresAt`; shows "หมดอายุแล้ว" at 0. */
-function Countdown({ expiresAt, clockOffsetMs }: { expiresAt: string; clockOffsetMs: number }) {
+/** Live countdown to `expiresAt`; shows "หมดอายุแล้ว" at 0 and then calls onExpired once. */
+function Countdown({
+  expiresAt,
+  clockOffsetMs,
+  onExpired,
+}: {
+  expiresAt: string;
+  clockOffsetMs: number;
+  onExpired: () => void;
+}) {
   const [now, setNow] = useState<number | null>(null);
+  const expired = useRef(onExpired);
   useEffect(() => {
-    const tick = () => setNow(Date.now() + clockOffsetMs);
+    expired.current = onExpired;
+  });
+  useEffect(() => {
+    let fired = false;
+    const tick = () => {
+      const t = Date.now() + clockOffsetMs;
+      setNow(t);
+      if (!fired && Date.parse(expiresAt) - t <= 0) {
+        fired = true;
+        expired.current();
+      }
+    };
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
@@ -57,6 +77,19 @@ export function WeighStation({ activities }: { activities: Activity[] }) {
   const [issued, setIssued] = useState<Issued | null>(null);
   const [issueError, setIssueError] = useState<string | undefined>();
   const [issuingId, setIssuingId] = useState<string | null>(null);
+  // Student whose code ran out (the code itself is cleared, so a stale code is never shown).
+  const [expiredFor, setExpiredFor] = useState<string | null>(null);
+  const uid = useId();
+  // Cache Components keep this page alive (hidden <Activity>) after navigating away: an issued code and
+  // its countdown belong to that visit, so drop them when the page is hidden (Preserving UI state docs).
+  useLayoutEffect(
+    () => () => {
+      setIssued(null);
+      setIssueError(undefined);
+      setExpiredFor(null);
+    },
+    [],
+  );
   const [, startTransition] = useTransition();
   const requestId = useRef(0);
 
@@ -85,6 +118,7 @@ export function WeighStation({ activities }: { activities: Activity[] }) {
   const searching = loadedKey !== `${activityId}|${query}`;
 
   function issue(student: StudentHit) {
+    setExpiredFor(null);
     setIssueError(undefined);
     setIssuingId(student.id);
     startTransition(async () => {
@@ -113,13 +147,16 @@ export function WeighStation({ activities }: { activities: Activity[] }) {
   return (
     <div className="space-y-6">
       <div>
-        <label htmlFor="ws-activity" className="mb-1 block font-medium">
+        <label htmlFor={`${uid}-activity`} className="mb-1 block font-medium">
           กิจกรรม
         </label>
         <select
-          id="ws-activity"
+          id={`${uid}-activity`}
           value={activityId}
           onChange={(e) => {
+            // a change event for the already-selected activity must not clear its results: the search
+            // effect only re-runs when the id changes, so the list would stay empty
+            if (e.target.value === activityId) return;
             setActivityId(e.target.value);
             setStudents([]);
             setSearchError(undefined);
@@ -137,11 +174,11 @@ export function WeighStation({ activities }: { activities: Activity[] }) {
       </div>
 
       <div>
-        <label htmlFor="ws-search" className="mb-1 block font-medium">
+        <label htmlFor={`${uid}-search`} className="mb-1 block font-medium">
           ค้นหานักเรียน
         </label>
         <input
-          id="ws-search"
+          id={`${uid}-search`}
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -176,9 +213,20 @@ export function WeighStation({ activities }: { activities: Activity[] }) {
             {issued.code}
           </p>
           <div className="mt-3">
-            <Countdown expiresAt={issued.expiresAt} clockOffsetMs={issued.clockOffsetMs} />
+            <Countdown
+              expiresAt={issued.expiresAt}
+              clockOffsetMs={issued.clockOffsetMs}
+              onExpired={() => {
+                setExpiredFor(issued.student.name);
+                setIssued(null);
+              }}
+            />
           </div>
         </section>
+      ) : expiredFor ? (
+        <p role="status" data-testid="weigh-code-expired" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-center text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
+          รหัสของ {expiredFor} หมดอายุแล้ว กดออกรหัสใหม่ได้
+        </p>
       ) : null}
 
       {searching ? (

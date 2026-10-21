@@ -127,6 +127,7 @@ export function SubmitForm({
   const busyRef = useRef(false);
   // The photo already uploaded for this file: a retry after e.g. a wrong code reuses it.
   const uploaded = useRef<{ file: File; path: string } | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const est = estimate(activity, categories, weights, trees);
 
@@ -161,7 +162,6 @@ export function SubmitForm({
     busyRef.current = true;
     setBusy(true);
     setError(null);
-    let done = false;
     try {
       const built = buildItems(activity, categories, weights, trees);
       if ("errorCode" in built) throw new Error(built.errorCode);
@@ -186,18 +186,23 @@ export function SubmitForm({
         setError({ code: result.code, message: result.error });
         return;
       }
-      done = true;
+      // Cache Components keep this page alive (hidden in <Activity>): Back, or the next submission of a
+      // waste / trees activity, comes back to this same form. Start it fresh: no busy button, no old
+      // weights, code or photo (the evidence path is generated per upload, so nothing else to renew).
+      uploaded.current = null;
+      setWeights({});
+      setTrees("");
+      setCode("");
+      setFile(null);
+      if (fileInput.current) fileInput.current.value = "";
       router.push("/my-submissions");
     } catch (e) {
       const codeOf = e instanceof ImageError || e instanceof TimeoutError ? e.code : e instanceof Error ? e.message : null;
       setError({ code: codeOf, message: submitErrorMessageTh(codeOf) });
     } finally {
       setStage(null);
-      // After success the button stays disabled while the next page loads.
-      if (!done) {
-        busyRef.current = false;
-        setBusy(false);
-      }
+      busyRef.current = false;
+      setBusy(false);
     }
   }
 
@@ -258,6 +263,7 @@ export function SubmitForm({
       <label className="block">
         <span className="mb-1 block font-semibold">รูปหลักฐาน</span>
         <input
+          ref={fileInput}
           type="file"
           accept="image/*"
           capture="environment"

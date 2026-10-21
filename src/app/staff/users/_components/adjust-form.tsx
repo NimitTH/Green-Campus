@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import { adjustStudentLedger } from "@/app/actions/admin";
 import type { AdjustFieldErrors, AdjustInput } from "@/lib/admin/validation";
 import { GENERIC_ERROR_TH } from "@/lib/errors";
@@ -28,6 +28,12 @@ export function AdjustForm({ studentId }: { studentId: string }) {
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
+  // unique per instance: another student's page can stay alive (hidden <Activity>) next to this one
+  const uid = useId();
+  const f = (name: string) => `${uid}-${name}`;
+  // The success banner belongs to this visit: clear it when the page is hidden (navigating away), so
+  // coming back never shows a stale "ปรับแต้มเรียบร้อยแล้ว" (Next docs, Preserving UI state).
+  useLayoutEffect(() => () => setSaved(false), []);
 
   function set<K extends keyof AdjustInput>(key: K, value: string) {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -74,53 +80,53 @@ export function AdjustForm({ studentId }: { studentId: string }) {
       ) : null}
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <label htmlFor="adjust-points" className="mb-1 block text-sm font-medium">
+          <label htmlFor={f("adjust-points")} className="mb-1 block text-sm font-medium">
             แต้ม (ใส่ลบเพื่อหัก)
           </label>
           <input
-            id="adjust-points"
+            id={f("adjust-points")}
             inputMode="numeric"
             placeholder="เช่น 10 หรือ -5"
             value={values.points}
             onChange={(e) => set("points", e.target.value)}
             aria-invalid={fieldErrors.points ? true : undefined}
-            aria-describedby={fieldErrors.points ? "adjust-points-error" : undefined}
+            aria-describedby={fieldErrors.points ? f("adjust-points-error") : undefined}
             className={inputClass}
           />
-          <FieldError id="adjust-points-error" message={fieldErrors.points} />
+          <FieldError id={f("adjust-points-error")} message={fieldErrors.points} />
         </div>
         <div>
-          <label htmlFor="adjust-carbon" className="mb-1 block text-sm font-medium">
+          <label htmlFor={f("adjust-carbon")} className="mb-1 block text-sm font-medium">
             carbon (กก. CO2e, ไม่บังคับ)
           </label>
           <input
-            id="adjust-carbon"
+            id={f("adjust-carbon")}
             inputMode="decimal"
             placeholder="เช่น 0.5 หรือ -0.25"
             value={values.carbonKg}
             onChange={(e) => set("carbonKg", e.target.value)}
             aria-invalid={fieldErrors.carbonKg ? true : undefined}
-            aria-describedby={fieldErrors.carbonKg ? "adjust-carbon-error" : undefined}
+            aria-describedby={fieldErrors.carbonKg ? f("adjust-carbon-error") : undefined}
             className={inputClass}
           />
-          <FieldError id="adjust-carbon-error" message={fieldErrors.carbonKg} />
+          <FieldError id={f("adjust-carbon-error")} message={fieldErrors.carbonKg} />
         </div>
       </div>
       <div>
-        <label htmlFor="adjust-note" className="mb-1 block text-sm font-medium">
+        <label htmlFor={f("adjust-note")} className="mb-1 block text-sm font-medium">
           เหตุผล (นักเรียนจะเห็นข้อความนี้)
         </label>
         <textarea
-          id="adjust-note"
+          id={f("adjust-note")}
           rows={2}
           maxLength={500}
           value={values.note}
           onChange={(e) => set("note", e.target.value)}
           aria-invalid={fieldErrors.note ? true : undefined}
-          aria-describedby={fieldErrors.note ? "adjust-note-error" : undefined}
+          aria-describedby={fieldErrors.note ? f("adjust-note-error") : undefined}
           className={inputClass}
         />
-        <FieldError id="adjust-note-error" message={fieldErrors.note} />
+        <FieldError id={f("adjust-note-error")} message={fieldErrors.note} />
       </div>
       <button
         type="submit"
