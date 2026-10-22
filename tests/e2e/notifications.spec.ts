@@ -159,10 +159,13 @@ test("staff can open /notifications and see the bell in the staff header", async
   let teacher: TestUser | undefined;
   try {
     teacher = await createConfirmedUser("teacher", `teacher-nt-page-${suffix}`);
-    await signIn(page, teacher, "/notifications");
+    await signIn(page, teacher, "/staff");
+    // R142 / M7: /notifications sends staff to /staff/notifications (staff shell)
+    await page.goto("/notifications");
+    await expect(page).toHaveURL((url) => url.pathname === "/staff/notifications");
     await expect(page.getByRole("heading", { name: "แจ้งเตือน" })).toBeVisible();
     await page.goto("/staff");
-    await expect(page.getByRole("link", { name: /^แจ้งเตือน/ })).toBeVisible();
+    await expect(page.getByRole("banner").getByRole("link", { name: /^แจ้งเตือน (ไม่มีรายการใหม่|ยังไม่อ่าน)/ })).toBeVisible();
   } finally {
     await deleteUsers([teacher]);
   }

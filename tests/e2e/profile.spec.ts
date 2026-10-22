@@ -74,23 +74,28 @@ test("too-long names show Thai errors and nothing is saved", async ({ page }, te
   }
 });
 
-test("staff can open /profile and get a link back to /staff; the student nav fits 360 px", async ({ page }, testInfo) => {
+test("staff opening /profile get the staff profile in the staff chrome, which fits 360 px and leads back to /staff", async ({ page }, testInfo) => {
   const suffix = uniqueSuffix(testInfo.project.name);
   let teacher: TestUser | undefined;
   try {
     teacher = await createConfirmedUser("teacher", `teacher-prof-${suffix}`);
-    await signIn(page, teacher, "/profile");
+    await signIn(page, teacher, "/staff");
+    // R142 / M7: /profile sends staff to /staff/profile (staff shell, no student nav)
+    await page.goto("/profile");
+    await expect(page).toHaveURL((url) => url.pathname === "/staff/profile");
     await expect(page.getByTestId("profile-role")).toHaveText("ครู");
     await page.setViewportSize({ width: 360, height: 800 });
-    const nav = page.getByRole("navigation", { name: "เมนูหลัก" });
-    await expect(nav.getByRole("link", { name: "ฉัน" })).toBeVisible();
-    await expect(nav.getByRole("link", { name: "บทความ" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "เมนูหลัก" })).toHaveCount(0);
+    await page.getByRole("button", { name: "เมนู" }).click();
+    const nav = page.getByRole("navigation", { name: "เมนูผู้ดูแล" });
+    await expect(nav.getByRole("link", { name: "โปรไฟล์", exact: true })).toHaveAttribute("aria-current", "page");
+    await expect(nav.getByRole("link", { name: "บทความ", exact: true })).toBeVisible();
     const { scrollWidth, clientWidth } = await page.evaluate(() => ({
       scrollWidth: document.documentElement.scrollWidth,
       clientWidth: document.documentElement.clientWidth,
     }));
     expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
-    await page.getByRole("link", { name: /กลับหน้าครูและผู้ดูแล/ }).click();
+    await nav.getByRole("link", { name: "หน้าหลัก", exact: true }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/staff");
   } finally {
     await deleteUsers([teacher]);

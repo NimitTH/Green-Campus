@@ -1,14 +1,25 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { ProfileDetails } from "@/app/_components/account-sections";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { SignOutButton } from "@/app/_components/sign-out-button";
-import { ROLE_LABEL_TH } from "@/lib/admin/validation";
 import { requireUser } from "@/lib/auth/dal";
 import { isStaffRole } from "@/lib/auth/routes";
-import { ProfileForm } from "./profile-form";
 
 export const metadata: Metadata = { title: "โปรไฟล์ | Green Campus" };
+
+const linkClass = "block rounded-2xl border border-gray-200 p-4 font-semibold hover:border-green-600 dark:border-gray-800";
+const hintClass = "block text-sm font-normal text-gray-600 dark:text-gray-400";
+
+// "ฉัน" hub (spec 9.2): pages that are not in the bottom nav.
+const SHORTCUTS = [
+  { href: "/my-submissions", label: "ผลที่ส่ง", hint: "สถานะผลกิจกรรมที่ส่ง" },
+  { href: "/leaderboard", label: "อันดับ", hint: "อันดับคาร์บอนของฉัน" },
+  { href: "/orders", label: "ออเดอร์", hint: "ออเดอร์และใบเสร็จ" },
+  { href: "/articles", label: "บทความ", hint: "ความรู้เรื่องขยะและสิ่งแวดล้อม" },
+] as const;
 
 // cacheComponents: the session is request-time data, read it inside <Suspense>.
 export default function ProfilePage() {
@@ -24,30 +35,19 @@ export default function ProfilePage() {
 
 async function Profile() {
   const user = await requireUser("/profile");
+  // Staff use the same page inside the staff shell (M7).
+  if (isStaffRole(user.role)) redirect("/staff/profile");
   return (
     <>
-      {isStaffRole(user.role) ? (
-        <p className="mb-4">
-          <Link href="/staff" className="text-sm text-green-700 underline">
-            ← กลับหน้าครูและผู้ดูแล
+      <ProfileDetails user={user} />
+      <nav aria-label="ทางลัดของฉัน" className="mt-8 grid grid-cols-2 gap-3">
+        {SHORTCUTS.map((s) => (
+          <Link key={s.href} href={s.href} className={linkClass}>
+            {s.label}
+            <span className={hintClass}>{s.hint}</span>
           </Link>
-        </p>
-      ) : null}
-      <dl className="mb-6 grid gap-3 rounded-2xl border border-gray-200 p-4 text-sm sm:grid-cols-2 dark:border-gray-800">
-        <div>
-          <dt className="text-gray-600 dark:text-gray-400">บทบาท</dt>
-          <dd data-testid="profile-role" className="font-medium">
-            {ROLE_LABEL_TH[user.role]}
-          </dd>
-        </div>
-        <div className="min-w-0">
-          <dt className="text-gray-600 dark:text-gray-400">อีเมล</dt>
-          <dd data-testid="profile-email" className="font-medium break-all">
-            {user.email ?? "-"}
-          </dd>
-        </div>
-      </dl>
-      <ProfileForm initial={{ fullName: user.fullName, displayName: user.displayName ?? "" }} />
+        ))}
+      </nav>
       <div className="mt-8">
         <SignOutButton />
       </div>

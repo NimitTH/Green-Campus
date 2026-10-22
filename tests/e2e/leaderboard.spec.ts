@@ -35,9 +35,15 @@ test("student sees the month tab with their row highlighted, the all-time tab, a
     await expect(page.getByRole("link", { name: "ตลอดกาล", exact: true })).toHaveAttribute("aria-current", "page");
     await expect(page.getByTestId("lb-me")).toContainText("123,456.789");
 
-    // the student nav has the new item and stays inside 360 px
+    // the leaderboard is in the desktop header nav; on a 360 px phone (R142 bottom nav has 5 fixed items) it is
+    // reached from the dashboard hub and "ฉัน", and the page stays inside 360 px
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await expect(page.getByRole("navigation", { name: "เมนูหลัก" }).getByRole("link", { name: "อันดับ" })).toHaveAttribute("aria-current", "page");
     await page.setViewportSize({ width: 360, height: 800 });
-    await expect(page.getByRole("navigation", { name: "เมนูหลัก" }).getByRole("link", { name: "อันดับ" })).toBeVisible();
+    await page.getByRole("navigation", { name: "เมนูหลัก" }).getByRole("link", { name: "ฉัน" }).click();
+    await page.getByRole("navigation", { name: "ทางลัดของฉัน" }).getByRole("link", { name: /^อันดับ/ }).click();
+    await expect(page).toHaveURL((url) => url.pathname === "/leaderboard");
+    await expect(page.getByTestId("lb-me")).toContainText("123,456.789");
     const { scrollWidth, clientWidth } = await page.evaluate(() => ({
       scrollWidth: document.documentElement.scrollWidth,
       clientWidth: document.documentElement.clientWidth,

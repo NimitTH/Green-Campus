@@ -32,6 +32,8 @@ export async function updateProfile(input: ProfileInput): Promise<ProfileResult>
   }
   if (!data || data.length === 0) return { ok: false, error: GENERIC_ERROR_TH };
   revalidatePath("/profile");
+  revalidatePath("/staff/profile");
+  revalidatePath("/staff");
   revalidatePath("/leaderboard");
   revalidatePath("/dashboard");
   return { ok: true };

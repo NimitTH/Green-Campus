@@ -5,7 +5,7 @@ import { Badge } from "@/app/_components/activity-ui";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { RewardImage } from "@/app/_components/reward-image";
 import { requireUser } from "@/lib/auth/dal";
-import { getBalance, listActiveRewards } from "@/lib/rewards/queries";
+import { cartItemCount, getBalance, listActiveRewards } from "@/lib/rewards/queries";
 import { AddToCartButton } from "./add-to-cart-button";
 
 export const metadata: Metadata = { title: "ของรางวัล | Green Campus" };
@@ -26,7 +26,11 @@ const number = new Intl.NumberFormat("th-TH");
 async function RewardGrid() {
   const user = await requireUser("/rewards");
   const isStudent = user.role === "student";
-  const [rewards, balance] = await Promise.all([listActiveRewards(), isStudent ? getBalance(user.id) : Promise.resolve(null)]);
+  const [rewards, balance, inCart] = await Promise.all([
+    listActiveRewards(),
+    isStudent ? getBalance(user.id) : Promise.resolve(null),
+    isStudent ? cartItemCount(user.id) : Promise.resolve(0),
+  ]);
 
   return (
     <>
@@ -35,9 +39,29 @@ async function RewardGrid() {
           <p>
             แต้มของฉัน <strong data-testid="balance" className="text-lg">{number.format(balance ?? 0)}</strong> แต้ม
           </p>
-          <Link href="/cart" className="text-sm font-semibold text-green-700 underline">
-            ดูตะกร้า
-          </Link>
+          {/* Rewards hub (spec 9.2): cart and orders are not in the bottom nav. */}
+          <div className="flex items-center gap-2">
+            <Link href="/orders" className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold text-green-700 underline">
+              ออเดอร์ของฉัน
+            </Link>
+            <Link
+              href="/cart"
+              aria-label={`ตะกร้า ${number.format(inCart)} ชิ้น`}
+              data-testid="cart-link"
+              className="relative inline-flex size-11 items-center justify-center rounded-full border border-green-300 bg-white text-green-800 dark:border-green-800 dark:bg-gray-950 dark:text-green-300"
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="9" cy="20" r="1.5" />
+                <circle cx="18" cy="20" r="1.5" />
+                <path d="M2 3h3l2.7 12.4a1 1 0 0 0 1 .8h9.6a1 1 0 0 0 1-.8L21 7H6" />
+              </svg>
+              {inCart > 0 ? (
+                <span aria-hidden="true" className="absolute -right-1 -top-1 min-w-5 rounded-full bg-green-700 px-1 text-center text-xs font-semibold leading-5 text-white">
+                  {inCart > 99 ? "99+" : inCart}
+                </span>
+              ) : null}
+            </Link>
+          </div>
         </div>
       ) : null}
       {rewards.length === 0 ? (

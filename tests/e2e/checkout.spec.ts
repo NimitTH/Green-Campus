@@ -94,7 +94,7 @@ test("earn -> cart -> ยืนยันแลก -> staff notified -> เตร
     const staffContext = await browser.newContext();
     const staffPage = await staffContext.newPage();
     await signIn(staffPage, teacher, "/staff");
-    await staffPage.goto("/notifications");
+    await staffPage.goto("/staff/notifications"); // R142: staff read notifications in the staff shell
     await expect(staffPage.getByText("มีออเดอร์ใหม่").first()).toBeVisible();
 
     // teacher: /staff -> ออเดอร์ -> เตรียมของเสร็จแล้ว

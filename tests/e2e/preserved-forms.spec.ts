@@ -126,7 +126,10 @@ test("login after a failed attempt and a sign-out shows no stale error and an em
     await page.getByRole("button", { name: "เข้าสู่ระบบ" }).filter({ visible: true }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/staff");
 
-    await page.getByRole("button", { name: "ออกจากระบบ" }).filter({ visible: true }).click();
+    // R142: sign out is in the staff menu (sidebar on desktop, drawer on phones)
+    const menuToggle = page.getByRole("button", { name: "เมนู" });
+    if (await menuToggle.isVisible()) await menuToggle.click();
+    await page.getByRole("navigation", { name: "เมนูผู้ดูแล" }).getByRole("button", { name: "ออกจากระบบ" }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/login");
     await expect(visibleLabel(page, "รหัสผ่าน")).toHaveValue("");
     await expect(page.getByRole("alert").filter({ visible: true }).filter({ hasText: "ลืมรหัสผ่าน" })).toHaveCount(0);

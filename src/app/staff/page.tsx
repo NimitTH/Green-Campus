@@ -4,7 +4,6 @@ import { Suspense } from "react";
 import { requireStaff } from "@/lib/auth/dal";
 import { isAdminRole } from "@/lib/auth/routes";
 import { PageSkeleton } from "../_components/page-skeleton";
-import { SignOutButton } from "../_components/sign-out-button";
 import { StaffStats } from "./_components/staff-stats";
 
 export const metadata: Metadata = { title: "ครูและผู้ดูแล | Green Campus" };
@@ -29,8 +28,8 @@ const MENU = [
   { href: "/staff/orders", label: "ออเดอร์", hint: "ยืนยันรับของ หรือยกเลิกออเดอร์ที่รอรับ" },
   { href: "/staff/rewards", label: "ของรางวัล", hint: "เพิ่ม แก้ไข สต็อก และเปิด/ปิดการแลก" },
   { href: "/staff/articles", label: "บทความ", hint: "เขียน แก้ไข และเผยแพร่บทความความรู้" },
-  { href: "/profile", label: "โปรไฟล์", hint: "แก้ชื่อและชื่อที่แสดง" },
-  { href: "/staff/reports", label: "รายงาน", hint: "สรุปรายกิจกรรมและรายนักเรียน ดาวน์โหลด CSV" },
+  { href: "/staff/profile", label: "โปรไฟล์", hint: "แก้ชื่อและชื่อที่แสดง" },
+  { href: "/staff/reports", label: "รายงาน", hint: "สรุปรายกิจกรรมและรายนักเรียน ดาวน์โหลด CSV/PDF" },
 ] as const;
 
 // Spec 9.3: /staff/users and /staff/rates are admin only (the pages check again, requireAdmin).
@@ -49,7 +48,6 @@ async function StaffHome() {
           <p className="text-sm text-gray-500">{user.role === "admin" ? "ผู้ดูแลระบบ" : "ครู"}</p>
           <h1 className="text-xl font-semibold">{user.displayName || user.fullName}</h1>
         </div>
-        <SignOutButton />
       </div>
       <Suspense fallback={<div aria-hidden="true" className="mb-6 h-40 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-900" />}>
         <StaffStats />

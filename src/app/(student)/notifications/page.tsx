@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { NotificationsSection } from "@/app/_components/account-sections";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { requireUser } from "@/lib/auth/dal";
-import { createServerClient } from "@/lib/supabase/server";
-import { NotificationList, type NotificationRow } from "./notification-list";
+import { isStaffRole } from "@/lib/auth/routes";
 
 export const metadata: Metadata = { title: "แจ้งเตือน | Green Campus" };
 
-// Every signed-in role (staff too) reads their own rows; RLS limits them to user_id = auth.uid().
+// Students read their own rows here; staff get the same list at /staff/notifications (staff shell, M7).
 export default function NotificationsPage() {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
@@ -20,20 +21,7 @@ export default function NotificationsPage() {
 }
 
 async function Notifications() {
-  await requireUser("/notifications");
-  const supabase = await createServerClient();
-  const { data, error } = await supabase
-    .from("notifications")
-    .select("id, title, body, link, read_at, created_at")
-    .order("created_at", { ascending: false })
-    .limit(50);
-  if (error) {
-    console.error("load notifications failed", error.code, error.message);
-    return (
-      <p role="alert" className="rounded-2xl border border-red-300 p-4 text-red-700">
-        โหลดการแจ้งเตือนไม่สำเร็จ รีเฟรชหน้าแล้วลองอีกครั้ง
-      </p>
-    );
-  }
-  return <NotificationList items={(data ?? []) as NotificationRow[]} />;
+  const user = await requireUser("/notifications");
+  if (isStaffRole(user.role)) redirect("/staff/notifications");
+  return <NotificationsSection />;
 }

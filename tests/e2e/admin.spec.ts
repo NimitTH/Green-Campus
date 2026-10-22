@@ -56,7 +56,7 @@ test("admin changes a student to teacher; that user can then open /staff", async
       await signIn(p2, student, "/staff");
       await expect(p2.getByRole("navigation", { name: "เมนูครู" })).toBeVisible();
       await expect(p2.getByRole("link", { name: /จัดการผู้ใช้/ })).toHaveCount(0); // teachers only
-      await p2.goto("/notifications");
+      await p2.goto("/staff/notifications"); // R142: staff read notifications in the staff shell
       await expect(p2.getByTestId("notification").filter({ hasText: "บทบาทของคุณถูกเปลี่ยน" })).toContainText("ครู");
     } finally {
       await ctx.close();
