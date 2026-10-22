@@ -23,7 +23,7 @@ import { ReviewActions } from "../_components/review-actions";
 export const metadata: Metadata = { title: "ตรวจผล | Green Campus" };
 
 const TONE: Record<string, "gray" | "green" | "amber"> = { pending: "amber", approved: "green", rejected: "gray" };
-const carbonFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 3 });
+const carbonFormat = new Intl.NumberFormat("th-TH", { maximumFractionDigits: 3 });
 
 // cacheComponents: params and the session are request-time data, read them inside <Suspense>.
 export default function ReviewPage({ params }: { params: Promise<{ id: string }> }) {
@@ -144,7 +144,7 @@ function Amounts({ submission }: { submission: SubmissionForReview }) {
     const count = submission.items.reduce((sum, i) => sum + i.quantity, 0);
     return (
       <p className="text-lg font-semibold" data-testid="tree-count">
-        {count.toLocaleString("en-US")} ต้น
+        {count.toLocaleString("th-TH")} ต้น
       </p>
     );
   }
@@ -183,7 +183,7 @@ function Estimate({ submission }: { submission: SubmissionForReview }) {
   return (
     <div className="mt-4 rounded-2xl bg-gray-50 p-4 text-sm dark:bg-gray-900">
       <p className="font-medium">
-        ประมาณการ: {estimate.points.toLocaleString("en-US")} แต้ม · carbon {carbonFormat.format(estimate.carbonKg)} กก. CO2e
+        ประมาณการ: {estimate.points.toLocaleString("th-TH")} แต้ม · carbon {carbonFormat.format(estimate.carbonKg)} กก. CO2e
       </p>
       <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
         คิดจากอัตราปัจจุบัน แต้มจริงคำนวณจากอัตรา ณ ตอนกดอนุมัติ
@@ -201,7 +201,7 @@ function Outcome({ submission }: { submission: SubmissionForReview }) {
       </p>
       {submission.status === "approved" && submission.earned ? (
         <p className="font-medium">
-          ได้ {submission.earned.points.toLocaleString("en-US")} แต้ม · carbon{" "}
+          ได้ {submission.earned.points.toLocaleString("th-TH")} แต้ม · carbon{" "}
           {carbonFormat.format(submission.earned.carbonKg)} กก. CO2e
         </p>
       ) : null}

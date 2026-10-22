@@ -6,7 +6,7 @@
 --   redeem/refund, negative adjust), s102 ...d102 (no carbon), s103 ...d103 (blank names, carbon 0.5),
 --   teacher ...d201; activities ...d501 waste, ...d502 trees, ...d503 fixed
 begin;
-select plan(45);
+select plan(46);
 
 -- baseline for the delta tests (before anything below is inserted)
 create temp table t_base as select public.public_stats() as s;
@@ -60,14 +60,19 @@ insert into public.submissions (id, activity_id, student_id, status) values
   ('00000000-0000-0000-0000-00000000d602', '00000000-0000-0000-0000-00000000d501', '00000000-0000-0000-0000-00000000d102', 'pending'),
   ('00000000-0000-0000-0000-00000000d603', '00000000-0000-0000-0000-00000000d502', '00000000-0000-0000-0000-00000000d102', 'approved'),
   ('00000000-0000-0000-0000-00000000d604', '00000000-0000-0000-0000-00000000d502', '00000000-0000-0000-0000-00000000d102', 'rejected'),
-  ('00000000-0000-0000-0000-00000000d605', '00000000-0000-0000-0000-00000000d503', '00000000-0000-0000-0000-00000000d102', 'approved');
+  ('00000000-0000-0000-0000-00000000d605', '00000000-0000-0000-0000-00000000d503', '00000000-0000-0000-0000-00000000d102', 'approved'),
+  -- M3 (0025): approved rows of a non-student (e.g. promoted to teacher later) count in none of the totals
+  ('00000000-0000-0000-0000-00000000d606', '00000000-0000-0000-0000-00000000d501', '00000000-0000-0000-0000-00000000d201', 'approved'),
+  ('00000000-0000-0000-0000-00000000d607', '00000000-0000-0000-0000-00000000d502', '00000000-0000-0000-0000-00000000d201', 'approved');
 insert into public.submission_items (submission_id, waste_category_id, quantity) values
   ('00000000-0000-0000-0000-00000000d601', (select id from public.waste_categories where name = 'พลาสติก'), 1500),
   ('00000000-0000-0000-0000-00000000d601', (select id from public.waste_categories where name = 'กระดาษ'), 500),
   ('00000000-0000-0000-0000-00000000d602', (select id from public.waste_categories where name = 'กระดาษ'), 999),
   ('00000000-0000-0000-0000-00000000d603', null, 3),
   ('00000000-0000-0000-0000-00000000d604', null, 4),
-  ('00000000-0000-0000-0000-00000000d605', null, 1);
+  ('00000000-0000-0000-0000-00000000d605', null, 1),
+  ('00000000-0000-0000-0000-00000000d606', (select id from public.waste_categories where name = 'พลาสติก'), 700),
+  ('00000000-0000-0000-0000-00000000d607', null, 4);
 
 -- 1-6: grants -----------------------------------------------------------------------------------------
 select has_function('public', 'leaderboard', array['text', 'timestamptz'], 'leaderboard(text, timestamptz) exists');
@@ -168,9 +173,12 @@ select is((select array_agg(k order by k) from jsonb_object_keys((select s from 
 select is(((select s from t_after) ->> 'carbon_kg')::numeric - ((select s from t_base) ->> 'carbon_kg')::numeric,
   78::numeric + 12.25 + 0.5 - 3 + 357, 'carbon delta = ranked 78 + s101 12.25 + s103 0.5 + s102 -3 + March 357');
 select is(((select s from t_after) ->> 'waste_grams')::bigint - ((select s from t_base) ->> 'waste_grams')::bigint, 2000::bigint,
-  'waste delta counts approved waste items only');
+  'waste delta counts approved waste items of students only (teacher 700 g excluded)');
 select is(((select s from t_after) ->> 'trees')::bigint - ((select s from t_base) ->> 'trees')::bigint, 3::bigint,
-  'trees delta counts approved trees items only');
+  'trees delta counts approved trees items of students only (teacher 4 excluded)');
+select is((select count(*) from public.submissions s join public.profiles p on p.id = s.student_id
+           where s.status = 'approved' and p.role = 'teacher' and s.id in ('00000000-0000-0000-0000-00000000d606', '00000000-0000-0000-0000-00000000d607')),
+  2::bigint, 'the excluded teacher rows really are approved (the deltas above are not vacuous)');
 select is(jsonb_typeof((select s from t_after) -> 'carbon_kg'), 'number', 'carbon_kg is a number');
 select is(((select s from t_after) ->> 'carbon_kg')::numeric, round(((select s from t_after) ->> 'carbon_kg')::numeric, 3), 'carbon_kg has at most 3 decimals');
 select ok((select s::text from t_after) !~ '[0-9a-f]{8}-[0-9a-f]{4}-' and (select s::text from t_after) !~ 'LB', 'no ids or names in the result');

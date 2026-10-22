@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { requireStaff } from "@/lib/auth/dal";
 import { isAdminRole } from "@/lib/auth/routes";
+import { previewDisplayName } from "@/lib/profile/validation";
 import { PageSkeleton } from "../_components/page-skeleton";
 import { StaffStats } from "./_components/staff-stats";
 
@@ -46,7 +47,7 @@ async function StaffHome() {
       <div className="mb-6 flex items-center justify-between gap-3">
         <div>
           <p className="text-sm text-gray-500">{user.role === "admin" ? "ผู้ดูแลระบบ" : "ครู"}</p>
-          <h1 className="text-xl font-semibold">{user.displayName || user.fullName}</h1>
+          <h1 className="text-xl font-semibold">{previewDisplayName(user.displayName, user.fullName)}</h1>
         </div>
       </div>
       <Suspense fallback={<div aria-hidden="true" className="mb-6 h-40 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-900" />}>

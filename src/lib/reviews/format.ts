@@ -2,7 +2,7 @@ import type { ActivityType } from "./abnormal";
 
 // Thai display of submitted amounts on the staff review pages. Weights are integer grams.
 
-const kgFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 3 });
+const kgFormat = new Intl.NumberFormat("th-TH", { maximumFractionDigits: 3 });
 
 /** 1550 -> "1 กก. 5 ขีด 50 กรัม" (1 ขีด = 100 g); zero parts are left out. */
 export function formatGramsTh(grams: number): string {
@@ -10,7 +10,7 @@ export function formatGramsTh(grams: number): string {
   const khit = Math.floor((grams % 1000) / 100);
   const rest = grams % 100;
   const parts: string[] = [];
-  if (kg > 0) parts.push(`${kg.toLocaleString("en-US")} กก.`);
+  if (kg > 0) parts.push(`${kg.toLocaleString("th-TH")} กก.`);
   if (khit > 0) parts.push(`${khit} ขีด`);
   if (rest > 0) parts.push(`${rest} กรัม`);
   return parts.length > 0 ? parts.join(" ") : "0 กรัม";
@@ -25,7 +25,7 @@ export function formatKgTh(grams: number): string {
 export function summaryTh(type: ActivityType, quantities: number[]): string {
   const total = quantities.reduce((sum, q) => sum + q, 0);
   if (type === "waste") return `รวม ${formatKgTh(total)}`;
-  if (type === "trees") return `${total.toLocaleString("en-US")} ต้น`;
+  if (type === "trees") return `${total.toLocaleString("th-TH")} ต้น`;
   return "เข้าร่วม";
 }
 

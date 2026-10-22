@@ -1,6 +1,7 @@
 import { createServerClient as createSupabaseServerClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { SERVER_FETCH_TIMEOUT_MS, fetchWithTimeout } from "./fetch-timeout";
 
 export async function createServerClient(): Promise<SupabaseClient> {
   const cookieStore = await cookies();
@@ -8,6 +9,8 @@ export async function createServerClient(): Promise<SupabaseClient> {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
+      // M1: no request waits for a hanging Supabase forever (see fetch-timeout.ts for the budget).
+      global: { fetch: fetchWithTimeout(SERVER_FETCH_TIMEOUT_MS) },
       cookies: {
         getAll: () => cookieStore.getAll(),
         setAll: (cookiesToSet) => {

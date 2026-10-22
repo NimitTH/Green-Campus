@@ -32,6 +32,11 @@
 - เทสต์อยู่ที่ `tests/e2e/*.spec.ts`; Vitest อ่านเฉพาะ `src/**/*.test.ts` จึงไม่ชนกัน
   ไฟล์ e2e ถูกยกเว้นจาก `tsconfig.json` เพื่อให้ `npm run build` ไม่ขึ้นกับ Playwright
 
+## Deploy: region
+
+- `vercel.json` ตั้ง `"regions": ["sin1"]` (Vercel Functions ที่สิงคโปร์) **โปรเจกต์ Supabase ต้องอยู่ Southeast Asia (Singapore) `ap-southeast-1` ให้ตรงกัน**
+  ถ้าต้องใช้ region อื่น ให้เปลี่ยนทั้งสองที่พร้อมกัน (region ของ Supabase เปลี่ยนภายหลังไม่ได้) ขั้นตอน deploy ทั้งหมด: `docs/deploy.md`
+
 ## Deploy: Cron / CRON_SECRET (ล้างรูปค้าง, Task 19)
 
 - `vercel.json` ตั้ง Vercel Cron เรียก `GET /api/cron/cleanup-orphans` วันละครั้ง (`0 19 * * *` UTC = 02:00 เวลาไทย)

@@ -1,3 +1,11 @@
 {
-  "crons": [{ "path": "/api/cron/cleanup-orphans", "schedule": "0 19 * * *" }]
+  "regions": [
+    "sin1"
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/cleanup-orphans",
+      "schedule": "0 19 * * *"
+    }
+  ]
 }

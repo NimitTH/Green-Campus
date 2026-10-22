@@ -2,7 +2,7 @@
 -- ids: students s1 ...9101, s2 ...9102   teacher ...9201   admin ...9301
 --   rewards: active ...9501, inactive ...9502
 begin;
-select plan(35);
+select plan(36);
 
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-000000009101', 'rc-s1@example.test', '{"full_name":"นักเรียน หนึ่ง"}'::jsonb),
@@ -77,16 +77,20 @@ update public.rewards set active = true where id = '00000000-0000-0000-0000-0000
 insert into public.cart_items (student_id, reward_id, qty) values
   ('00000000-0000-0000-0000-000000009201', '00000000-0000-0000-0000-000000009501', 3),
   ('00000000-0000-0000-0000-000000009301', '00000000-0000-0000-0000-000000009501', 3);
+-- M8: the local DB may hold other carts (seed, e2e leftovers): count the fixture students' rows, and compare
+-- the teacher's total with the superuser total instead of a fixed number.
+select set_config('t.cart_total', (select count(*)::text from public.cart_items), true);
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000009201","role":"authenticated"}', true);
-select is((select count(*) from public.cart_items), 4::bigint, 'teacher reads all carts');
+select is((select count(*) from public.cart_items where student_id in ('00000000-0000-0000-0000-000000009101', '00000000-0000-0000-0000-000000009102', '00000000-0000-0000-0000-000000009201', '00000000-0000-0000-0000-000000009301')), 4::bigint, 'teacher reads the fixture students'' carts');
+select is((select count(*) from public.cart_items), current_setting('t.cart_total')::bigint, 'teacher reads all carts (same total as superuser)');
 select throws_ok($$insert into public.cart_items (student_id, reward_id, qty)
   values ('00000000-0000-0000-0000-000000009201', '00000000-0000-0000-0000-000000009502', 1)$$,
   '42501', null, 'teacher cannot insert a cart row');
 update public.cart_items set qty = 9;
 delete from public.cart_items;
 reset role;
-select is((select count(*) from public.cart_items), 4::bigint, 'teacher delete removes nothing');
+select is((select count(*) from public.cart_items where student_id in ('00000000-0000-0000-0000-000000009101', '00000000-0000-0000-0000-000000009102', '00000000-0000-0000-0000-000000009201', '00000000-0000-0000-0000-000000009301')), 4::bigint, 'teacher delete removes nothing');
 select is((select qty from public.cart_items where student_id = '00000000-0000-0000-0000-000000009201'), 3,
   'teacher update and delete leave their own row untouched');
 set local role authenticated;
@@ -97,7 +101,7 @@ select throws_ok($$insert into public.cart_items (student_id, reward_id, qty)
 update public.cart_items set qty = 9;
 delete from public.cart_items;
 reset role;
-select is((select count(*) from public.cart_items), 4::bigint, 'admin delete removes nothing');
+select is((select count(*) from public.cart_items where student_id in ('00000000-0000-0000-0000-000000009101', '00000000-0000-0000-0000-000000009102', '00000000-0000-0000-0000-000000009201', '00000000-0000-0000-0000-000000009301')), 4::bigint, 'admin delete removes nothing');
 select is((select qty from public.cart_items where student_id = '00000000-0000-0000-0000-000000009301'), 3,
   'admin update and delete leave their own row untouched');
 

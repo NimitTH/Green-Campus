@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { requireUser } from "@/lib/auth/dal";
 import { isStaffRole } from "@/lib/auth/routes";
+import { previewDisplayName } from "@/lib/profile/validation";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { RankCard } from "./_components/rank-card";
 import { StudentStats } from "./_components/student-stats";
@@ -40,7 +41,7 @@ async function DashboardContent() {
     <>
       <div className="mb-6">
         <p className="text-sm text-gray-500">สวัสดี</p>
-        <h1 className="text-xl font-semibold">{user.displayName || user.fullName}</h1>
+        <h1 className="text-xl font-semibold">{previewDisplayName(user.displayName, user.fullName)}</h1>
       </div>
       <nav aria-label="เมนูนักเรียน" className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {HUB.map((m) => (
