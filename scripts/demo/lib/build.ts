@@ -15,6 +15,11 @@ import { placeholderPng } from "./png.ts";
 //    (RLS) + checkout, mark_order_ready / complete_order / cancel_order. Points and carbon therefore come
 //    only from approve_submission with the rates in waste_categories (0003) and each activity's unit values.
 //    After each step the timestamps are moved back (as postgres) so the history spreads over ~3 months.
+//    I3 (demo timing): part of the history is anchored to the CURRENT Bangkok month at seed time, so
+//    /leaderboard "เดือนนี้", the demo student's rank card and /staff/reports' default month (ended
+//    activities by ends_at) have data whenever the reset runs: the beach clean-up (e4) ends inside this
+//    month, and the open weigh activity (o1) has approved waste results (carbon) from this month, the demo
+//    student's included. Run demo:reset on the morning of the demo (docs/demo-checklist.md).
 // 3. The 4 ended activities are created as draft and opened inside the transaction only so join_activity
 //    accepts them; their activity_opened notifications are deleted again in the same transaction (so none
 //    persist), then they are closed and moved to their real past dates. The 2 open activities are opened
@@ -25,6 +30,28 @@ import { placeholderPng } from "./png.ts";
 
 const DAY = 24 * 60 * 60_000;
 const HOUR = 60 * 60_000;
+const MINUTE = 60_000;
+const BANGKOK_OFFSET = 7 * HOUR; // Asia/Bangkok has no DST
+
+/** Start of the Bangkok calendar month containing `ms` (as epoch ms). */
+export function bangkokMonthStart(ms: number): number {
+  const d = new Date(ms + BANGKOK_OFFSET);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) - BANGKOK_OFFSET;
+}
+
+/**
+ * Real start/end of an activity at seed time. `endsInCurrentMonth` activities end no earlier than the start of
+ * the current Bangkok month (still in the past), so the reports' default month always has an ended activity.
+ */
+function activityWindow(a: ActDef, now: number): { start: number; end: number } {
+  const start = now - a.startsDaysAgo * DAY;
+  let end = now - a.endsDaysAgo * DAY;
+  if (a.endsInCurrentMonth) {
+    const monthStart = bangkokMonthStart(now);
+    if (end < monthStart) end = monthStart + Math.min(HOUR, (now - monthStart) / 2);
+  }
+  return { start, end };
+}
 
 type Person = { id: string; name: string; email: string; demo: boolean };
 type ActKey = "e1" | "e2" | "e3" | "e4" | "o1" | "o2";
@@ -37,6 +64,8 @@ type ActDef = {
   maxPerSubmission: number | null;
   startsDaysAgo: number;
   endsDaysAgo: number; // negative = in the future
+  /** I3: keep the end inside the current Bangkok month (see activityWindow). */
+  endsInCurrentMonth?: boolean;
   location: string;
   offsite: boolean;
   description: string;
@@ -105,6 +134,7 @@ const ACTIVITIES: ActDef[] = [
     maxPerSubmission: null,
     startsDaysAgo: 9,
     endsDaysAgo: 2,
+    endsInCurrentMonth: true,
     location: "ชายหาดใกล้โรงเรียน",
     offsite: true,
     description: "ข้อมูลตัวอย่างสำหรับสาธิต: กิจกรรมนอกสถานที่ ส่งรูปการเก็บขยะ ได้แต้มคงที่ (ไม่นับ carbon)",
@@ -239,26 +269,27 @@ function planSubmissions(students: Person[], demo: Person, cats: Record<string, 
   const between = (a: number, b: number) => a + r() * (b - a);
   const act = (k: ActKey) => ACTIVITIES.find((a) => a.key === k)!;
   const window = (k: ActKey) => {
-    const a = act(k);
-    const start = now - a.startsDaysAgo * DAY + 12 * HOUR;
-    const end = Math.min(now - a.endsDaysAgo * DAY, now - 6 * HOUR);
-    return { start, end };
+    const w = activityWindow(act(k), now);
+    const start = w.start + 12 * HOUR;
+    const end = Math.min(w.end, now - 6 * HOUR);
+    return { start, end: Math.max(end, start) };
   };
   const reviewTime = (created: number, k: ActKey) => {
-    const cap = Math.min(now - act(k).endsDaysAgo * DAY + 3 * DAY, now - 3 * HOUR);
-    return Math.min(created + between(2, 40) * HOUR, cap);
+    const cap = Math.min(activityWindow(act(k), now).end + 3 * DAY, now - 3 * HOUR);
+    // never before the submission, never in the future (a reset right after midnight squeezes the window)
+    return Math.min(Math.max(Math.min(created + between(2, 40) * HOUR, cap), created + MINUTE), now - MINUTE);
   };
   const subs: Sub[] = [];
   const joins: Record<ActKey, Person[]> = { e1: [], e2: [], e3: [], e4: [], o1: [], o2: [] };
   let variant = 0;
-  const add = (k: ActKey, student: Person, items: Item[], outcome: Sub["outcome"], createdAt: number) => {
+  const add = (k: ActKey, student: Person, items: Item[], outcome: Sub["outcome"], createdAt: number, reviewedAt?: number) => {
     subs.push({
       act: k,
       student,
       items,
       outcome,
       createdAt,
-      reviewedAt: outcome === "pending" ? undefined : reviewTime(createdAt, k),
+      reviewedAt: outcome === "pending" ? undefined : (reviewedAt ?? reviewTime(createdAt, k)),
       path: `${student.id}/${randomUUID()}/evidence.png`,
       variant: variant++,
     });
@@ -324,6 +355,24 @@ function planSubmissions(students: Person[], demo: Person, cats: Record<string, 
   add("o1", students[0], [{ cat: cats.plastic, qty: 1200 }, { cat: cats.paper, qty: 900 }], "pending", now - 20 * HOUR);
   add("o2", students[6], [{ qty: 2 }], "pending", now - 10 * HOUR);
   add("o2", students[7], [{ qty: 1 }], "pending", now - 4 * HOUR);
+
+  // I3: approved weigh results in the CURRENT Bangkok month (leaderboard "เดือนนี้", the demo student's rank card).
+  // Window: from max(month start, o1 start) to 1 h ago; after a reset right after midnight on the 1st it shrinks
+  // to the minutes since midnight, but stays inside this month.
+  const o1Start = activityWindow(act("o1"), now).start;
+  const lo = Math.max(bangkokMonthStart(now), o1Start) + MINUTE;
+  const hi = Math.max(lo, now - HOUR);
+  const inMonth = (frac: number) => {
+    const created = Math.min(lo + (hi - lo) * frac, now - 2 * MINUTE);
+    return { created, reviewed: Math.min(created + Math.max(MINUTE, (now - created) / 3), now - MINUTE) };
+  };
+  joins.o1.push(...students.slice(6, 14), demo);
+  for (let i = 1; i < 14; i++) {
+    const t = inMonth(r());
+    add("o1", students[i], wasteItems(), "approved", t.created, t.reviewed);
+  }
+  const dm = inMonth(0.6);
+  add("o1", demo, [{ cat: cats.plastic, qty: 1800 }, { cat: cats.paper, qty: 1200 }], "approved", dm.created, dm.reviewed);
 
   return { subs, joins };
 }
@@ -398,8 +447,8 @@ export async function insertSeed(ctx: Ctx): Promise<Record<string, number>> {
           a.location,
           a.offsite,
           // ended ones get a temporary window around now: join/submit check now() against it
-          new Date(ended ? now - HOUR : now - a.startsDaysAgo * DAY).toISOString(),
-          new Date(ended ? now + DAY : now - a.endsDaysAgo * DAY).toISOString(),
+          new Date(ended ? now - HOUR : activityWindow(a, now).start).toISOString(),
+          new Date(ended ? now + DAY : activityWindow(a, now).end).toISOString(),
           a.type,
           a.requiresCode,
           a.unitPoints,
@@ -421,7 +470,7 @@ export async function insertSeed(ctx: Ctx): Promise<Record<string, number>> {
       await db.query(
         `update public.participations set created_at = $2::timestamptz + (abs(hashtext(id::text)) % 36000) * interval '1 second'
          where activity_id = $1`,
-        [actIds[k], new Date(now - a.startsDaysAgo * DAY).toISOString()],
+        [actIds[k], new Date(activityWindow(a, now).start).toISOString()],
       );
     };
     const submit = async (s: Sub) => {
@@ -489,9 +538,9 @@ export async function insertSeed(ctx: Ctx): Promise<Record<string, number>> {
         `update public.activities set status = 'closed', starts_at = $2, ends_at = $3, created_at = $4 where id = $1`,
         [
           actIds[k],
-          new Date(now - a.startsDaysAgo * DAY).toISOString(),
-          new Date(now - a.endsDaysAgo * DAY).toISOString(),
-          new Date(now - (a.startsDaysAgo + 5) * DAY).toISOString(),
+          new Date(activityWindow(a, now).start).toISOString(),
+          new Date(activityWindow(a, now).end).toISOString(),
+          new Date(activityWindow(a, now).start - 5 * DAY).toISOString(),
         ],
       );
     }
@@ -555,7 +604,7 @@ export async function insertSeed(ctx: Ctx): Promise<Record<string, number>> {
       const a = ACTIVITIES.find((x) => x.key === k)!;
       await db.query("update public.activities set status = 'open', created_at = $2 where id = $1", [
         actIds[k],
-        new Date(now - (a.startsDaysAgo + 2) * DAY).toISOString(),
+        new Date(activityWindow(a, now).start - 2 * DAY).toISOString(),
       ]);
       await join(k);
       for (const s of subs.filter((x) => x.act === k).sort((x, y) => x.createdAt - y.createdAt)) await submit(s);

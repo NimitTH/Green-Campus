@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { ARTICLE_NOT_FOUND_PATH, articleSlugFromPath, isPublishedArticle } from "@/lib/articles/not-found-check";
 import { rootAuthRedirect } from "@/lib/auth/email-links";
 import { isProtectedPath } from "@/lib/auth/routes";
 
@@ -10,6 +11,17 @@ export async function proxy(request: NextRequest) {
   // Email link that fell back to the site root ("/?code=..."): hand it to the callback.
   const rootRedirect = rootAuthRedirect(request.nextUrl.pathname, request.nextUrl.searchParams);
   if (rootRedirect) return NextResponse.redirect(new URL(rootRedirect, request.nextUrl.origin));
+
+  // A missing / unpublished / malformed article must be a real HTTP 404. The page cannot do it in
+  // production (partial prerender: the static shell streams first, which fixes the status at 200), so check
+  // here and rewrite to the static 404 route. Prefetches skip the lookup (no extra query per visible link);
+  // a failed lookup (null) lets the page render as before.
+  const articleSlug = articleSlugFromPath(request.nextUrl.pathname);
+  if (articleSlug !== null && !request.headers.has("next-router-prefetch")) {
+    if ((await isPublishedArticle(articleSlug)) === false) {
+      return NextResponse.rewrite(new URL(ARTICLE_NOT_FOUND_PATH, request.nextUrl.origin));
+    }
+  }
 
   let response = NextResponse.next({ request });
 

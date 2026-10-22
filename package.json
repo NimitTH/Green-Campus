@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test --project=chromium --project=mobile-chrome",
     "test:seed": "playwright test --project=seed",
+    "test:e2e:prod": "playwright test --project=chromium --project=mobile-chrome tests/e2e/full-flow.spec.ts tests/e2e/articles.spec.ts tests/e2e/leaderboard.spec.ts tests/e2e/preserved-forms.spec.ts",
     "demo:seed": "node scripts/demo/seed.ts",
     "demo:reset": "node scripts/demo/reset-demo.ts",
     "demo:purge": "node scripts/demo/purge-users.ts"

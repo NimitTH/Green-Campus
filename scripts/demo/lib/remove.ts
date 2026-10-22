@@ -16,6 +16,16 @@ import { objectsInFolders, removeObjects } from "./db.ts";
 // transaction, so no FK RESTRICT / trigger ever fires and nothing depends on a cascade by accident:
 //   1. release_orders(pending orders of seed users, 'cancelled')  stock back + refund rows (the R93 trigger
 //      would put stock back on the profile delete anyway; done explicitly per the carry)
+//
+// Lock order (M4). This reset path is one more entry for the canonical list in the 0016 header (that file is
+// not edited; the entry lives here):
+//   demo reset (scripts/demo/lib/remove.ts): seed activities FOR UPDATE -> the seed users' pending_pickup
+//                 orders by id FOR UPDATE -> seed rewards by id FOR UPDATE -> release_orders (which locks the
+//                 same orders, then their rewards by id: already held, so no new wait).
+//   The orders are locked BEFORE any reward (order -> rewards, as release_orders / cancel_order /
+//   expire_orders do), so a concurrent cancel_order or expire_orders cannot deadlock with the reset.
+//   expire_orders runs from pg_cron at minute :00 every hour (0014): do not start a reset exactly then
+//   (docs/demo-checklist.md); if it overlaps anyway, SKIP LOCKED makes the cron skip our locked orders.
 //   2. notifications        of seed users                                (user_id -> profiles CASCADE)
 //   3. cart_items           of seed users or on seed rewards             (both FKs CASCADE)
 //   4. ledger_entries       of seed users                                (student_id CASCADE; refs SET NULL)
@@ -53,8 +63,14 @@ export async function removeSeedData(ctx: Ctx): Promise<RemovalCounts> {
       [SEED_PREFIX, userIds],
     );
     const activityIds = activities.rows.map((r) => r.id);
+    // M4: pending orders first, by id (canonical order -> rewards), before the rewards below.
+    const pendingOrders = await db.query<{ id: string }>(
+      "select id from public.orders where student_id = any($1::uuid[]) and status = 'pending_pickup' order by id for update",
+      [userIds],
+    );
+    const pendingOrderIds = pendingOrders.rows.map((r) => r.id);
     const rewards = await db.query<{ id: string; image_path: string | null }>(
-      "select id, image_path from public.rewards where starts_with(name, $1) for update",
+      "select id, image_path from public.rewards where starts_with(name, $1) order by id for update",
       [SEED_PREFIX],
     );
     const rewardIds = rewards.rows.map((r) => r.id);
@@ -93,10 +109,10 @@ export async function removeSeedData(ctx: Ctx): Promise<RemovalCounts> {
       const r = await db.query(sql, params);
       counts[key] = (counts[key] ?? 0) + (r.rowCount ?? 0);
     };
+    // the orders locked above (status cannot change while we hold them)
     const pending = await db.query<{ n: number }>(
-      `select coalesce(public.release_orders(array_agg(o.id order by o.id), 'cancelled', null), 0)::int as n
-       from public.orders o where o.student_id = any($1::uuid[]) and o.status = 'pending_pickup'`,
-      [userIds],
+      "select coalesce(public.release_orders($1::uuid[], 'cancelled', null), 0)::int as n",
+      [pendingOrderIds],
     );
     counts["pending orders released"] = pending.rows[0].n;
     await exec("notifications", "delete from public.notifications where user_id = any($1::uuid[])", [userIds]);

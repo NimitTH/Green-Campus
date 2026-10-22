@@ -333,6 +333,74 @@ test("the three demo accounts: is_demo, roles, confirmed e-mail, sign in with DE
   expect(ok).toBe(true);
 });
 
+test("I3: part of the seed lands in the CURRENT Bangkok month (leaderboard month, rank card, reports default month)", async ({ browser }) => {
+  const SEED = `%${SEED_DOMAIN}`;
+  const MONTH = "date_trunc('month', now() at time zone 'Asia/Bangkok')";
+  const inMonth = (col: string) => `(${col} at time zone 'Asia/Bangkok') >= ${MONTH}`;
+  const ids = await withDb(async (c) => {
+    const { rows } = await c.query<{ email: string; id: string }>("select email, id from auth.users where email = any($1::text[])", [[DEMO.student, DEMO.teacher]]);
+    return Object.fromEntries(rows.map((r) => [r.email, r.id]));
+  });
+  await withDb(async (c) => {
+    const subs = (await c.query(
+      `select count(*) filter (where s.status = 'approved' and ${inMonth("s.reviewed_at")})::int month_approved,
+              count(*) filter (where s.status = 'approved')::int all_approved
+       from public.submissions s join auth.users u on u.id = s.student_id where u.email like $1`,
+      [SEED],
+    )).rows[0];
+    expect(subs.month_approved).toBeGreaterThanOrEqual(10); // a meaningful share ...
+    expect(subs.month_approved * 2).toBeLessThan(subs.all_approved); // ... while most keeps the 3-month spread
+    const carbon = (await c.query(
+      `select count(distinct l.student_id)::int students from public.ledger_entries l join auth.users u on u.id = l.student_id
+       where u.email like $1 and l.kind = 'earn' and l.carbon_kg > 0 and ${inMonth("l.created_at")}`,
+      [SEED],
+    )).rows[0];
+    expect(carbon.students).toBeGreaterThanOrEqual(10); // the month tab has a real board
+
+    const as = async <T,>(uid: string, sql: string): Promise<T[]> => {
+      await c.query("begin");
+      try {
+        await c.query("set local role authenticated");
+        await c.query("select set_config('request.jwt.claims', $1, true)", [JSON.stringify({ sub: uid, role: "authenticated" })]);
+        return (await c.query(sql)).rows as T[];
+      } finally {
+        await c.query("rollback");
+      }
+    };
+    // the demo student is on this month's board with carbon from this month
+    const me = await as<{ rank: number | null; carbon_kg: string }>(ids[DEMO.student], "select rank, carbon_kg from public.leaderboard('month') where is_me");
+    expect(me).toHaveLength(1);
+    expect(me[0].rank).not.toBeNull();
+    expect(Number(me[0].carbon_kg)).toBeGreaterThan(0);
+    // /staff/reports' default range (this Bangkok month) has an ended seed activity
+    const report = await as<{ title: string }>(
+      ids[DEMO.teacher],
+      `select title from public.report_activities(${MONTH}::date, (now() at time zone 'Asia/Bangkok')::date)`,
+    );
+    expect(report.some((r) => r.title.startsWith("[ตัวอย่าง] "))).toBe(true);
+  });
+
+  // and in the UI
+  const ctx = await browser.newContext();
+  try {
+    const student = await ctx.newPage();
+    await signIn(student, { id: "", email: DEMO.student, password: TEST_DEMO_PASSWORD, role: "student" }, "/dashboard");
+    await expect(student.getByRole("link", { name: /อันดับเดือนนี้ #\d+/ })).toBeVisible();
+    await student.goto("/leaderboard");
+    await expect(student.getByTestId("lb-me")).toBeVisible();
+  } finally {
+    await ctx.close();
+  }
+  const ctx2 = await browser.newContext();
+  try {
+    const teacher = await ctx2.newPage();
+    await signIn(teacher, { id: "", email: DEMO.teacher, password: TEST_DEMO_PASSWORD, role: "teacher" }, "/staff/reports");
+    await expect(teacher.getByTestId("report-activities")).toContainText("[ตัวอย่าง] ");
+  } finally {
+    await ctx2.close();
+  }
+});
+
 test("the demo teacher downloads the summary PDF for the seeded range", async ({ page }) => {
   const fmt = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(d);
   const to = fmt(new Date());

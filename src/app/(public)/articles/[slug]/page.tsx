@@ -10,10 +10,13 @@ type Params = Promise<{ slug: string }>;
 // Public article. The body is plain text: each blank-line-separated paragraph is rendered as text in
 // its own <p> (whitespace-pre-line keeps single line breaks); nothing is parsed as HTML or markdown.
 //
-// The lookup is cached (lib/articles/public.ts) and runs before any <Suspense> boundary, so a missing,
-// unpublished or malformed slug is a real HTTP 404 (notFound() before streaming starts), not a 200
-// with the not-found UI streamed in. Awaiting params outside <Suspense> makes the route blocking, which
-// Cache Components only accept when the page says so (instant = false; route segment config docs).
+// The lookup is cached (lib/articles/public.ts) and runs before any <Suspense> boundary. That gives a
+// real HTTP 404 in `next dev` only: in production this route is partially prerendered and its static shell
+// starts streaming first, which fixes the status at 200 (found by the prod e2e run, I7). The HTTP 404 is
+// therefore produced by src/proxy.ts (rewrite to the static /article-not-found); notFound() here stays as
+// the fallback (e.g. a failed Proxy lookup) and still renders the Thai not-found UI with noindex.
+// Awaiting params outside <Suspense> makes the route blocking, which Cache Components only accept when the
+// page says so (instant = false; route segment config docs).
 export const instant = false;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {

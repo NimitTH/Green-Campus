@@ -2,6 +2,13 @@ import { defineConfig, devices } from "@playwright/test";
 
 // End-to-end tests against `npm run dev` (http://localhost:3000) and the LOCAL Supabase
 // stack (`npx supabase start`). Helpers read .env.local; see docs/dev-notes.md.
+//
+// I7 production mode (opt-in): `npm run test:e2e:prod` (or E2E_PROD=1) builds and serves the app with
+// `next build && next start` on port 3100, so prerendering, caching and the production error handling are
+// tested too. npm sets npm_lifecycle_event to the script name, which avoids a cross-env dependency on Windows.
+const PROD = process.env.E2E_PROD === "1" || process.env.npm_lifecycle_event === "test:e2e:prod";
+const BASE_URL = PROD ? "http://localhost:3100" : "http://localhost:3000";
+
 export default defineConfig({
   testDir: "./tests/e2e",
   testMatch: "**/*.spec.ts",
@@ -13,7 +20,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: BASE_URL,
     locale: "th-TH",
     timezoneId: "Asia/Bangkok",
     trace: "retain-on-failure",
@@ -27,13 +34,14 @@ export default defineConfig({
     { name: "seed", testDir: "./tests/seed", timeout: 300_000, use: { ...devices["Desktop Chrome"] } },
   ],
   webServer: {
-    command: "npm run dev",
-    url: "http://localhost:3000",
-    reuseExistingServer: !process.env.CI,
+    command: PROD ? "npm run build && npm run start -- --port 3100" : "npm run dev",
+    url: BASE_URL,
+    // prod mode always builds the current code (never reuses a stale server on 3100)
+    reuseExistingServer: !process.env.CI && !PROD,
     // Task 19: the cron route fails closed without CRON_SECRET. A fixed, obviously-fake value for local
     // runs only (never CI, never a real secret). A dev server started by hand needs the same value:
     // CRON_SECRET=e2e-cron-secret npm run dev. tests/e2e/cleanup-orphans.spec.ts reads the same default.
     env: process.env.CI ? {} : { CRON_SECRET: process.env.CRON_SECRET || "e2e-cron-secret" },
-    timeout: 180_000,
+    timeout: PROD ? 600_000 : 180_000,
   },
 });
