@@ -34,12 +34,13 @@ export default function Home() {
 
 // Whole-school totals, no names. A failed load leaves a quiet line and the buttons still render.
 async function PublicTotals() {
-  let stats: PublicStats;
+  let stats: PublicStats | null;
   try {
     stats = await getPublicStats();
   } catch {
-    return <p className="text-sm text-gray-500">ยังโหลดสถิติรวมไม่ได้ในขณะนี้</p>;
+    stats = null;
   }
+  if (!stats) return <p className="text-sm text-gray-500">ยังโหลดสถิติรวมไม่ได้ในขณะนี้</p>;
   const cards = [
     { id: "stat-carbon", label: "carbon ที่ลดได้", value: formatKg(stats.carbonKg), unit: "กก. CO2e" },
     { id: "stat-waste", label: "น้ำหนักขยะที่เก็บ", value: formatKgFromGrams(stats.wasteGrams), unit: "กก." },

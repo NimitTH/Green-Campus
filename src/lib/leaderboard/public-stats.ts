@@ -4,15 +4,19 @@ import { parsePublicStats, type PublicStats } from "./format";
 
 /**
  * Whole-school totals for the home page (public_stats(), anonymous). Cached for a few minutes: it is
- * the same public data for everyone and uses no cookies. Throws on failure (a failure is not cached);
- * callers show a quiet fallback.
+ * the same public data for everyone and uses no cookies. Returns null on failure, cached only for
+ * seconds: a throw inside "use cache" fails the whole `next build` prerender of "/" (e.g. a paused
+ * Supabase project at deploy time), even when the caller catches it. Callers show a quiet fallback.
  */
-export async function getPublicStats(): Promise<PublicStats> {
+export async function getPublicStats(): Promise<PublicStats | null> {
   "use cache";
-  cacheLife("minutes");
   const { data, error } = await createAnonClient().rpc("public_stats");
-  if (error) throw new Error(`public_stats: ${error.message}`);
-  const stats = parsePublicStats(data);
-  if (!stats) throw new Error("public_stats: unexpected result");
+  const stats = error ? null : parsePublicStats(data);
+  if (!stats) {
+    console.error(error ? "public_stats failed" : "public_stats: unexpected result");
+    cacheLife("seconds");
+    return null;
+  }
+  cacheLife("minutes");
   return stats;
 }

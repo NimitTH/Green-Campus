@@ -35,10 +35,12 @@ function coverUrl(path: string | null): string | null {
   return path ? createAnonClient().storage.from(ARTICLE_BUCKET).getPublicUrl(path).data.publicUrl : null;
 }
 
-/** Published articles, newest first (at most 100). */
-export async function listPublishedArticles(): Promise<PublicArticleSummary[]> {
+/**
+ * Published articles, newest first (at most 100). Null on failure, cached only for seconds: a throw
+ * inside "use cache" would fail the `next build` prerender of /articles when Supabase is unreachable.
+ */
+export async function listPublishedArticles(): Promise<PublicArticleSummary[] | null> {
   "use cache";
-  cacheLife("minutes");
   cacheTag(ARTICLES_TAG);
   const { data, error } = await createAnonClient()
     .from("articles")
@@ -47,7 +49,12 @@ export async function listPublishedArticles(): Promise<PublicArticleSummary[]> {
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
     .limit(100);
-  if (error) throw new Error(`listPublishedArticles: ${error.message}`);
+  if (error) {
+    console.error("listPublishedArticles failed");
+    cacheLife("seconds");
+    return null;
+  }
+  cacheLife("minutes");
   return ((data ?? []) as Row[]).map((r) => ({
     id: r.id,
     slug: r.slug,

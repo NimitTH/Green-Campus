@@ -21,12 +21,13 @@ export default function ArticlesPage() {
 }
 
 async function ArticleList() {
-  let articles: PublicArticleSummary[];
+  let articles: PublicArticleSummary[] | null;
   try {
     articles = await listPublishedArticles();
   } catch {
-    return <p className="text-sm text-gray-500">ยังโหลดบทความไม่ได้ในขณะนี้ ลองรีเฟรชอีกครั้ง</p>;
+    articles = null;
   }
+  if (!articles) return <p className="text-sm text-gray-500">ยังโหลดบทความไม่ได้ในขณะนี้ ลองรีเฟรชอีกครั้ง</p>;
   if (articles.length === 0) {
     return (
       <section className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-gray-600 dark:border-gray-700 dark:text-gray-400">
