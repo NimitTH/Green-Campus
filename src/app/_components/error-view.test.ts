@@ -9,7 +9,14 @@ import { ErrorView } from "./error-view";
 // R143: the Thai error boundaries. A unit render instead of an e2e trigger: the Next docs offer no test-only
 // way to make a real route throw, and a throwing route or query flag would ship to production.
 
-const HINT = "โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง หรือกลับหน้าแรก";
+const TITLE = "โหลดข้อมูลไม่สำเร็จ";
+const HINT = "ลองใหม่อีกครั้ง หรือกลับหน้าแรก";
+// the heading and the hint say different things (no repeated "โหลดข้อมูลไม่สำเร็จ")
+const saysOnce = (html: string) => {
+  expect(html).toContain(`>${TITLE}</h1>`);
+  expect(html).toContain(`>${HINT}</p>`);
+  expect(html.split(TITLE).length - 1).toBe(html.includes("<title>") ? 2 : 1);
+};
 const error = Object.assign(new Error("boom"), { digest: "abc123" });
 
 function findButton(node: ReactNode): ReactElement<{ onClick: () => void }> | null {
@@ -27,7 +34,7 @@ function findButton(node: ReactNode): ReactElement<{ onClick: () => void }> | nu
 describe("error boundaries (Thai, retry + home link)", () => {
   it("app/error.tsx renders the Thai message, a retry button and a home link", () => {
     const html = renderToStaticMarkup(createElement(ErrorPage, { error, retry: () => {} }));
-    expect(html).toContain(HINT);
+    saysOnce(html);
     expect(html).toMatch(/<button[^>]*>ลองใหม่อีกครั้ง<\/button>/);
     expect(html).toMatch(/<a href="\/"[^>]*>กลับหน้าแรก<\/a>/);
     expect(html).toContain('role="alert"');
@@ -37,7 +44,7 @@ describe("error boundaries (Thai, retry + home link)", () => {
 
   it("staff/error.tsx links back to /staff", () => {
     const html = renderToStaticMarkup(createElement(StaffError, { error, retry: () => {} }));
-    expect(html).toContain(HINT);
+    saysOnce(html);
     expect(html).toMatch(/<a href="\/staff"[^>]*>กลับหน้าครูและผู้ดูแล<\/a>/);
   });
 
@@ -45,7 +52,7 @@ describe("error boundaries (Thai, retry + home link)", () => {
     const html = renderToStaticMarkup(createElement(GlobalError, { error, retry: () => {} }));
     expect(html).toMatch(/^<html lang="th">/);
     expect(html).toContain("<body");
-    expect(html).toContain(HINT);
+    saysOnce(html);
     expect(html).toContain("ลองใหม่อีกครั้ง");
   });
 

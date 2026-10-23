@@ -3,7 +3,7 @@
 เอกสารนี้ใช้ตอนขึ้นระบบจริงครั้งแรกและตอนตั้งโปรเจกต์ใหม่ ค่าทุกค่าในเอกสารนี้เป็นตัวอย่าง (`<...>`)
 ห้ามจดรหัสผ่าน, secret key, connection string หรือ `CRON_SECRET` จริงลงไฟล์ที่เข้า git
 
-ลำดับ: เลือก region → Supabase (โปรเจกต์ + migration + ตรวจ) → admin คนแรก → Auth → Vercel → smoke test หลัง deploy
+ลำดับ: เลือก region → Supabase (โปรเจกต์ + migration + ตรวจ + Auth/SMTP) → Vercel → admin คนแรก → smoke test หลัง deploy
 
 ## 1. เลือก region: สิงคโปร์ทั้งคู่
 
@@ -46,24 +46,15 @@ select column_name from information_schema.columns
 where table_schema = 'storage' and table_name = 'objects' and column_name in ('archived_at', 'is_delete_marker');
 ```
 
-- ข้อ 1 ไม่มีแถว: เปิด extension `pg_cron` (Database > Extensions) แล้ว push ใหม่ หรือรันคำสั่ง `cron.schedule` ท้ายไฟล์ 0014 เอง
+- ข้อ 1 ไม่มีแถว: รันใน SQL Editor (คำสั่งเดียวกับท้าย migration 0014 รันซ้ำได้ เหลืองานเดียวเสมอ) แล้วตรวจข้อ 1 อีกครั้ง
+
+  ```sql
+  select cron.unschedule(j.jobid) from cron.job j where j.jobname = 'expire-orders';
+  select cron.schedule('expire-orders', '0 * * * *', 'select public.expire_orders()');
+  ```
 - ข้อ 3 ได้ไม่ครบ 2 แถว: อย่าเปิด cron ล้างรูป (ฟังก์ชันจะ error ตอนเรียก ไม่ลบอะไร) แจ้งผู้พัฒนาก่อน
 
-### 2.3 admin คนแรก
-
-1. สมัครบัญชีของตัวเองผ่านเว็บ (`/register`) และยืนยันอีเมลให้เรียบร้อย
-2. ใน SQL Editor:
-
-```sql
-update public.profiles set role = 'admin'
-where id = (select id from auth.users where email = '<your-email>');
-```
-
-ทำไมคำสั่งนี้ได้ผล: trigger ที่กันการเปลี่ยนบทบาท (`protect_profile_columns`) อนุญาตเฉพาะเมื่อไม่มีผู้ใช้ปลายทาง
-ใน SQL Editor คำสั่งรันเป็น `postgres` ไม่มี JWT ของผู้ใช้ `auth.uid()` จึงเป็น `null` เหมือนงานของระบบ ผู้ใช้ทั่วไปทำแบบนี้ผ่านเว็บไม่ได้
-หลังจากนี้ admin คนนี้ตั้งบทบาทครูให้คนอื่นที่ `/staff/users` ได้เอง
-
-### 2.4 Authentication
+### 2.3 Authentication
 
 - **URL Configuration**
   - Site URL: `https://<โดเมน>`
@@ -90,11 +81,14 @@ where id = (select id from auth.users where email = '<your-email>');
 |---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://<project-ref>.supabase.co` | build-time |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | publishable key (Project Settings > API Keys) | build-time |
-| `NEXT_PUBLIC_SITE_URL` | `https://<โดเมน>` (Preview: URL ของ preview) | build-time, ใช้ในลิงก์อีเมล |
+| `NEXT_PUBLIC_SITE_URL` | Production: `https://<โดเมน>` · **Preview: ไม่ต้องตั้ง** | build-time, ใช้ในลิงก์อีเมล |
 | `SUPABASE_SECRET_KEY` | secret key | server only ห้ามขึ้นต้นด้วย `NEXT_PUBLIC_` |
 | `CRON_SECRET` | ค่าสุ่ม `openssl rand -hex 32` | server only |
 
 - ตัวแปร `NEXT_PUBLIC_*` ถูกฝังตอน build: แก้ค่าแล้วต้อง **Redeploy** ค่าใหม่จึงมีผล
+- `NEXT_PUBLIC_SITE_URL` ของ **Preview ให้เว้นไว้**: Preview แต่ละครั้งได้ URL ใหม่ ค่าที่ฝังตอน build จะชี้ผิดที่ (หรือชี้ไป production)
+  เมื่อไม่ได้ตั้ง เว็บใช้ origin ของคำขอเอง (header `Origin` / `X-Forwarded-Host`, `src/lib/auth/email-links.ts`) ลิงก์ในอีเมลจึงกลับมาที่ preview นั้น
+  (ต้องมี `https://<preview-โดเมน>/**` ใน Redirect URLs ตามข้อ 2.3)
 - อย่าพึ่ง Supabase integration ของ Vercel: integration ตั้งตัวแปรชื่ออื่น (เช่น `SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`)
   ที่โค้ดนี้ไม่อ่าน ตั้งชื่อข้างบนเองให้ครบ
 - `DATABASE_URL`, `DEMO_PASSWORD`, `CONFIRM_PROJECT_REF` ไม่ต้องตั้งใน Vercel (ใช้เฉพาะสคริปต์สาธิตบนเครื่องผู้ดูแล)
@@ -108,16 +102,32 @@ curl -H "Authorization: Bearer <CRON_SECRET>" "https://<โดเมน>/api/cro
 
 ต้องได้ JSON `{deleted, byBucket, scanned, dryRun: true, capped}` (ได้ 500 `cron_not_configured` = ยังไม่ได้ตั้ง `CRON_SECRET`)
 
-## 4. smoke test หลัง deploy
+## 4. admin คนแรก (หลัง deploy และตั้ง SMTP แล้ว)
+
+1. ต้อง deploy เว็บแล้ว (ข้อ 3) และควรตั้ง custom SMTP แล้ว (ข้อ 2.3): อีเมลในตัวของ Supabase ส่งได้เฉพาะที่อยู่อีเมลของสมาชิกทีมโปรเจกต์ (และจำกัดจำนวนต่ำมาก)
+   ถ้ายังไม่ได้ตั้ง SMTP ให้ใช้อีเมลเดียวกับบัญชีสมาชิกทีม Supabase ของตัวเอง ไม่เช่นนั้นอีเมลยืนยันจะไม่มา
+2. สมัครบัญชีของตัวเองผ่านเว็บ (`/register`) และกดลิงก์ยืนยันในอีเมลให้เรียบร้อย
+3. ใน SQL Editor:
+
+```sql
+update public.profiles set role = 'admin'
+where id = (select id from auth.users where email = '<your-email>');
+```
+
+ทำไมคำสั่งนี้ได้ผล: trigger ที่กันการเปลี่ยนบทบาท (`protect_profile_columns`) อนุญาตเฉพาะเมื่อไม่มีผู้ใช้ปลายทาง
+ใน SQL Editor คำสั่งรันเป็น `postgres` ไม่มี JWT ของผู้ใช้ `auth.uid()` จึงเป็น `null` เหมือนงานของระบบ ผู้ใช้ทั่วไปทำแบบนี้ผ่านเว็บไม่ได้
+หลังจากนี้ admin คนนี้ตั้งบทบาทครูให้คนอื่นที่ `/staff/users` ได้เอง
+
+## 5. smoke test หลัง deploy
 
 - [ ] หน้าแรก `/` แสดงยอดรวมจริง (carbon / ขยะ / ต้นไม้) ไม่ใช่ 0 ทั้งหมดหลังรัน `demo:reset`
 - [ ] สมัครด้วยอีเมลภายนอก ได้อีเมล กดลิงก์แล้วกลับมาที่ `https://<โดเมน>/dashboard`
 - [ ] ดาวน์โหลด **ใบเสร็จ PDF** (`/orders/<id>`) และ **PDF สรุป** (`/staff/reports`) ภาษาไทยแสดงถูก (ฟอนต์ Sarabun ไม่เป็นกล่อง)
 - [ ] กระดิ่งอัปเดตทันทีข้าม 2 เครื่อง: เครื่อง A นักเรียนเปิดหน้าใดก็ได้, เครื่อง B ครูอนุมัติผล → ตัวเลขบนกระดิ่งของ A เปลี่ยนเองโดยไม่รีเฟรช
 - [ ] `demo:reset` ผ่าน **Session pooler** ใช้ได้ (ดูคำสั่งใน `docs/demo-checklist.md`)
-- [ ] `/api/cron/cleanup-orphans?dry=1` ตอบ 200 (ข้อ 3.4)
+- [ ] `/api/cron/cleanup-orphans?dry=1` ตอบ 200 (ข้อ 3 ขั้นที่ 4)
 
-## 5. ทดสอบโหมด production บนเครื่อง
+## 6. ทดสอบโหมด production บนเครื่อง
 
 ก่อน deploy ลองรันเว็บแบบ production (`next build` + `next start`) กับ Supabase บนเครื่อง:
 
@@ -126,6 +136,8 @@ npx supabase start
 npm run test:e2e:prod     # build + start ที่พอร์ต 3100 แล้วรัน smoke subset (full-flow, articles, leaderboard, preserved-forms)
 ```
 
+- บทความที่เพิ่งเผยแพร่อาจยังตอบ 404 ได้ไม่เกิน 10 วินาที และบทความที่เพิ่งยกเลิกเผยแพร่อาจตอบ 200 (หน้า "ไม่พบบทความนี้") ไม่เกิน 60 วินาที
+  ต่อ instance ของเซิร์ฟเวอร์ เพราะ proxy จำผลตรวจ slug ไว้ (R145, `src/lib/articles/not-found-check.ts`) ไม่ต้องแก้อะไร รอสักครู่แล้วรีเฟรช
 - โหมดนี้จับบั๊กที่เกิดเฉพาะ production ได้ เช่น บทความที่ไม่มี/ยกเลิกเผยแพร่เคยตอบ 200 แทน 404 บน `next start`
   (หน้าแบบ partial prerender ส่ง shell ก่อน) ตอนนี้ `src/proxy.ts` ตรวจ slug แล้วส่งไปหน้า 404 แบบ static
 - รันซ้ำทุกครั้งก่อน deploy เวอร์ชันใหม่

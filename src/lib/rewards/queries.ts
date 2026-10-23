@@ -95,10 +95,14 @@ export function cartTotal(lines: CartLine[]): number {
   return lines.reduce((sum, l) => (l.reward?.active ? sum + l.qty * l.reward.points_cost : sum), 0);
 }
 
-/** Number of pieces in the student's cart (sum of qty), for the cart badge on /rewards. */
+/** Number of pieces in the student's cart (sum of qty), for the cart badge on /rewards. 0 when it cannot be read:
+ * a badge must not take the rewards page down (the cart page itself reports real errors). */
 export async function cartItemCount(studentId: string): Promise<number> {
   const supabase = await createServerClient();
   const { data, error } = await supabase.from("cart_items").select("qty").eq("student_id", studentId);
-  if (error) throw new Error(`cartItemCount: ${error.message}`);
+  if (error) {
+    console.error("cartItemCount failed", error.code, error.message);
+    return 0;
+  }
   return ((data ?? []) as { qty: number }[]).reduce((sum, r) => sum + r.qty, 0);
 }

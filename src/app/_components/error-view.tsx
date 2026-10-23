@@ -3,7 +3,8 @@
 // The home link is a plain <a>: a full page load is the most reliable way out of a broken client tree.
 
 export const ERROR_TITLE_TH = "โหลดข้อมูลไม่สำเร็จ";
-export const ERROR_HINT_TH = "โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง หรือกลับหน้าแรก";
+// Heading + hint read as one message: "โหลดข้อมูลไม่สำเร็จ / ลองใหม่อีกครั้ง หรือกลับหน้าแรก".
+export const ERROR_HINT_TH = "ลองใหม่อีกครั้ง หรือกลับหน้าแรก";
 export const RETRY_LABEL_TH = "ลองใหม่อีกครั้ง";
 
 export function ErrorView({

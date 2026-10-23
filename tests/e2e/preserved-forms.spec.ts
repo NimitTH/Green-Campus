@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { signIn } from "./helpers/auth";
+import { openStaffMenu } from "./helpers/staff-menu";
 import { PNG_1X1 } from "./helpers/images";
 import {
   createConfirmedUser,
@@ -127,8 +128,7 @@ test("login after a failed attempt and a sign-out shows no stale error and an em
     await expect(page).toHaveURL((url) => url.pathname === "/staff");
 
     // R142: sign out is in the staff menu (sidebar on desktop, drawer on phones)
-    const menuToggle = page.getByRole("button", { name: "เมนู" });
-    if (await menuToggle.isVisible()) await menuToggle.click();
+    if (await page.getByRole("button", { name: "เมนู" }).isVisible()) await openStaffMenu(page);
     await page.getByRole("navigation", { name: "เมนูผู้ดูแล" }).getByRole("button", { name: "ออกจากระบบ" }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/login");
     await expect(visibleLabel(page, "รหัสผ่าน")).toHaveValue("");

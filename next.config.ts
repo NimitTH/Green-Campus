@@ -8,6 +8,10 @@ const nextConfig: NextConfig = {
   experimental: {
     agentFeedback: true,
   },
+  // Dev only: the route indicator (bottom-left by default) covers the fixed student bottom nav on phones and
+  // intercepted taps in e2e; every other corner holds the bell or the menu button. Compile and runtime
+  // errors are still shown (docs: next-config-js/devIndicators.md).
+  devIndicators: false,
   cacheComponents: true,
   partialPrefetching: true,
   // PDF routes (Task 14): pdfmake/pdfkit and fontkit read their own data files from node_modules at

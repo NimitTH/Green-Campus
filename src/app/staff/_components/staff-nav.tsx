@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Suspense, useId, useState } from "react";
+import { Suspense, useCallback, useEffect, useId, useRef, useState } from "react";
 
 // Spec 9.3: staff navigation. Sidebar from md up, a drawer (menu button) below. The weigh station is a
 // standing kiosk page with big buttons, so there the sidebar only appears from xl and tablets get the drawer.
@@ -81,31 +81,62 @@ function SidebarFrame({ station, children }: { station: boolean; children: React
 }
 
 /**
- * Mobile drawer: a disclosure button (aria-expanded / aria-controls) and a panel under the header. A tap on
- * a link inside closes it; Escape closes it too.
+ * Mobile drawer: a disclosure button (aria-expanded / aria-controls) and a panel under the header.
+ * Opening moves focus to the first link. Escape (anywhere, while open) and the toggle close it and return
+ * focus to the toggle. A link tap or any pathname change (the layout stays mounted across client
+ * navigations) closes it without moving focus, so the new page keeps Next's own focus handling.
  */
 export function StaffDrawer({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={<DrawerFrame station={false}>{children}</DrawerFrame>}>
+    <Suspense fallback={<DrawerFrame pathname={null}>{children}</DrawerFrame>}>
       <DrawerWithPath>{children}</DrawerWithPath>
     </Suspense>
   );
 }
 
 function DrawerWithPath({ children }: { children: React.ReactNode }) {
-  return <DrawerFrame station={isStation(usePathname())}>{children}</DrawerFrame>;
+  return <DrawerFrame pathname={usePathname()}>{children}</DrawerFrame>;
 }
 
-function DrawerFrame({ station, children }: { station: boolean; children: React.ReactNode }) {
+function DrawerFrame({ pathname, children }: { pathname: string | null; children: React.ReactNode }) {
+  const station = isStation(pathname);
   const [open, setOpen] = useState(false);
+  const [seenPath, setSeenPath] = useState(pathname);
   const panelId = useId();
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Close on navigation: adjust state while rendering (React docs, "storing information from previous renders").
+  if (pathname !== seenPath) {
+    setSeenPath(pathname);
+    if (open) setOpen(false);
+  }
+
+  const closeToToggle = useCallback(() => {
+    setOpen(false);
+    toggleRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    // the first link; the panel itself while the (streamed) menu has not arrived yet
+    const panel = panelRef.current;
+    (panel?.querySelector<HTMLElement>("a[href], button") ?? panel)?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeToToggle();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, closeToToggle]);
+
   return (
     <div className={station ? "xl:hidden" : "md:hidden"}>
       <button
+        ref={toggleRef}
         type="button"
         aria-expanded={open}
         aria-controls={panelId}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => (open ? closeToToggle() : setOpen(true))}
         className="inline-flex size-11 items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-900"
       >
         <span className="sr-only">เมนู</span>
@@ -114,16 +145,15 @@ function DrawerFrame({ station, children }: { station: boolean; children: React.
         </svg>
       </button>
       <div
+        ref={panelRef}
         id={panelId}
+        tabIndex={-1}
         hidden={!open}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") setOpen(false);
-        }}
         onClick={(e) => {
           // Links navigate client-side and the layout stays mounted: close the drawer on any link tap.
           if ((e.target as HTMLElement).closest("a")) setOpen(false);
         }}
-        className="absolute inset-x-0 top-full z-40 max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-gray-200 bg-white px-3 py-3 shadow-lg dark:border-gray-800 dark:bg-gray-950"
+        className="absolute inset-x-0 top-full z-40 outline-none max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-gray-200 bg-white px-3 py-3 shadow-lg dark:border-gray-800 dark:bg-gray-950"
       >
         {children}
       </div>

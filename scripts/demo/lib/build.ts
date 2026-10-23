@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { DEMO_EMAILS, SEED_EMAIL_SUFFIX, SEED_PREFIX, SEED_SLUG_PREFIX, type Ctx } from "./context.ts";
 import { asUser, assertUuid, lit, uuidArray } from "./db.ts";
 import { DEMO_NAMES, SEED_STUDENT_NAMES } from "./names.ts";
+import { bangkokMonthStart, currentMonthSlot } from "./dates.ts";
 import { placeholderPng } from "./png.ts";
 
 // Insert the demo data (R137). Run after removeSeedData(), so the result is the same every time.
@@ -31,13 +32,6 @@ import { placeholderPng } from "./png.ts";
 const DAY = 24 * 60 * 60_000;
 const HOUR = 60 * 60_000;
 const MINUTE = 60_000;
-const BANGKOK_OFFSET = 7 * HOUR; // Asia/Bangkok has no DST
-
-/** Start of the Bangkok calendar month containing `ms` (as epoch ms). */
-export function bangkokMonthStart(ms: number): number {
-  const d = new Date(ms + BANGKOK_OFFSET);
-  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) - BANGKOK_OFFSET;
-}
 
 /**
  * Real start/end of an activity at seed time. `endsInCurrentMonth` activities end no earlier than the start of
@@ -357,15 +351,10 @@ function planSubmissions(students: Person[], demo: Person, cats: Record<string, 
   add("o2", students[7], [{ qty: 1 }], "pending", now - 4 * HOUR);
 
   // I3: approved weigh results in the CURRENT Bangkok month (leaderboard "เดือนนี้", the demo student's rank card).
-  // Window: from max(month start, o1 start) to 1 h ago; after a reset right after midnight on the 1st it shrinks
-  // to the minutes since midnight, but stays inside this month.
+  // currentMonthSlot (dates.ts, unit-tested) keeps submit and review inside [month start, now - 1 s], also
+  // right after midnight on the 1st.
   const o1Start = activityWindow(act("o1"), now).start;
-  const lo = Math.max(bangkokMonthStart(now), o1Start) + MINUTE;
-  const hi = Math.max(lo, now - HOUR);
-  const inMonth = (frac: number) => {
-    const created = Math.min(lo + (hi - lo) * frac, now - 2 * MINUTE);
-    return { created, reviewed: Math.min(created + Math.max(MINUTE, (now - created) / 3), now - MINUTE) };
-  };
+  const inMonth = (frac: number) => currentMonthSlot(now, o1Start, frac);
   joins.o1.push(...students.slice(6, 14), demo);
   for (let i = 1; i < 14; i++) {
     const t = inMonth(r());

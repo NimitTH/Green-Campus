@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { signIn } from "./helpers/auth";
+import { openStaffMenu } from "./helpers/staff-menu";
 import { createConfirmedUser, deleteUsers, profileNames, type TestUser } from "./helpers/supabase-admin";
 
 // Plan Task 18 Part B (R123, R124): /profile edits full_name and display_name.
@@ -86,7 +87,7 @@ test("staff opening /profile get the staff profile in the staff chrome, which fi
     await expect(page.getByTestId("profile-role")).toHaveText("ครู");
     await page.setViewportSize({ width: 360, height: 800 });
     await expect(page.getByRole("navigation", { name: "เมนูหลัก" })).toHaveCount(0);
-    await page.getByRole("button", { name: "เมนู" }).click();
+    await openStaffMenu(page);
     const nav = page.getByRole("navigation", { name: "เมนูผู้ดูแล" });
     await expect(nav.getByRole("link", { name: "โปรไฟล์", exact: true })).toHaveAttribute("aria-current", "page");
     await expect(nav.getByRole("link", { name: "บทความ", exact: true })).toBeVisible();

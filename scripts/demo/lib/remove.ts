@@ -20,10 +20,15 @@ import { objectsInFolders, removeObjects } from "./db.ts";
 // Lock order (M4). This reset path is one more entry for the canonical list in the 0016 header (that file is
 // not edited; the entry lives here):
 //   demo reset (scripts/demo/lib/remove.ts): seed activities FOR UPDATE -> the seed users' pending_pickup
-//                 orders by id FOR UPDATE -> seed rewards by id FOR UPDATE -> release_orders (which locks the
-//                 same orders, then their rewards by id: already held, so no new wait).
-//   The orders are locked BEFORE any reward (order -> rewards, as release_orders / cancel_order /
-//   expire_orders do), so a concurrent cancel_order or expire_orders cannot deadlock with the reset.
+//                 orders by id FOR UPDATE -> in ONE statement, by id FOR UPDATE, every reward those orders
+//                 reference (seed or not: a seed user may have ordered a real reward) plus the seed rewards
+//                 -> release_orders (it locks the same orders and their rewards again: all already held,
+//                 so it takes no new lock).
+//   Orders before rewards, and all rewards in one global by-id pass, as release_orders / cancel_order /
+//   expire_orders do; so a concurrent cancel_order / expire_orders waits instead of deadlocking. (Locking
+//   only the seed rewards first, as before, could break the by-id order when release_orders then took a
+//   non-seed reward with a lower id; Postgres would detect that deadlock (40P01) and the reset could simply
+//   be rerun, but this way it does not arise.)
 //   expire_orders runs from pg_cron at minute :00 every hour (0014): do not start a reset exactly then
 //   (docs/demo-checklist.md); if it overlaps anyway, SKIP LOCKED makes the cron skip our locked orders.
 //   2. notifications        of seed users                                (user_id -> profiles CASCADE)
@@ -69,12 +74,17 @@ export async function removeSeedData(ctx: Ctx): Promise<RemovalCounts> {
       [userIds],
     );
     const pendingOrderIds = pendingOrders.rows.map((r) => r.id);
-    const rewards = await db.query<{ id: string; image_path: string | null }>(
-      "select id, image_path from public.rewards where starts_with(name, $1) order by id for update",
-      [SEED_PREFIX],
+    // M4 / fix round 1 M6: every reward of those orders (seed or not) and the seed rewards, one by-id pass.
+    const lockedRewards = await db.query<{ id: string; image_path: string | null; seed: boolean }>(
+      `select id, image_path, starts_with(name, $1) as seed from public.rewards
+       where starts_with(name, $1)
+          or id in (select oi.reward_id from public.order_items oi where oi.order_id = any($2::uuid[]))
+       order by id for update`,
+      [SEED_PREFIX, pendingOrderIds],
     );
-    const rewardIds = rewards.rows.map((r) => r.id);
-    rewardImages = rewards.rows.map((r) => r.image_path).filter((p): p is string => !!p);
+    const rewards = lockedRewards.rows.filter((r) => r.seed);
+    const rewardIds = rewards.map((r) => r.id);
+    rewardImages = rewards.map((r) => r.image_path).filter((p): p is string => !!p);
     const articles = await db.query<{ id: string }>(
       "select id from public.articles where starts_with(slug, $1) or author_id = any($2::uuid[]) for update",
       [SEED_SLUG_PREFIX, userIds],

@@ -55,6 +55,9 @@ function subscribe(listener: () => void): () => void {
 }
 
 const getSnapshot = () => state;
+
+/** The store without React (unit tests). */
+export const unreadStore = { subscribe, getSnapshot };
 const getServerSnapshot = () => INITIAL;
 
 /** The shared unread state (signed out / loading: signedIn false, count 0). */
@@ -70,11 +73,14 @@ function startStore(): () => void {
   let timer: ReturnType<typeof setTimeout> | null = null;
 
   async function refetch() {
+    // The answer belongs to the user it was asked for: drop it if the user changed meanwhile.
+    const uid = activeUid;
+    if (!uid) return;
     const { count: unread, error } = await supabase
       .from("notifications")
       .select("id", { count: "exact", head: true })
       .is("read_at", null);
-    if (!cancelled && !error && unread !== null) setState({ count: unread });
+    if (!cancelled && uid === activeUid && !error && unread !== null) setState({ count: unread });
   }
 
   // The count always comes from the DB; bursts of events collapse into one refetch.
@@ -111,7 +117,8 @@ function startStore(): () => void {
     if (activeUid === uid) return;
     teardown();
     activeUid = uid;
-    setState({ signedIn: true });
+    // A different user: never show the previous user's count, not even until the refetch answers.
+    setState({ signedIn: true, count: 0 });
     // Count first, independent of Realtime: websockets can be blocked (school wifi).
     void refetch();
     // The realtime socket must carry this user's JWT, otherwise RLS hides every row.

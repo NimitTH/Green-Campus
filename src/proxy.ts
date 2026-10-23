@@ -14,10 +14,12 @@ export async function proxy(request: NextRequest) {
 
   // A missing / unpublished / malformed article must be a real HTTP 404. The page cannot do it in
   // production (partial prerender: the static shell streams first, which fixes the status at 200), so check
-  // here and rewrite to the static 404 route. Prefetches skip the lookup (no extra query per visible link);
-  // a failed lookup (null) lets the page render as before.
+  // here and rewrite to the static 404 route. Prefetches cannot be told apart here (Next strips its router
+  // headers from request.headers in Proxy), so the check is cached per instance (published 60 s, missing
+  // 10 s) with a 1.5 s timeout; a failed lookup (null) is not cached and lets the page render as before.
+  // See src/lib/articles/not-found-check.ts for the staleness windows.
   const articleSlug = articleSlugFromPath(request.nextUrl.pathname);
-  if (articleSlug !== null && !request.headers.has("next-router-prefetch")) {
+  if (articleSlug !== null) {
     if ((await isPublishedArticle(articleSlug)) === false) {
       return NextResponse.rewrite(new URL(ARTICLE_NOT_FOUND_PATH, request.nextUrl.origin));
     }

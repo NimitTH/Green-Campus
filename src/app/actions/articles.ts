@@ -10,6 +10,7 @@ import {
   type ArticleFieldErrors,
   type ArticleInput,
 } from "@/lib/articles/format";
+import { clearArticleCheckCache } from "@/lib/articles/not-found-check";
 import { ARTICLES_TAG } from "@/lib/articles/public";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { isAdminRole, isStaffRole } from "@/lib/auth/routes";
@@ -68,6 +69,8 @@ async function staffCaller() {
 
 function revalidateArticles(id?: string) {
   updateTag(ARTICLES_TAG);
+  // Proxy's slug check (R145): the new state on the next request, where Proxy shares this process.
+  clearArticleCheckCache();
   revalidatePath("/staff/articles");
   if (id) revalidatePath(`/staff/articles/${id}/edit`);
 }

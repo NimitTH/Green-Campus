@@ -111,7 +111,7 @@ function BottomNavView({ pathname }: { pathname: string | null }) {
     <nav
       aria-label="เมนูหลัก"
       data-bottom-nav=""
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)] md:hidden dark:border-gray-800 dark:bg-gray-950"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] md:hidden dark:border-gray-800 dark:bg-gray-950"
     >
       <ul className="grid grid-cols-5">
         {BOTTOM.map((item) => {

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { signIn } from "./helpers/auth";
+import { openStaffMenu } from "./helpers/staff-menu";
 import { createConfirmedUser, createJoinedCodeActivity, deleteActivitiesByTitle, deleteUsers, type TestUser } from "./helpers/supabase-admin";
 
 // R142 (spec 9.2, 9.3): the app navigation shell. Student: 5-item bottom nav on mobile, one-row header nav on
@@ -30,6 +31,8 @@ test("student on a 360 px phone: 5-item bottom nav, one tap to rewards, nothing 
 
     const nav = page.getByRole("navigation", { name: "เมนูหลัก" });
     await expect(nav).toBeVisible();
+    // viewport-fit=cover, so the safe-area padding of the nav takes effect on notched phones
+    await expect(page.locator('meta[name="viewport"]')).toHaveAttribute("content", /viewport-fit=cover/);
     const links = nav.getByRole("link");
     await expect(links).toHaveCount(5);
     await expect(links.nth(0)).toHaveAccessibleName("หน้าหลัก");
@@ -136,21 +139,45 @@ test("staff drawer on mobile lists admin items only for admins and closes after 
       await expect(menu).toBeHidden();
       const toggle = page.getByRole("button", { name: "เมนู" });
       await expect(toggle).toBeVisible();
+      // the menu content is streamed in; wait until it is there (hidden) before opening
+      const panelId = await toggle.getAttribute("aria-controls");
+      await expect(page.locator(`[id="${panelId}"] a[href="/staff/reports"]`)).toBeAttached();
       await expect(toggle).toHaveAttribute("aria-expanded", "false");
-      await toggle.click();
-      await expect(toggle).toHaveAttribute("aria-expanded", "true");
+      await openStaffMenu(page);
       await expect(menu).toBeVisible();
+      // focus moves into the panel (first link)
+      await expect(menu.getByRole("link", { name: "หน้าหลัก", exact: true })).toBeFocused();
       for (const name of common) await expect(menu.getByRole("link", { name, exact: true })).toBeVisible();
       await expect(menu.getByRole("button", { name: "ออกจากระบบ" })).toBeVisible();
       const adminItems = [menu.getByRole("link", { name: "ผู้ใช้", exact: true }), menu.getByRole("link", { name: "อัตรา", exact: true })];
       for (const item of adminItems) await expect(item).toHaveCount(user.role === "admin" ? 1 : 0);
+      if (user.role === "teacher") {
+        // not just hidden: no admin link anywhere in the DOM (the drawer and the sidebar copy included)
+        await expect(page.locator('a[href="/staff/users"]')).toHaveCount(0);
+        await expect(page.locator('a[href="/staff/rates"]')).toHaveCount(0);
+      }
       await expect(menu.getByRole("link", { name: "หน้าหลัก", exact: true })).toHaveAttribute("aria-current", "page");
       // the bell stays in the header
       await expect(page.getByRole("banner").getByRole("link", { name: /^แจ้งเตือน (ไม่มีรายการใหม่|ยังไม่อ่าน)/ })).toBeVisible();
       await noSideScroll(page);
 
+      // Escape closes it from anywhere and gives focus back to the toggle
+      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur()); // focus outside the panel
+      await page.keyboard.press("Escape");
+      await expect(menu).toBeHidden();
+      await expect(toggle).toHaveAttribute("aria-expanded", "false");
+      await expect(toggle).toBeFocused();
+
+      // a link tap closes it
+      await openStaffMenu(page);
       await menu.getByRole("link", { name: "ตรวจผล", exact: true }).click();
       await expect(page).toHaveURL((url) => url.pathname === "/staff/reviews");
+      await expect(menu).toBeHidden();
+
+      // so does any navigation from outside the panel (pathname change)
+      await openStaffMenu(page);
+      await page.getByRole("link", { name: /Green Campus/ }).click();
+      await expect(page).toHaveURL((url) => url.pathname === "/staff");
       await expect(menu).toBeHidden();
       await page.close();
     }
@@ -172,6 +199,9 @@ test("staff sidebar on desktop; staff /profile and /notifications keep the staff
     await expect(page.getByRole("button", { name: "เมนู" })).toBeHidden();
     await expect(side.getByRole("link", { name: "ออเดอร์", exact: true })).toHaveAttribute("aria-current", "page");
     await expect(side.getByRole("link", { name: "ผู้ใช้", exact: true })).toHaveCount(0);
+    // hidden elements included: no admin link anywhere for a teacher
+    await expect(page.locator('a[href="/staff/users"]')).toHaveCount(0);
+    await expect(page.locator('a[href="/staff/rates"]')).toHaveCount(0);
 
     // the student-only pages send staff to the staff versions, inside the staff shell
     for (const [from, to, heading] of [
