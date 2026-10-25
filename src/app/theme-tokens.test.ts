@@ -74,6 +74,16 @@ const pairs: [string, string, number][] = [
   ...[1, 2, 3, 4].map((n) => [`chart-${n}`, "surface", 3] as [string, string, number]),
 ];
 
+describe("base rules", () => {
+  const base = blockAfter(css, "@layer base").replace(/\s+/g, " ");
+  it.each(["h1, h2, h3", ":focus-visible", "body", "::selection"])(
+    "%s rule is inside @layer base so utilities can override it",
+    (sel) => {
+      expect(base).toContain(sel + " {");
+    },
+  );
+});
+
 describe("theme tokens", () => {
   it("dark tokens are identical for data-theme and system dark", () => {
     expect(Object.keys(dark).length).toBeGreaterThan(10);
