@@ -71,7 +71,7 @@ const problems = [];
 // 1. forbidden paths
 let changed = new Set();
 try {
-  changed = new Set([...git(["diff", "--name-only", "main...HEAD"]), ...git(["diff", "--name-only", "HEAD"])]);
+  changed = new Set([...git(["diff", "--name-only", "main...HEAD"]), ...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])]);
 } catch (e) {
   problems.push(`git diff failed: ${e.message}`);
 }
