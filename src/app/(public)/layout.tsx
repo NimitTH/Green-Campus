@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 // Public shell (/articles, spec 9.1). No session read here, so the pages stay cacheable for everyone.
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
@@ -16,6 +17,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
             เข้าสู่ระบบ / หน้าของฉัน
           </Link>
         </nav>
+        <ThemeToggle compact />
       </header>
       {children}
     </div>

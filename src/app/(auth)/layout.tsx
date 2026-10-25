@@ -1,9 +1,13 @@
 import Link from "next/link";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <main className="flex flex-1 flex-col items-center px-4 py-8 sm:justify-center">
       <div className="w-full max-w-sm">
+        <div className="mb-2 flex justify-end">
+          <ThemeToggle compact />
+        </div>
         <Link href="/" className="mb-6 block text-center text-xl font-semibold text-green-700">
           Green Campus
         </Link>

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, IBM_Plex_Sans_Thai, Sarabun } from "next/font/google";
+import { THEME_INIT_SCRIPT } from "@/components/ui/theme";
 import "./globals.css";
 
 const sarabun = Sarabun({
@@ -41,8 +42,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="th"
+      suppressHydrationWarning
       className={`${sarabun.variable} ${plexThai.variable} ${geistMono.variable} font-sans h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
