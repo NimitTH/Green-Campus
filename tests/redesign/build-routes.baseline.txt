@@ -1,0 +1,3 @@
+Route (app)                        Revalidate  Expire
+┌ ○ /                                      1m      1h
+├ ○ /articles                              1m      1h
