@@ -1,11 +1,25 @@
 import type { Metadata, Viewport } from "next";
-import { Sarabun } from "next/font/google";
+import { Geist_Mono, IBM_Plex_Sans_Thai, Sarabun } from "next/font/google";
 import "./globals.css";
 
 const sarabun = Sarabun({
   variable: "--font-sarabun",
   subsets: ["thai", "latin"],
   weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+
+const plexThai = IBM_Plex_Sans_Thai({
+  variable: "--font-plex-thai",
+  subsets: ["thai", "latin"],
+  weight: ["600", "700"],
+  display: "swap",
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+  weight: ["400", "600"],
   display: "swap",
 });
 
@@ -27,7 +41,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="th"
-      className={`${sarabun.variable} font-sans h-full antialiased`}
+      className={`${sarabun.variable} ${plexThai.variable} ${geistMono.variable} font-sans h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
