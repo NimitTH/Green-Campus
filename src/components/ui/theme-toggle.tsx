@@ -34,11 +34,15 @@ function getSnapshot(): ThemeChoice {
 // after hydration without a hydration error (the <html> attribute itself is set earlier by THEME_INIT_SCRIPT).
 function useThemeChoice(): ThemeChoice {
   const choice = useSyncExternalStore(subscribe, getSnapshot, () => "system" as ThemeChoice);
-  // React's dev Strict Mode remount resets <html> attributes it does not manage; re-apply (no storage write).
+  // Re-apply <html data-theme> (no storage write) for React's dev Strict Mode remount, which clears attributes it
+  // does not manage. Apply the value read from storage now, NOT `choice`: during hydration `choice` is still the
+  // server snapshot "system", and applying it would remove the attribute the head script set (a flash). `choice`
+  // stays a dependency so a cross-tab `storage` change re-runs this.
   useLayoutEffect(() => {
+    const stored = readThemeChoice(safeLocalStorage());
     const root = document.documentElement;
-    if (choice === "system") root.removeAttribute("data-theme");
-    else root.setAttribute("data-theme", choice);
+    if (stored === "system") root.removeAttribute("data-theme");
+    else root.setAttribute("data-theme", stored);
   }, [choice]);
   return choice;
 }

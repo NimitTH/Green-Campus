@@ -5,6 +5,7 @@ import { expect, test, type Page } from "@playwright/test";
 declare global {
   interface Window {
     __themeAtDcl?: string;
+    __themeLog?: { from: string | null; to: string | null }[];
   }
 }
 
@@ -37,12 +38,41 @@ test("theme choice survives a reload with no flash", async ({ page }) => {
     document.addEventListener("DOMContentLoaded", () => {
       window.__themeAtDcl = document.documentElement.dataset.theme;
     });
+    // Records every data-theme change on <html> from the very start of parsing, so a flash after
+    // DOMContentLoaded (e.g. hydration clearing the attribute) is visible.
+    window.__themeLog = [];
+    const observe = () => {
+      // One entry per batch of mutations (no paint can happen inside one task): the value before the batch and the
+      // value after it. React's dev Strict Mode clears and restores the attribute within a single task, which is
+      // not visible; a removal that survives the task is the flash this test exists to catch.
+      new MutationObserver((records) => {
+        const changes = records.filter((r) => r.attributeName === "data-theme");
+        if (changes.length === 0) return;
+        window.__themeLog!.push({ from: changes[0].oldValue, to: document.documentElement.getAttribute("data-theme") });
+      }).observe(document.documentElement, { attributes: true, attributeOldValue: true });
+    };
+    if (document.documentElement) observe();
+    else {
+      const wait = new MutationObserver(() => {
+        if (document.documentElement) {
+          wait.disconnect();
+          observe();
+        }
+      });
+      wait.observe(document, { childList: true });
+    }
   });
   await page.goto("/articles");
   await chooseTheme(page, "มืด");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.reload();
   await expect.poll(() => page.evaluate(() => window.__themeAtDcl)).toBe("dark");
+  await page.waitForLoadState("networkidle");
+  await page.waitForTimeout(500);
+  // after the head script set "dark" nothing may change the attribute again (no removal, no other value)
+  const log = await page.evaluate(() => window.__themeLog);
+  expect(log![0]).toEqual({ from: null, to: "dark" });
+  expect(log!.slice(1).filter((e) => e.from !== "dark" || e.to !== "dark")).toEqual([]);
   await page.getByRole("button", { name: "ธีม" }).click();
   await expect(page.getByRole("radio", { name: "มืด" })).toHaveAttribute("aria-checked", "true");
   expect(problems).toEqual([]);
