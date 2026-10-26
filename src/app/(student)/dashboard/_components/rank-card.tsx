@@ -14,10 +14,10 @@ export async function RankCard() {
   return (
     <Link
       href="/leaderboard"
-      className="mb-4 block rounded-2xl border border-gray-200 p-4 font-semibold hover:border-green-600 dark:border-gray-800"
+      className="mb-4 block rounded-card border border-rule bg-surface p-4 font-semibold text-ink shadow-card hover:border-accent"
     >
       {rank === null ? "อันดับเดือนนี้ ยังไม่มีอันดับ" : `อันดับเดือนนี้ #${rank}`}
-      <span className="block text-sm font-normal text-gray-600 dark:text-gray-400">ดูอันดับคาร์บอนทั้งหมด</span>
+      <span className="block text-sm font-normal text-muted">ดูอันดับคาร์บอนทั้งหมด</span>
     </Link>
   );
 }

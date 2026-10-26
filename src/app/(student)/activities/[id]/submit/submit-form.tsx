@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useRef, useState } from "react";
+import { Button, Card, inputClass } from "@/components/ui";
 import { submitResult, type SubmitItem } from "@/app/actions/submissions";
 import { submitErrorMessageTh, uploadErrorCode } from "@/lib/errors";
 import { ImageError, resizeToJpeg } from "@/lib/image";
@@ -27,9 +28,6 @@ type Weight = { kg: string; khit: string };
 const REQUEST_TIMEOUT_MS = 60_000;
 /** After these the student may already have a submission (lost response): point to ผลที่ส่ง. */
 const CHECK_HISTORY_CODES = new Set(["code_invalid", "request_timeout", "evidence_already_used", "already_submitted"]);
-
-const inputClass =
-  "w-full rounded-lg border border-gray-300 px-3 py-2 text-base dark:border-gray-700 dark:bg-gray-900";
 
 /** "" -> 0; a non-negative number -> it; anything else -> null. */
 function parseNumber(text: string, integer: boolean): number | null {
@@ -210,15 +208,15 @@ export function SubmitForm({
     <form onSubmit={onSubmit} className="space-y-6" noValidate>
       {activity.type === "waste" ? (
         <fieldset className="space-y-3">
-          <legend className="mb-2 font-semibold">น้ำหนักขยะแต่ละกลุ่ม</legend>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <legend className="mb-2 font-display text-lg font-semibold">น้ำหนักขยะแต่ละกลุ่ม</legend>
+          <p className="text-sm text-muted">
             กรอกเป็นกิโลกรัมและขีด (1 ขีด = 100 กรัม) เว้นว่างกลุ่มที่ไม่มี
             {activity.maxPerSubmission !== null ? ` · รวมไม่เกิน ${activity.maxPerSubmission / 1000} กก. ต่อครั้ง` : ""}
           </p>
           {categories.map((c) => (
-            <div key={c.id} className="grid grid-cols-[1fr_6rem_5rem] items-end gap-2">
-              <span className="pb-2 break-words">{c.name}</span>
-              <label className="text-xs text-gray-600 dark:text-gray-400">
+            <Card key={c.id} className="grid grid-cols-2 items-end gap-3">
+              <span className="col-span-2 font-semibold break-words">{c.name}</span>
+              <label className="text-sm text-muted">
                 กก.
                 <input
                   aria-label={`${c.name} กิโลกรัม`}
@@ -228,7 +226,7 @@ export function SubmitForm({
                   onChange={(e) => setWeight(c.id, "kg", e.target.value)}
                 />
               </label>
-              <label className="text-xs text-gray-600 dark:text-gray-400">
+              <label className="text-sm text-muted">
                 ขีด
                 <input
                   aria-label={`${c.name} ขีด`}
@@ -238,79 +236,84 @@ export function SubmitForm({
                   onChange={(e) => setWeight(c.id, "khit", e.target.value)}
                 />
               </label>
-            </div>
+            </Card>
           ))}
         </fieldset>
       ) : null}
 
       {activity.type === "trees" ? (
-        <label className="block">
-          <span className="mb-1 block font-semibold">จำนวนต้นไม้ที่ปลูก</span>
-          <input
-            inputMode="numeric"
-            className={inputClass}
-            value={trees}
-            onChange={(e) => setTrees(e.target.value)}
-          />
-          {activity.maxPerSubmission !== null ? (
-            <span className="mt-1 block text-sm text-gray-600 dark:text-gray-400">
-              ไม่เกิน {activity.maxPerSubmission} ต้นต่อครั้ง
-            </span>
-          ) : null}
-        </label>
+        <Card as="div">
+          <label className="block">
+            <span className="mb-1 block font-semibold">จำนวนต้นไม้ที่ปลูก</span>
+            <input
+              inputMode="numeric"
+              className={inputClass}
+              value={trees}
+              onChange={(e) => setTrees(e.target.value)}
+            />
+            {activity.maxPerSubmission !== null ? (
+              <span className="mt-1 block text-sm text-muted">
+                ไม่เกิน {activity.maxPerSubmission} ต้นต่อครั้ง
+              </span>
+            ) : null}
+          </label>
+        </Card>
       ) : null}
 
-      <label className="block">
-        <span className="mb-1 block font-semibold">รูปหลักฐาน</span>
+      <label className="block rounded-card border border-dashed border-rule-strong bg-paper p-4">
+        <span className="mb-2 block font-semibold">รูปหลักฐาน</span>
         <input
           ref={fileInput}
           type="file"
           accept="image/*"
           capture="environment"
-          className="block w-full text-sm"
+          className="block w-full text-sm text-ink file:mr-3 file:min-h-11 file:rounded-input file:border file:border-rule-strong file:bg-surface file:px-4 file:text-ink"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         />
-        <span className="mt-1 block text-sm text-gray-600 dark:text-gray-400">
+        <span className="mt-2 block text-sm text-muted">
           ถ่ายรูปขณะชั่งหรือทำกิจกรรม ระบบจะย่อรูปให้อัตโนมัติ
         </span>
       </label>
 
       {activity.requiresCode ? (
-        <label className="block">
-          <span className="mb-1 block font-semibold">รหัสจากจุดชั่ง (6 หลัก)</span>
-          <input
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            maxLength={6}
-            pattern="\d{6}"
-            className={`${inputClass} font-mono tracking-widest`}
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-          />
-        </label>
+        <Card as="div">
+          <label className="block">
+            <span className="mb-1 block font-semibold">รหัสจากจุดชั่ง (6 หลัก)</span>
+            <input
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              pattern="\d{6}"
+              className={`${inputClass} min-h-12 font-mono text-xl tracking-[0.3em]`}
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+            />
+          </label>
+        </Card>
       ) : null}
 
-      <section
+      <Card
+        as="section"
+        tone="accent"
         aria-labelledby={`${formId}-estimate`}
-        className="rounded-2xl border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950"
       >
-        <h2 id={`${formId}-estimate`} className="font-semibold">
+        <h2 id={`${formId}-estimate`} className="font-display font-semibold">
           ประมาณการแต้มและ carbon
         </h2>
         {est ? (
-          <p className="mt-1 text-lg">
+          <p className="mt-1 font-mono text-lg">
             {est.points.toLocaleString("th-TH")} แต้ม · {est.carbonKg.toLocaleString("th-TH")} กก. CO2e
           </p>
         ) : (
-          <p className="mt-1 text-lg">-</p>
+          <p className="mt-1 font-mono text-lg">-</p>
         )}
-        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+        <p className="mt-1 text-sm text-muted">
           เป็นค่าประมาณเท่านั้น แต้มจริงจะได้เมื่อครูตรวจผ่าน
         </p>
-      </section>
+      </Card>
 
       {error ? (
-        <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+        <p role="alert" className="rounded-input border border-danger p-3 text-sm text-danger">
           {error.message}
           {error.code && CHECK_HISTORY_CODES.has(error.code) ? (
             <>
@@ -323,13 +326,9 @@ export function SubmitForm({
         </p>
       ) : null}
 
-      <button
-        type="submit"
-        disabled={busy}
-        className="w-full rounded-lg bg-green-700 px-4 py-3 text-base font-semibold text-white hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-60"
-      >
+      <Button type="submit" variant="primary" size="lg" disabled={busy} className="w-full sm:w-auto">
         {busy ? (stage ?? "กำลังส่ง...") : "ส่งผล"}
-      </button>
+      </Button>
     </form>
   );
 }

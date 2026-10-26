@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { WasteByCategory } from "@/components/charts/WasteByCategory";
 import { Badge } from "@/app/_components/activity-ui";
+import { Card, EmptyState, Stat } from "@/components/ui";
 import { submissionStatusLabelTh } from "@/lib/activities/labels";
 import { formatBangkok } from "@/lib/datetime";
 import { createServerClient } from "@/lib/supabase/server";
@@ -69,66 +70,60 @@ export async function StudentStats({ studentId }: { studentId: string }) {
 
   return (
     <>
-      <div className="mb-4 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
-          <p className="text-sm text-gray-600 dark:text-gray-400">แต้มคงเหลือ</p>
-          <p data-testid="points" className="text-2xl font-semibold">
-            {intFormat.format(points)}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
-          <p className="text-sm text-gray-600 dark:text-gray-400">คาร์บอนสะสม</p>
-          <p className="text-2xl font-semibold">
-            <span data-testid="carbon">{carbonFormat.format(carbon)}</span>{" "}
-            <span className="text-sm font-normal">กก. CO2e</span>
-          </p>
-        </div>
-      </div>
+      <Card tone="accent" className="mb-4 grid grid-cols-2 gap-4">
+        <Stat label="แต้มคงเหลือ" size="lg" data-testid="points" className="break-words">
+          {intFormat.format(points)}
+        </Stat>
+        <Stat label="คาร์บอนสะสม" size="lg" className="break-words">
+          <span data-testid="carbon">{carbonFormat.format(carbon)}</span>{" "}
+          <span className="text-sm font-normal">กก. CO2e</span>
+        </Stat>
+      </Card>
       {trees > 0 ? (
-        <p data-testid="trees" className="mb-4 text-sm text-gray-700 dark:text-gray-300">
+        <p data-testid="trees" className="mb-4 text-sm text-muted">
           ปลูกต้นไม้แล้วทั้งหมด {intFormat.format(trees)} ต้น
         </p>
       ) : null}
 
-      <section className="mb-4 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
-        <h2 className="mb-3 font-semibold">น้ำหนักขยะที่อนุมัติแล้ว (กก.) แยกตามกลุ่ม</h2>
+      <Card as="section" className="mb-4">
+        <h2 className="mb-3 font-display font-semibold">น้ำหนักขยะที่อนุมัติแล้ว (กก.) แยกตามกลุ่ม</h2>
         {totalGrams > 0 ? (
           <WasteByCategory data={chartData} />
         ) : (approvedCount.count ?? 0) === 0 ? (
-          <div className="py-4 text-center text-gray-600 dark:text-gray-400">
+          <EmptyState>
             <p>ยังไม่มีผลกิจกรรม</p>
-            <Link href="/activities" className="text-green-700 underline">
+            <Link href="/activities" className="text-accent underline">
               ดูกิจกรรม
             </Link>
-          </div>
+          </EmptyState>
         ) : (
-          <p className="py-4 text-center text-gray-600 dark:text-gray-400">ยังไม่มีผลขยะที่อนุมัติ</p>
+          <EmptyState>ยังไม่มีผลขยะที่อนุมัติ</EmptyState>
         )}
-      </section>
+      </Card>
 
-      <section className="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+      <Card as="section">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-semibold">ประวัติล่าสุด</h2>
-          <Link href="/my-submissions" className="text-sm text-green-700 underline">
+          <h2 className="font-display font-semibold">ประวัติล่าสุด</h2>
+          <Link href="/my-submissions" className="text-sm text-accent underline">
             ดูทั้งหมด
           </Link>
         </div>
         {recentRows.length === 0 ? (
-          <p className="text-sm text-gray-600 dark:text-gray-400">ยังไม่มีผลที่ส่ง</p>
+          <p className="text-sm text-muted">ยังไม่มีผลที่ส่ง</p>
         ) : (
-          <ul className="space-y-2">
+          <ul className="divide-y divide-rule">
             {recentRows.map((r) => (
-              <li key={r.id} data-testid="recent-submission" className="flex items-start justify-between gap-3">
+              <li key={r.id} data-testid="recent-submission" className="flex items-start justify-between gap-3 py-2 first:pt-0 last:pb-0">
                 <div>
                   <p className="break-words">{one(r.activities)?.title ?? "-"}</p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">{formatBangkok(r.created_at)}</p>
+                  <p className="text-xs text-muted">{formatBangkok(r.created_at)}</p>
                 </div>
                 <Badge tone={TONE[r.status] ?? "gray"}>{submissionStatusLabelTh(r.status)}</Badge>
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </Card>
     </>
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Badge } from "@/app/_components/activity-ui";
+import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { requireUser } from "@/lib/auth/dal";
 import { submissionStatusLabelTh, typeLabelTh } from "@/lib/activities/labels";
@@ -12,7 +13,9 @@ export const metadata: Metadata = { title: "ผลที่ส่ง | Green Cam
 export default function MySubmissionsPage() {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
-      <h1 className="mb-5 text-xl font-semibold">ผลที่ส่ง</h1>
+      <div className="mb-5">
+        <PageHeader title="ผลที่ส่ง" />
+      </div>
       <Suspense fallback={<PageSkeleton />}>
         <SubmissionList />
       </Suspense>
@@ -85,9 +88,7 @@ async function SubmissionList() {
 
   if (rows.length === 0) {
     return (
-      <section className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-gray-600 dark:border-gray-700 dark:text-gray-400">
-        ยังไม่มีผลที่ส่ง
-      </section>
+      <EmptyState>ยังไม่มีผลที่ส่ง</EmptyState>
     );
   }
 
@@ -97,28 +98,24 @@ async function SubmissionList() {
         const activity = one(row.activities);
         const earn = earns.get(row.id);
         return (
-          <li
-            key={row.id}
-            data-testid="submission"
-            className="rounded-2xl border border-gray-200 p-4 dark:border-gray-800"
-          >
+          <Card as="li" key={row.id} data-testid="submission">
             <div className="flex items-start justify-between gap-3">
               <p className="font-medium break-words">{activity?.title ?? "-"}</p>
               <Badge tone={TONE[row.status] ?? "gray"}>{submissionStatusLabelTh(row.status)}</Badge>
             </div>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+            <p className="mt-1 text-sm text-muted">
               {activity ? typeLabelTh(activity.type) : "-"} · {amountsTh(row, activity?.type)}
             </p>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">ส่งเมื่อ {formatBangkok(row.created_at)}</p>
+            <p className="mt-1 text-sm text-muted">ส่งเมื่อ {formatBangkok(row.created_at)}</p>
             {row.status === "approved" && earn ? (
-              <p className="mt-2 text-sm text-green-800 dark:text-green-300">
+              <p className="mt-2 text-sm text-accent">
                 ได้ {earn.points.toLocaleString("th-TH")} แต้ม · {carbonFormat.format(Number(earn.carbon_kg))} กก. CO2e
               </p>
             ) : null}
             {row.status === "rejected" && row.reject_reason ? (
-              <p className="mt-2 text-sm text-red-800 dark:text-red-300">เหตุผล: {row.reject_reason}</p>
+              <p className="mt-2 text-sm text-danger">เหตุผล: {row.reject_reason}</p>
             ) : null}
-          </li>
+          </Card>
         );
       })}
     </ul>

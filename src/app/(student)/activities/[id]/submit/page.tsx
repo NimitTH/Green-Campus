@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { EmptyState } from "@/components/ui";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { requireUser } from "@/lib/auth/dal";
 import { getActivity, hasActiveSubmission, hasJoined } from "@/lib/activities/queries";
@@ -25,12 +26,12 @@ export default function SubmitPage({ params }: { params: Promise<{ id: string }>
 
 function Notice({ activityId, children }: { activityId: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-gray-600 dark:border-gray-700 dark:text-gray-400">
+    <EmptyState>
       <p>{children}</p>
-      <Link href={`/activities/${activityId}`} className="mt-3 inline-block text-sm text-green-700 underline">
+      <Link href={`/activities/${activityId}`} className="mt-3 inline-block text-sm text-accent underline">
         กลับไปหน้ากิจกรรม
       </Link>
-    </section>
+    </EmptyState>
   );
 }
 
@@ -42,7 +43,7 @@ async function Submit({ params }: { params: Promise<{ id: string }> }) {
   if (!activity) notFound();
 
   const back = (
-    <Link href={`/activities/${activity.id}`} className="mb-4 inline-block text-sm text-green-700 underline">
+    <Link href={`/activities/${activity.id}`} className="mb-4 inline-block text-sm text-accent underline">
       ← {activity.title}
     </Link>
   );
@@ -64,12 +65,12 @@ async function Submit({ params }: { params: Promise<{ id: string }> }) {
     return (
       <>
         {back}
-        <section className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-gray-600 dark:border-gray-700 dark:text-gray-400">
+        <EmptyState>
           <p className="font-semibold">ส่งผลแล้ว</p>
-          <Link href="/my-submissions" className="mt-3 inline-block text-sm text-green-700 underline">
+          <Link href="/my-submissions" className="mt-3 inline-block text-sm text-accent underline">
             ดูผลที่ส่ง
           </Link>
-        </section>
+        </EmptyState>
       </>
     );
   }
@@ -91,7 +92,7 @@ async function Submit({ params }: { params: Promise<{ id: string }> }) {
   return (
     <>
       {back}
-      <h1 className="mb-5 text-xl font-semibold break-words">ส่งผล: {activity.title}</h1>
+      <h1 className="mb-5 font-display text-[clamp(1.75rem,2vw+1rem,2.25rem)] font-semibold leading-tight tracking-[-0.01em] text-ink break-words">ส่งผล: {activity.title}</h1>
       <SubmitForm
         userId={user.id}
         activity={{

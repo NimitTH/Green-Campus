@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { EmptyState, PageHeader } from "@/components/ui";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { requireUser } from "@/lib/auth/dal";
 import { formatKg } from "@/lib/leaderboard/format";
@@ -18,7 +19,9 @@ type Search = Promise<{ period?: string | string[] }>;
 export default function LeaderboardPage({ searchParams }: { searchParams: Search }) {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
-      <h1 className="mb-4 text-xl font-semibold">อันดับคาร์บอน</h1>
+      <div className="mb-4">
+        <PageHeader title="อันดับคาร์บอน" />
+      </div>
       <Suspense fallback={<PageSkeleton />}>
         <Leaderboard searchParams={searchParams} />
       </Suspense>
@@ -41,8 +44,8 @@ async function Leaderboard({ searchParams }: { searchParams: Search }) {
             aria-current={t.period === period ? "page" : undefined}
             className={
               t.period === period
-                ? "rounded-full bg-green-700 px-4 py-2 text-sm font-semibold text-white"
-                : "rounded-full border border-gray-300 px-4 py-2 text-sm hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-900"
+                ? "inline-flex min-h-11 items-center rounded-full bg-accent px-4 text-sm font-semibold text-on-accent"
+                : "inline-flex min-h-11 items-center rounded-full border border-rule-strong bg-surface px-4 text-sm text-ink hover:bg-accent-soft"
             }
           >
             {t.label}
@@ -50,15 +53,13 @@ async function Leaderboard({ searchParams }: { searchParams: Search }) {
         ))}
       </nav>
       {rows.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-gray-600 dark:border-gray-700 dark:text-gray-400">
-          ยังไม่มีอันดับในช่วงนี้
-        </p>
+        <EmptyState>ยังไม่มีอันดับในช่วงนี้</EmptyState>
       ) : (
         <ol className="space-y-2">
           {rows.map((r, i) => (
             <li key={`${r.rank}-${i}`}>
               {r.isMe && r.rank !== null && r.rank > 10 ? (
-                <p aria-hidden="true" className="pb-2 text-center text-gray-500">
+                <p aria-hidden="true" className="pb-2 text-center text-muted">
                   …
                 </p>
               ) : null}
@@ -75,20 +76,20 @@ function Row({ row }: { row: LeaderboardRow }) {
   return (
     <div
       data-testid={row.isMe ? "lb-me" : "lb-row"}
-      className={`flex items-center gap-3 rounded-2xl border p-3 ${
-        row.isMe ? "border-green-600 bg-green-50 dark:bg-green-950" : "border-gray-200 dark:border-gray-800"
+      className={`flex items-center gap-3 rounded-card border p-3 text-ink shadow-card ${
+        row.isMe ? "border-accent bg-accent-soft" : "border-rule bg-surface"
       }`}
     >
-      <span data-testid="lb-rank" className="w-8 shrink-0 text-center font-semibold">
+      <span data-testid="lb-rank" className="w-8 shrink-0 text-center font-mono font-semibold">
         {row.rank ?? "-"}
       </span>
       <span className="min-w-0 flex-1 break-words">
         {row.displayName}
-        {row.isMe ? <span className="ml-2 text-xs text-green-700 dark:text-green-400">(คุณ)</span> : null}
+        {row.isMe ? <span className="ml-2 text-xs text-accent">(คุณ)</span> : null}
       </span>
-      <span className="shrink-0 text-right font-semibold">
+      <span className="shrink-0 text-right font-mono font-semibold">
         {row.rank === null ? (
-          <span className="text-sm font-normal text-gray-600 dark:text-gray-400">ยังไม่มีอันดับ</span>
+          <span className="font-sans text-sm font-normal text-muted">ยังไม่มีอันดับ</span>
         ) : (
           <>
             {formatKg(row.carbonKg)} <span className="text-xs font-normal">กก.</span>

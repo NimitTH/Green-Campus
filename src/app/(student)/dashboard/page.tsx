@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { requireUser } from "@/lib/auth/dal";
 import { isStaffRole } from "@/lib/auth/routes";
 import { previewDisplayName } from "@/lib/profile/validation";
+import { buttonClass } from "@/components/ui";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { RankCard } from "./_components/rank-card";
 import { StudentStats } from "./_components/student-stats";
@@ -11,7 +12,7 @@ import { StudentStats } from "./_components/student-stats";
 export const metadata: Metadata = { title: "หน้าหลัก | Green Campus" };
 
 const cardClass =
-  "block rounded-2xl border border-gray-200 p-4 font-semibold break-words hover:border-green-600 dark:border-gray-800";
+  "block rounded-card border border-rule bg-surface p-4 font-semibold break-words text-ink shadow-card hover:border-accent";
 
 // Hub for the pages that are not in the bottom nav (spec 9.2). Sign out lives on /profile ("ฉัน").
 const HUB = [
@@ -40,20 +41,20 @@ async function DashboardContent() {
   return (
     <>
       <div className="mb-6">
-        <p className="text-sm text-gray-500">สวัสดี</p>
-        <h1 className="text-xl font-semibold">{previewDisplayName(user.displayName, user.fullName)}</h1>
+        <p className="text-sm text-muted">สวัสดี</p>
+        <h1 className="font-display text-[clamp(1.75rem,2vw+1rem,2.25rem)] font-semibold leading-tight tracking-[-0.01em] text-ink">{previewDisplayName(user.displayName, user.fullName)}</h1>
       </div>
       <nav aria-label="เมนูนักเรียน" className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {HUB.map((m) => (
           <Link key={m.href} href={m.href} className={cardClass}>
             {m.label}
-            <span className="block text-sm font-normal text-gray-600 dark:text-gray-400">{m.hint}</span>
+            <span className="block text-sm font-normal text-muted">{m.hint}</span>
           </Link>
         ))}
       </nav>
       {isStaffRole(user.role) ? (
         <p className="text-center">
-          <Link href="/staff" className="inline-block rounded-2xl bg-green-700 px-5 py-3 font-semibold text-white">
+          <Link href="/staff" className={buttonClass({ variant: "primary", size: "lg" })}>
             ไปหน้าครูและผู้ดูแล
           </Link>
         </p>
