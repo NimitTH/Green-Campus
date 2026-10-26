@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { Badge, Button, Card, Field, PageHeader, Stat, buttonClass } from "./index";
+import { Badge, Button, Card, Field, PageHeader, Stat, buttonClass, inputClass, inputClassLg } from "./index";
 
 const html = (el: React.ReactElement) => renderToStaticMarkup(el);
 
@@ -71,6 +71,19 @@ describe("Stat", () => {
     const out = html(createElement(Stat, { label: "แต้ม", "data-testid": "points" } as React.ComponentProps<typeof Stat>, "120"));
     expect(out).toMatch(/<p[^>]*data-testid="points"[^>]*>120<\/p>/);
     expect(out).toMatch(/<p[^>]*font-mono[^>]*data-testid="points"|<p[^>]*data-testid="points"[^>]*font-mono/);
+  });
+});
+
+describe("inputClassLg", () => {
+  it("swaps the size utilities instead of stacking them", () => {
+    expect(inputClassLg).toContain("min-h-12");
+    expect(inputClassLg).toContain("text-xl");
+    expect(inputClassLg).not.toContain("min-h-11");
+    expect(inputClassLg).not.toContain("text-base");
+  });
+  it("leaves inputClass unchanged", () => {
+    expect(inputClass).toContain("min-h-11");
+    expect(inputClass).toContain("text-base");
   });
 });
 

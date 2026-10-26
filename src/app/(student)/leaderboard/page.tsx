@@ -87,12 +87,12 @@ function Row({ row }: { row: LeaderboardRow }) {
         {row.displayName}
         {row.isMe ? <span className="ml-2 text-xs text-accent">(คุณ)</span> : null}
       </span>
-      <span className="shrink-0 text-right font-mono font-semibold">
+      <span className="shrink-0 text-right font-semibold">
         {row.rank === null ? (
-          <span className="font-sans text-sm font-normal text-muted">ยังไม่มีอันดับ</span>
+          <span className="text-sm font-normal text-muted">ยังไม่มีอันดับ</span>
         ) : (
           <>
-            {formatKg(row.carbonKg)} <span className="text-xs font-normal">กก.</span>
+            <span className="font-mono">{formatKg(row.carbonKg)}</span> <span className="text-xs font-normal">กก.</span>
           </>
         )}
       </span>

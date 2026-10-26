@@ -3,6 +3,8 @@ export const inputClass =
   "placeholder:text-muted focus:border-accent focus:outline-2 focus:outline-offset-2 focus:outline-accent " +
   "disabled:opacity-55";
 
+export const inputClassLg = inputClass.replace("min-h-11", "min-h-12").replace("text-base", "text-xl");
+
 /** The caller passes the id (from useId) and puts the matching control in children. */
 export function Field({
   id,

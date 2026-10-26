@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useRef, useState } from "react";
-import { Button, Card, inputClass } from "@/components/ui";
+import { Button, Card, inputClass, inputClassLg } from "@/components/ui";
 import { submitResult, type SubmitItem } from "@/app/actions/submissions";
 import { submitErrorMessageTh, uploadErrorCode } from "@/lib/errors";
 import { ImageError, resizeToJpeg } from "@/lib/image";
@@ -284,7 +284,7 @@ export function SubmitForm({
               autoComplete="one-time-code"
               maxLength={6}
               pattern="\d{6}"
-              className={`${inputClass} min-h-12 font-mono text-xl tracking-[0.3em]`}
+              className={`${inputClassLg} font-mono tracking-[0.3em]`}
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
             />
@@ -301,11 +301,12 @@ export function SubmitForm({
           ประมาณการแต้มและ carbon
         </h2>
         {est ? (
-          <p className="mt-1 font-mono text-lg">
-            {est.points.toLocaleString("th-TH")} แต้ม · {est.carbonKg.toLocaleString("th-TH")} กก. CO2e
+          <p className="mt-1 text-lg">
+            <span className="font-mono">{est.points.toLocaleString("th-TH")}</span> แต้ม ·{" "}
+            <span className="font-mono">{est.carbonKg.toLocaleString("th-TH")}</span> กก. CO2e
           </p>
         ) : (
-          <p className="mt-1 font-mono text-lg">-</p>
+          <p className="mt-1 text-lg">-</p>
         )}
         <p className="mt-1 text-sm text-muted">
           เป็นค่าประมาณเท่านั้น แต้มจริงจะได้เมื่อครูตรวจผ่าน

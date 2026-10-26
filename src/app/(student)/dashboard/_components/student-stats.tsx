@@ -76,7 +76,7 @@ export async function StudentStats({ studentId }: { studentId: string }) {
         </Stat>
         <Stat label="คาร์บอนสะสม" size="lg" className="break-words">
           <span data-testid="carbon">{carbonFormat.format(carbon)}</span>{" "}
-          <span className="text-sm font-normal">กก. CO2e</span>
+          <span className="font-sans text-sm font-normal">กก. CO2e</span>
         </Stat>
       </Card>
       {trees > 0 ? (
