@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { ButtonLink, PageHeader } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/dal";
 import { createServerClient } from "@/lib/supabase/server";
 import { WeighStation } from "./_components/weigh-station";
@@ -11,11 +11,15 @@ export const metadata: Metadata = { title: "จุดชั่ง | Green Campus
 export default function WeighStationPage() {
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">จุดชั่ง · ออกรหัส</h1>
-        <Link href="/staff" className="text-sm text-green-700 underline">
-          กลับ
-        </Link>
+      <div className="mb-6">
+        <PageHeader
+          title="จุดชั่ง · ออกรหัส"
+          actions={
+            <ButtonLink href="/staff" variant="quiet">
+              กลับ
+            </ButtonLink>
+          }
+        />
       </div>
       <Suspense fallback={<PageSkeleton />}>
         <Station />
@@ -41,7 +45,7 @@ async function Station() {
 
   if (activities.length === 0) {
     return (
-      <section className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-gray-600 dark:border-gray-700 dark:text-gray-400">
+      <section className="rounded-card border border-dashed border-rule-strong p-6 text-center text-muted">
         ยังไม่มีกิจกรรมที่ใช้รหัสจุดชั่งและอยู่ในช่วงส่งผล
       </section>
     );

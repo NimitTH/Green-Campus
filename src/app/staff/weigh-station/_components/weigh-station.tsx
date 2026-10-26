@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useId, useLayoutEffect, useRef, useState, useTransition } from "react";
+import { Button, Card, inputClassLg } from "@/components/ui";
 import { GENERIC_ERROR_TH } from "@/lib/errors";
+import { countdownTone } from "./countdown-tone";
 import {
   issueWeighCode,
   searchParticipants,
@@ -52,13 +54,13 @@ function Countdown({
   const remaining = Date.parse(expiresAt) - now;
   if (remaining <= 0) {
     return (
-      <p role="status" className="text-xl font-semibold text-red-700">
+      <p role="status" className="text-xl font-semibold text-danger">
         หมดอายุแล้ว
       </p>
     );
   }
   return (
-    <p role="timer" className="text-xl">
+    <p role="timer" className={`text-xl ${countdownTone(remaining) === "warn" ? "text-warn" : "text-ink"}`}>
       หมดอายุใน <span className="font-mono font-semibold">{formatRemaining(remaining)}</span>
     </p>
   );
@@ -147,7 +149,7 @@ export function WeighStation({ activities }: { activities: Activity[] }) {
   return (
     <div className="space-y-6">
       <div>
-        <label htmlFor={`${uid}-activity`} className="mb-1 block font-medium">
+        <label htmlFor={`${uid}-activity`} className="mb-1 block font-medium text-ink">
           กิจกรรม
         </label>
         <select
@@ -163,10 +165,10 @@ export function WeighStation({ activities }: { activities: Activity[] }) {
             setIssued(null);
             setIssueError(undefined);
           }}
-          className="min-h-12 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-base dark:border-gray-700"
+          className={inputClassLg}
         >
           {activities.map((a) => (
-            <option key={a.id} value={a.id} className="text-black">
+            <option key={a.id} value={a.id}>
               {a.title}
             </option>
           ))}
@@ -174,7 +176,7 @@ export function WeighStation({ activities }: { activities: Activity[] }) {
       </div>
 
       <div>
-        <label htmlFor={`${uid}-search`} className="mb-1 block font-medium">
+        <label htmlFor={`${uid}-search`} className="mb-1 block font-medium text-ink">
           ค้นหานักเรียน
         </label>
         <input
@@ -184,17 +186,17 @@ export function WeighStation({ activities }: { activities: Activity[] }) {
           onChange={(e) => setQuery(e.target.value)}
           placeholder="พิมพ์ชื่อนักเรียน"
           autoComplete="off"
-          className="min-h-12 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-base dark:border-gray-700"
+          className={inputClassLg}
         />
       </div>
 
       {searchError ? (
-        <p role="alert" className="text-red-700">
+        <p role="alert" className="text-danger">
           {searchError}
         </p>
       ) : null}
       {issueError ? (
-        <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 font-medium text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+        <p role="alert" className="rounded-input border border-danger p-3 font-medium text-danger">
           {issueError}
         </p>
       ) : null}
@@ -202,13 +204,13 @@ export function WeighStation({ activities }: { activities: Activity[] }) {
       {issued ? (
         <section
           aria-label="รหัสจุดชั่ง"
-          className="rounded-2xl border-2 border-green-600 bg-green-50 p-6 text-center dark:bg-green-950"
+          className="rounded-card border-2 border-accent bg-accent-soft p-6 text-center text-ink shadow-card"
         >
           <p className="mb-2 text-base">รหัสสำหรับ {issued.student.name}</p>
           <p
             data-testid="weigh-code"
             aria-label={`รหัส ${issued.code.split("").join(" ")}`}
-            className="font-mono text-6xl font-bold tracking-[0.3em] sm:text-7xl"
+            className="font-mono text-6xl font-bold tracking-[0.3em] text-ink sm:text-7xl"
           >
             {issued.code}
           </p>
@@ -224,35 +226,34 @@ export function WeighStation({ activities }: { activities: Activity[] }) {
           </div>
         </section>
       ) : expiredFor ? (
-        <p role="status" data-testid="weigh-code-expired" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-center text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
+        <p role="status" data-testid="weigh-code-expired" className="rounded-card border border-warn p-4 text-center text-warn">
           รหัสของ {expiredFor} หมดอายุแล้ว กดออกรหัสใหม่ได้
         </p>
       ) : null}
 
       {searching ? (
-        <p role="status" className="text-gray-600 dark:text-gray-400">
+        <p role="status" className="text-muted">
           กำลังค้นหา...
         </p>
       ) : students.length === 0 ? (
-        <p className="text-gray-600 dark:text-gray-400">ไม่พบนักเรียนที่เข้าร่วมกิจกรรมนี้</p>
+        <p className="text-muted">ไม่พบนักเรียนที่เข้าร่วมกิจกรรมนี้</p>
       ) : (
         <ul className="space-y-3">
           {students.map((s) => (
-            <li
-              key={s.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-800"
-            >
+            <Card as="li" key={s.id} className="flex items-center justify-between gap-3">
               <span className="min-w-0 text-lg break-words">{s.name}</span>
-              <button
+              <Button
                 type="button"
+                variant="primary"
+                size="lg"
                 onClick={() => issue(s)}
                 disabled={issuingId !== null}
                 aria-label={`ออกรหัสให้ ${s.name}`}
-                className="min-h-14 shrink-0 rounded-xl bg-green-700 px-6 text-lg font-semibold text-white hover:bg-green-800 disabled:opacity-60"
+                className="shrink-0"
               >
                 {issuingId === s.id ? "กำลังออกรหัส..." : "ออกรหัส"}
-              </button>
-            </li>
+              </Button>
+            </Card>
           ))}
         </ul>
       )}

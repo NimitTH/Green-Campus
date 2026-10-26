@@ -191,3 +191,19 @@ test("student can switch theme on ฉัน", async ({ page }, testInfo) => {
     await deleteUsers([student]);
   }
 });
+
+for (const scheme of ["light", "dark"] as const) {
+  test(`staff orders fit 360 px in the ${scheme} theme`, async ({ page }) => {
+    let teacher: TestUser | undefined;
+    try {
+      teacher = await createConfirmedUser("teacher", `teacher-orders-${scheme}-${Date.now()}`);
+      await page.setViewportSize({ width: 360, height: 800 });
+      await page.emulateMedia({ colorScheme: scheme });
+      await signIn(page, teacher, "/staff/orders");
+      await expect(page.getByRole("heading", { level: 1, name: "ออเดอร์" })).toBeVisible();
+      await noSideScroll(page);
+    } finally {
+      await deleteUsers([teacher]);
+    }
+  });
+}

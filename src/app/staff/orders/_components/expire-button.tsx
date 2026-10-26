@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { expireDueOrders } from "@/app/actions/orders";
+import { Button } from "@/components/ui";
 
 const number = new Intl.NumberFormat("th-TH");
 
@@ -31,17 +32,12 @@ export function ExpireButton() {
 
   return (
     <div className="mb-4">
-      <button
-        type="button"
-        onClick={run}
-        disabled={pending}
-        className="rounded-lg border border-amber-400 px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-50 disabled:opacity-60 dark:border-amber-800 dark:text-amber-200 dark:hover:bg-amber-950"
-      >
+      <Button type="button" variant="card" onClick={run} disabled={pending}>
         {pending ? "กำลังตรวจ..." : "ยกเลิกออเดอร์ที่หมดอายุ"}
-      </button>
-      <p className="mt-1 text-xs text-gray-500">ระบบทำให้อัตโนมัติทุกชั่วโมง กดเองได้เมื่อต้องการให้คืนแต้มทันที</p>
+      </Button>
+      <p className="mt-1 text-xs text-muted">ระบบทำให้อัตโนมัติทุกชั่วโมง กดเองได้เมื่อต้องการให้คืนแต้มทันที</p>
       {message ? (
-        <p role={message.ok ? "status" : "alert"} className={`mt-2 text-sm ${message.ok ? "text-green-800 dark:text-green-200" : "text-red-700"}`}>
+        <p role={message.ok ? "status" : "alert"} className={`mt-2 text-sm ${message.ok ? "text-accent" : "text-danger"}`}>
           {message.text}
         </p>
       ) : null}

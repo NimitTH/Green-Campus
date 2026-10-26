@@ -2,6 +2,7 @@
 
 import { useActionState, useId, useState } from "react";
 import { reviewSubmissionForm, type ReviewFormState } from "@/app/actions/reviews";
+import { Button, Card, inputClass } from "@/components/ui";
 import { reviewErrorMessageTh } from "@/lib/errors";
 import { REJECT_REASON_MAX, rejectReasonError } from "@/lib/reviews/reason";
 
@@ -37,7 +38,7 @@ export function ReviewActions({ submissionId }: { submissionId: string }) {
       {state?.error && !reasonError ? (
         <div
           role="alert"
-          className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+          className="rounded-input border border-danger p-3 text-sm text-danger"
         >
           {state.error}
         </div>
@@ -46,19 +47,16 @@ export function ReviewActions({ submissionId }: { submissionId: string }) {
       <form action={approve}>
         <input type="hidden" name="submissionId" value={submissionId} />
         <input type="hidden" name="decision" value="approve" />
-        <button
-          type="submit"
-          disabled={pending}
-          className="w-full rounded-lg bg-green-700 px-4 py-3 text-base font-semibold text-white hover:bg-green-800 disabled:opacity-60"
-        >
+        <Button type="submit" variant="primary" size="lg" disabled={pending} className="w-full">
           {pending ? "กำลังบันทึก..." : "อนุมัติ"}
-        </button>
+        </Button>
       </form>
 
-      <form action={reject} noValidate className="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+      <Card>
+        <form action={reject} noValidate>
         <input type="hidden" name="submissionId" value={submissionId} />
         <input type="hidden" name="decision" value="reject" />
-        <label htmlFor={f("reason")} className="mb-1 block text-sm font-medium">
+        <label htmlFor={f("reason")} className="mb-1 block text-sm font-medium text-ink">
           เหตุผลที่ไม่ผ่าน (ต้องกรอกเมื่อกดไม่ผ่าน)
         </label>
         <textarea
@@ -71,25 +69,22 @@ export function ReviewActions({ submissionId }: { submissionId: string }) {
           onChange={(e) => setReason(e.target.value)}
           aria-invalid={reasonError ? true : undefined}
           aria-describedby={reasonError ? f("reason-error") : f("reason-hint")}
-          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-base outline-none focus:border-green-600 focus:ring-2 focus:ring-green-600/30 aria-[invalid=true]:border-red-500 dark:border-gray-700 dark:bg-gray-900"
+          className={inputClass}
         />
         {reasonError ? (
-          <p id={f("reason-error")} className="mt-1 text-sm text-red-600">
+          <p id={f("reason-error")} className="mt-1 text-sm text-danger">
             {reasonError}
           </p>
         ) : (
-          <p id={f("reason-hint")} className="mt-1 text-xs text-gray-500">
+          <p id={f("reason-hint")} className="mt-1 text-xs text-muted">
             นักเรียนจะเห็นเหตุผลนี้ ไม่เกิน {REJECT_REASON_MAX} ตัวอักษร
           </p>
         )}
-        <button
-          type="submit"
-          disabled={pending}
-          className="mt-3 w-full rounded-lg border border-red-300 px-4 py-3 text-base font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950"
-        >
+        <Button type="submit" variant="danger" size="lg" disabled={pending} className="mt-3 w-full">
           {pending ? "กำลังบันทึก..." : "ไม่ผ่าน"}
-        </button>
-      </form>
+        </Button>
+        </form>
+      </Card>
     </div>
   );
 }

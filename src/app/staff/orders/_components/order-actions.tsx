@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { Button } from "@/components/ui";
 import { cancelOrder, completeOrder, markOrderReady, type OrderActionResult } from "@/app/actions/orders";
 
 /**
@@ -34,60 +35,35 @@ export function OrderActions({ orderId, label, ready }: { orderId: string; label
         <div
           role="group"
           aria-label={`ยืนยันการยกเลิก ${label}`}
-          className="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950"
+          className="rounded-input border border-danger p-3"
         >
-          <p className="mb-3 text-sm text-red-800 dark:text-red-200">ยกเลิกออเดอร์นี้? ระบบจะคืนสต็อกและคืนแต้มให้นักเรียน</p>
+          <p className="mb-3 text-sm text-danger">ยกเลิกออเดอร์นี้? ระบบจะคืนสต็อกและคืนแต้มให้นักเรียน</p>
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => run(() => cancelOrder(orderId))}
-              className="rounded-lg bg-red-700 px-3 py-2 text-sm font-semibold text-white hover:bg-red-800 disabled:opacity-60"
-            >
+            <Button type="button" variant="danger" disabled={pending} onClick={() => run(() => cancelOrder(orderId))}>
               {pending ? "กำลังยกเลิก..." : "ยืนยันยกเลิก"}
-            </button>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => setConfirming(false)}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700"
-            >
+            </Button>
+            <Button type="button" variant="card" disabled={pending} onClick={() => setConfirming(false)}>
               ไม่ยกเลิก
-            </button>
+            </Button>
           </div>
         </div>
       ) : (
         <div className="flex flex-wrap gap-2">
           {ready ? null : (
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => run(() => markOrderReady(orderId))}
-              className="rounded-lg border border-green-700 px-4 py-2 text-sm font-semibold text-green-800 hover:bg-green-50 disabled:opacity-60 dark:text-green-300 dark:hover:bg-green-950"
-            >
+            <Button type="button" variant="card" disabled={pending} onClick={() => run(() => markOrderReady(orderId))}>
               {pending ? "กำลังบันทึก..." : "เตรียมของเสร็จแล้ว"}
-            </button>
+            </Button>
           )}
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() => run(() => completeOrder(orderId))}
-            className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white hover:bg-green-800 disabled:opacity-60"
-          >
+          <Button type="button" variant="primary" disabled={pending} onClick={() => run(() => completeOrder(orderId))}>
             {pending ? "กำลังบันทึก..." : "ยืนยันรับแล้ว"}
-          </button>
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() => setConfirming(true)}
-            className="rounded-lg border border-red-300 px-4 py-2 text-sm text-red-700 hover:bg-red-50 disabled:opacity-60 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950"
-          >
+          </Button>
+          <Button type="button" variant="danger" disabled={pending} onClick={() => setConfirming(true)}>
             ยกเลิก
-          </button>
+          </Button>
         </div>
       )}
       {error ? (
-        <p role="alert" className="text-sm text-red-700">
+        <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       ) : null}

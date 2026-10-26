@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { PageHeader } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/dal";
 import { isAdminRole } from "@/lib/auth/routes";
 import { previewDisplayName } from "@/lib/profile/validation";
@@ -19,8 +20,9 @@ export default function StaffPage() {
   );
 }
 
-const linkClass = "block rounded-2xl border border-gray-200 p-4 font-semibold hover:border-green-600 dark:border-gray-800";
-const hintClass = "block text-sm font-normal text-gray-600 dark:text-gray-400";
+const linkClass =
+  "block rounded-card border border-rule bg-surface p-4 font-semibold text-ink shadow-card transition-colors hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent md:p-5";
+const hintClass = "block text-sm font-normal text-muted";
 
 const MENU = [
   { href: "/staff/reviews", label: "ตรวจผล", hint: "อนุมัติหรือปฏิเสธผลที่นักเรียนส่ง" },
@@ -44,13 +46,11 @@ async function StaffHome() {
   const menu = isAdminRole(user.role) ? [...MENU, ...ADMIN_MENU] : MENU;
   return (
     <>
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm text-gray-500">{user.role === "admin" ? "ผู้ดูแลระบบ" : "ครู"}</p>
-          <h1 className="text-xl font-semibold">{previewDisplayName(user.displayName, user.fullName)}</h1>
-        </div>
+      <div className="mb-6">
+        <p className="mb-1 text-sm text-muted">{user.role === "admin" ? "ผู้ดูแลระบบ" : "ครู"}</p>
+        <PageHeader title={previewDisplayName(user.displayName, user.fullName)} />
       </div>
-      <Suspense fallback={<div aria-hidden="true" className="mb-6 h-40 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-900" />}>
+      <Suspense fallback={<div aria-hidden="true" className="mb-6 h-40 animate-pulse rounded-card bg-paper-2" />}>
         <StaffStats />
       </Suspense>
       <nav aria-label="เมนูครู" className="mb-4 grid gap-3 sm:grid-cols-2">
