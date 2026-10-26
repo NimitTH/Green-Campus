@@ -20,28 +20,12 @@ import {
 } from "@/lib/reviews/queries";
 import { isUuid } from "@/lib/uuid";
 import { ReviewActions } from "../_components/review-actions";
+import { Mono } from "./mono";
 
 export const metadata: Metadata = { title: "ตรวจผล | Green Campus" };
 
 const TONE: Record<string, "gray" | "green" | "amber"> = { pending: "amber", approved: "green", rejected: "gray" };
 const carbonFormat = new Intl.NumberFormat("th-TH", { maximumFractionDigits: 3 });
-
-/** Digit runs in font-mono, Thai words and units stay in the sans font (Geist Mono has no Thai glyphs). */
-function Mono({ text }: { text: string }) {
-  return (
-    <>
-      {text.split(/([d][d,.]*)/).map((part, i) =>
-        i % 2 === 1 ? (
-          <span key={i} className="font-mono">
-            {part}
-          </span>
-        ) : (
-          part
-        ),
-      )}
-    </>
-  );
-}
 
 // cacheComponents: params and the session are request-time data, read them inside <Suspense>.
 export default function ReviewPage({ params }: { params: Promise<{ id: string }> }) {
