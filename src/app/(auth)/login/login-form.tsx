@@ -35,14 +35,14 @@ export function LoginForm() {
         error={state?.fieldErrors?.password}
       />
       <div className="mb-4 text-right text-sm">
-        <Link href="/forgot-password" className="text-green-700 underline">
+        <Link href="/forgot-password" className="inline-flex min-h-11 items-center text-accent underline underline-offset-4">
           ลืมรหัสผ่าน?
         </Link>
       </div>
       <SubmitButton pending={pending}>เข้าสู่ระบบ</SubmitButton>
       <p className="mt-4 text-center text-sm">
         ยังไม่มีบัญชี?{" "}
-        <Link href="/register" className="text-green-700 underline">
+        <Link href="/register" className="inline-flex min-h-11 items-center text-accent underline underline-offset-4">
           สมัครสมาชิก
         </Link>
       </p>

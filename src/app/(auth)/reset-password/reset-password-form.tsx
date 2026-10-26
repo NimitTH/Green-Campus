@@ -34,7 +34,7 @@ export function ResetPasswordForm() {
       <SubmitButton pending={pending}>บันทึกรหัสผ่านใหม่</SubmitButton>
       <p className="mt-4 text-center text-sm">
         ลิงก์หมดอายุ?{" "}
-        <Link href="/forgot-password" className="text-green-700 underline">
+        <Link href="/forgot-password" className="inline-flex min-h-11 items-center text-accent underline underline-offset-4">
           ขอลิงก์ใหม่
         </Link>
       </p>

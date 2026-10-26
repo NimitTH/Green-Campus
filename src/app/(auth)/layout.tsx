@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Card } from "@/components/ui";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
@@ -11,9 +12,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <Link href="/" className="mb-6 block text-center font-display text-2xl font-semibold text-accent">
           Green Campus
         </Link>
-        <div className="rounded-card border border-rule bg-surface p-5 shadow-card">
-          {children}
-        </div>
+        <Card>{children}</Card>
       </div>
     </main>
   );

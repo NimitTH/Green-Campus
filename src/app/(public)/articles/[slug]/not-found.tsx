@@ -1,13 +1,14 @@
 import Link from "next/link";
+import { buttonClass, EmptyState } from "@/components/ui";
 
 export default function ArticleNotFound() {
   return (
-    <section className="rounded-2xl border border-dashed border-gray-300 p-6 text-center dark:border-gray-700">
-      <h1 className="text-lg font-semibold">ไม่พบบทความนี้</h1>
-      <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">บทความอาจถูกยกเลิกการเผยแพร่หรือถูกลบไปแล้ว</p>
-      <Link href="/articles" className="mt-3 inline-block text-sm text-green-700 underline">
+    <EmptyState className="mx-auto my-8 w-[calc(100%-2rem)] max-w-xl md:my-12">
+      <h1 className="font-display text-xl font-semibold text-ink">ไม่พบบทความนี้</h1>
+      <p className="mt-1 text-sm text-muted">บทความอาจถูกยกเลิกการเผยแพร่หรือถูกลบไปแล้ว</p>
+      <Link href="/articles" className={buttonClass({ variant: "card", className: "mt-4" })}>
         ดูบทความทั้งหมด
       </Link>
-    </section>
+    </EmptyState>
   );
 }

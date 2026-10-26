@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
+import { buttonClass, inputClass } from "@/components/ui";
 
 export function FormTitle({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <div className="mb-5">
-      <h1 className="text-xl font-semibold">{title}</h1>
-      {subtitle ? <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{subtitle}</p> : null}
+      <h1 className="font-display text-2xl font-semibold text-ink">{title}</h1>
+      {subtitle ? <p className="mt-1 text-sm text-muted">{subtitle}</p> : null}
     </div>
   );
 }
@@ -29,7 +30,7 @@ export function Field({
   const errorId = `${name}-error`;
   return (
     <div className="mb-4">
-      <label htmlFor={name} className="mb-1 block text-sm font-medium">
+      <label htmlFor={name} className="mb-1 block text-sm font-medium text-ink">
         {label}
       </label>
       <input
@@ -40,11 +41,11 @@ export function Field({
         defaultValue={defaultValue}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
-        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-base outline-none focus:border-green-600 focus:ring-2 focus:ring-green-600/30 aria-[invalid=true]:border-red-500 dark:border-gray-700 dark:bg-gray-900"
+        className={`${inputClass} aria-[invalid=true]:border-danger`}
       />
-      {hint && !error ? <p className="mt-1 text-xs text-gray-500">{hint}</p> : null}
+      {hint && !error ? <p className="mt-1 text-sm text-muted">{hint}</p> : null}
       {error ? (
-        <p id={errorId} className="mt-1 text-sm text-red-600">
+        <p id={errorId} className="mt-1 text-sm text-danger">
           {error}
         </p>
       ) : null}
@@ -57,7 +58,7 @@ export function SubmitButton({ pending, children }: { pending: boolean; children
     <button
       type="submit"
       disabled={pending}
-      className="w-full rounded-lg bg-green-700 px-4 py-3 text-base font-semibold text-white hover:bg-green-800 disabled:opacity-60"
+      className={buttonClass({ variant: "primary", size: "lg", className: "w-full" })}
     >
       {pending ? "กำลังดำเนินการ..." : children}
     </button>
@@ -67,10 +68,10 @@ export function SubmitButton({ pending, children }: { pending: boolean; children
 export function Alert({ kind, children }: { kind: "error" | "success"; children: ReactNode }) {
   const style =
     kind === "error"
-      ? "border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
-      : "border-green-200 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200";
+      ? "border-danger bg-[color-mix(in_oklab,var(--danger)_10%,var(--surface))] text-danger"
+      : "border-accent bg-accent-soft text-ink";
   return (
-    <div role={kind === "error" ? "alert" : "status"} className={`mb-4 rounded-lg border p-3 text-sm ${style}`}>
+    <div role={kind === "error" ? "alert" : "status"} className={`mb-4 rounded-input border p-3 text-sm ${style}`}>
       {children}
     </div>
   );
@@ -79,10 +80,10 @@ export function Alert({ kind, children }: { kind: "error" | "success"; children:
 export function FormSkeleton() {
   return (
     <div aria-busy="true" className="animate-pulse space-y-4">
-      <div className="h-6 w-1/2 rounded bg-gray-200 dark:bg-gray-800" />
-      <div className="h-12 rounded bg-gray-200 dark:bg-gray-800" />
-      <div className="h-12 rounded bg-gray-200 dark:bg-gray-800" />
-      <div className="h-12 rounded bg-gray-200 dark:bg-gray-800" />
+      <div className="h-6 w-1/2 rounded bg-paper-2" />
+      <div className="h-12 rounded bg-paper-2" />
+      <div className="h-12 rounded bg-paper-2" />
+      <div className="h-12 rounded bg-paper-2" />
     </div>
   );
 }

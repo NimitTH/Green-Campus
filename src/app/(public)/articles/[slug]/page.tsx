@@ -31,18 +31,18 @@ export default async function ArticlePage({ params }: { params: Params }) {
   const article = await getPublishedArticle(slug);
   if (!article) notFound();
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
+    <main className="mx-auto w-full max-w-[65ch] flex-1 px-4 py-8 md:px-6 lg:py-12">
       <article>
-        <Link href="/articles" className="text-sm text-green-700 underline">
+        <Link href="/articles" className="inline-flex min-h-11 items-center text-sm text-accent underline underline-offset-4">
           ← บทความทั้งหมด
         </Link>
-        <h1 className="mt-3 text-2xl font-semibold break-words">{article.title}</h1>
-        <p className="mt-1 text-xs text-gray-500">{formatBangkok(article.createdAt)}</p>
+        <h1 className="mt-3 font-display text-3xl leading-tight font-semibold break-words text-ink">{article.title}</h1>
+        <p className="mt-2 text-sm text-muted">{formatBangkok(article.createdAt)}</p>
         {article.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- public Supabase Storage URL, already resized in the browser
-          <img src={article.coverUrl} alt="" className="mt-4 max-h-80 w-full rounded-2xl object-cover" />
+          <img src={article.coverUrl} alt="" className="mt-6 max-h-80 w-full rounded-card object-cover" />
         ) : null}
-        <div data-testid="article-body" className="mt-4 space-y-4 leading-relaxed">
+        <div data-testid="article-body" className="mt-6 space-y-4 text-lg leading-relaxed text-ink">
           {splitParagraphs(article.body).map((p, i) => (
             <p key={i} className="break-words whitespace-pre-line">
               {p}

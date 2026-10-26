@@ -16,7 +16,7 @@ export function RegisterForm() {
         <Alert kind="success">{state.message}</Alert>
         <p className="text-center text-sm">
           ยืนยันแล้ว?{" "}
-          <Link href="/login" className="text-green-700 underline">
+          <Link href="/login" className="inline-flex min-h-11 items-center text-accent underline underline-offset-4">
             เข้าสู่ระบบ
           </Link>
         </p>
@@ -61,7 +61,7 @@ export function RegisterForm() {
       <SubmitButton pending={pending}>สมัครสมาชิก</SubmitButton>
       <p className="mt-4 text-center text-sm">
         มีบัญชีแล้ว?{" "}
-        <Link href="/login" className="text-green-700 underline">
+        <Link href="/login" className="inline-flex min-h-11 items-center text-accent underline underline-offset-4">
           เข้าสู่ระบบ
         </Link>
       </p>

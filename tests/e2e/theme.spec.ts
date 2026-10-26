@@ -169,3 +169,10 @@ test("staff sidebar stays 208 px at md and holds the theme control", async ({ pa
     await deleteUsers([teacher]);
   }
 });
+
+test("home page has a theme control that applies dark", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "ธีม" })).toBeVisible();
+  await chooseTheme(page, "มืด");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+});
