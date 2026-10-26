@@ -26,6 +26,23 @@ export const metadata: Metadata = { title: "ตรวจผล | Green Campus" }
 const TONE: Record<string, "gray" | "green" | "amber"> = { pending: "amber", approved: "green", rejected: "gray" };
 const carbonFormat = new Intl.NumberFormat("th-TH", { maximumFractionDigits: 3 });
 
+/** Digit runs in font-mono, Thai words and units stay in the sans font (Geist Mono has no Thai glyphs). */
+function Mono({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(/([d][d,.]*)/).map((part, i) =>
+        i % 2 === 1 ? (
+          <span key={i} className="font-mono">
+            {part}
+          </span>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  );
+}
+
 // cacheComponents: params and the session are request-time data, read them inside <Suspense>.
 export default function ReviewPage({ params }: { params: Promise<{ id: string }> }) {
   return (
@@ -145,7 +162,7 @@ function Amounts({ submission }: { submission: SubmissionForReview }) {
     const count = submission.items.reduce((sum, i) => sum + i.quantity, 0);
     return (
       <p className="text-lg font-semibold" data-testid="tree-count">
-        {count.toLocaleString("th-TH")} ต้น
+        <Mono text={`${count.toLocaleString("th-TH")} ต้น`} />
       </p>
     );
   }
@@ -164,8 +181,10 @@ function Amounts({ submission }: { submission: SubmissionForReview }) {
           <tr key={index} className="border-b border-rule">
             <td className="py-2">{item.category?.name ?? "-"}</td>
             <td className="py-2 text-right">
-              {formatGramsTh(item.quantity)}
-              <span className="block text-xs text-muted">{formatKgTh(item.quantity)}</span>
+              <Mono text={formatGramsTh(item.quantity)} />
+              <span className="block text-xs text-muted">
+                <Mono text={formatKgTh(item.quantity)} />
+              </span>
             </td>
           </tr>
         ))}
@@ -173,7 +192,9 @@ function Amounts({ submission }: { submission: SubmissionForReview }) {
       <tfoot>
         <tr>
           <td className="py-2 font-semibold">รวม</td>
-          <td className="py-2 text-right font-semibold">{formatKgTh(total)}</td>
+          <td className="py-2 text-right font-semibold">
+            <Mono text={formatKgTh(total)} />
+          </td>
         </tr>
       </tfoot>
     </table>
@@ -186,7 +207,8 @@ function Estimate({ submission }: { submission: SubmissionForReview }) {
   return (
     <div className="mt-4 rounded-card bg-paper-2 p-4 text-sm">
       <p className="font-medium">
-        ประมาณการ: {estimate.points.toLocaleString("th-TH")} แต้ม · carbon {carbonFormat.format(estimate.carbonKg)} กก. CO2e
+        ประมาณการ: <Mono text={estimate.points.toLocaleString("th-TH")} /> แต้ม · carbon{" "}
+        <Mono text={carbonFormat.format(estimate.carbonKg)} /> กก. CO2e
       </p>
       <p className="mt-1 text-xs text-muted">
         คิดจากอัตราปัจจุบัน แต้มจริงคำนวณจากอัตรา ณ ตอนกดอนุมัติ
@@ -204,8 +226,8 @@ function Outcome({ submission }: { submission: SubmissionForReview }) {
       </p>
       {submission.status === "approved" && submission.earned ? (
         <p className="font-medium">
-          ได้ {submission.earned.points.toLocaleString("th-TH")} แต้ม · carbon{" "}
-          {carbonFormat.format(submission.earned.carbonKg)} กก. CO2e
+          ได้ <Mono text={submission.earned.points.toLocaleString("th-TH")} /> แต้ม · carbon{" "}
+          <Mono text={carbonFormat.format(submission.earned.carbonKg)} /> กก. CO2e
         </p>
       ) : null}
       {submission.status === "rejected" && submission.rejectReason ? (

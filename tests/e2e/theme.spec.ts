@@ -1,6 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
 import { signIn } from "./helpers/auth";
-import { createConfirmedUser, deleteUsers, type TestUser } from "./helpers/supabase-admin";
+import {
+  createConfirmedUser,
+  createOrderFor,
+  createRewardRow,
+  deleteRewardsByName,
+  deleteUsers,
+  grantPoints,
+  setFullName,
+  type TestUser,
+} from "./helpers/supabase-admin";
 
 // Theme switcher (DESIGN 3.5): light / dark / system without a flash, persisted in localStorage.
 
@@ -194,16 +203,29 @@ test("student can switch theme on ฉัน", async ({ page }, testInfo) => {
 
 for (const scheme of ["light", "dark"] as const) {
   test(`staff orders fit 360 px in the ${scheme} theme`, async ({ page }) => {
+    const stamp = `${scheme}-${Date.now()}`;
+    const rewardNames = [`ของรางวัลชื่อยาวมากสำหรับทดสอบ ${stamp} ก`, `ของรางวัลชื่อยาวมากสำหรับทดสอบ ${stamp} ข`];
     let teacher: TestUser | undefined;
+    let student: TestUser | undefined;
     try {
-      teacher = await createConfirmedUser("teacher", `teacher-orders-${scheme}-${Date.now()}`);
+      teacher = await createConfirmedUser("teacher", `teacher-orders-${stamp}`);
+      student = await createConfirmedUser("student", `student-orders-${stamp}`);
+      await setFullName(student.id, "นักเรียนชื่อยาวมากสำหรับทดสอบการล้นของแถวออเดอร์บนจอเล็ก");
+      await grantPoints(student.id, 1000);
+      for (const name of rewardNames) {
+        const rewardId = await createRewardRow(name, 20, 5);
+        await createOrderFor(student.id, rewardId, 2, 20);
+      }
       await page.setViewportSize({ width: 360, height: 800 });
       await page.emulateMedia({ colorScheme: scheme });
       await signIn(page, teacher, "/staff/orders");
       await expect(page.getByRole("heading", { level: 1, name: "ออเดอร์" })).toBeVisible();
+      await expect(page.getByTestId("staff-order").first()).toBeVisible();
+      expect(await page.getByTestId("staff-order").count()).toBeGreaterThanOrEqual(2);
       await noSideScroll(page);
     } finally {
-      await deleteUsers([teacher]);
+      await deleteUsers([student, teacher]);
+      await deleteRewardsByName(rewardNames);
     }
   });
 }
