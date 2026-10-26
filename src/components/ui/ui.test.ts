@@ -100,3 +100,10 @@ describe("PageHeader", () => {
     expect(html(createElement(PageHeader, { title: "ตรวจผล" }))).toContain("<h1");
   });
 });
+
+describe("invalid inputs", () => {
+  it("show a danger border in inputClass and inputClassLg", () => {
+    expect(inputClass).toContain("aria-[invalid=true]:border-danger");
+    expect(inputClassLg).toContain("aria-[invalid=true]:border-danger");
+  });
+});

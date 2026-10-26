@@ -1,7 +1,7 @@
 export const inputClass =
   "block min-h-11 w-full rounded-input border border-rule-strong bg-surface px-3 py-2 text-base text-ink " +
   "placeholder:text-muted focus:border-accent focus:outline-2 focus:outline-offset-2 focus:outline-accent " +
-  "disabled:opacity-55";
+  "aria-[invalid=true]:border-danger disabled:opacity-55";
 
 export const inputClassLg = inputClass.replace("min-h-11", "min-h-12").replace("text-base", "text-xl");
 
