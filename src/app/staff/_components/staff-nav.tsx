@@ -73,7 +73,7 @@ function SidebarWithPath({ children }: { children: React.ReactNode }) {
 function SidebarFrame({ station, children }: { station: boolean; children: React.ReactNode }) {
   return (
     <aside
-      className={`${station ? "hidden xl:block" : "hidden md:block"} w-60 shrink-0 border-r border-rule bg-paper-2 px-3 py-4`}
+      className={`${station ? "hidden xl:flex" : "hidden md:flex"} w-52 shrink-0 flex-col xl:w-60 border-r border-rule bg-paper-2 px-3 py-4`}
     >
       {children}
     </aside>

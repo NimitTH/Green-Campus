@@ -147,3 +147,25 @@ test("staff sidebar has the theme control", async ({ page }, testInfo) => {
     await deleteUsers([teacher]);
   }
 });
+
+test("staff sidebar stays 208 px at md and holds the theme control", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "desktop layout only");
+  let teacher: TestUser | undefined;
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-md-${Date.now()}`);
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await signIn(page, teacher, "/staff");
+    const sidebar = (await page.locator("aside").boundingBox())!;
+    const group = page.getByRole("radiogroup", { name: "ธีม" });
+    await expect(group).toBeVisible();
+    const box = (await group.boundingBox())!;
+    expect(sidebar.width).toBeLessThanOrEqual(208);
+    expect(box.x).toBeGreaterThanOrEqual(sidebar.x);
+    expect(box.x + box.width).toBeLessThanOrEqual(sidebar.x + sidebar.width);
+    for (const radio of await group.getByRole("radio").all()) {
+      expect((await radio.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    }
+  } finally {
+    await deleteUsers([teacher]);
+  }
+});
