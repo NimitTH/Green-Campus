@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { ButtonLink, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/dal";
 import { cartTotal, getBalance, listCartLines } from "@/lib/rewards/queries";
 import { CartLine } from "./cart-line";
@@ -12,7 +12,9 @@ export const metadata: Metadata = { title: "ตะกร้า | Green Campus" }
 export default function CartPage() {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
-      <h1 className="mb-5 text-xl font-semibold">ตะกร้า</h1>
+      <div className="mb-5">
+        <PageHeader title="ตะกร้า" />
+      </div>
       <Suspense fallback={<PageSkeleton />}>
         <Cart />
       </Suspense>
@@ -26,21 +28,19 @@ async function Cart() {
   const user = await requireUser("/cart");
   if (user.role !== "student") {
     return (
-      <section className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-gray-600 dark:border-gray-700 dark:text-gray-400">
-        เฉพาะบัญชีนักเรียนเท่านั้นที่ใช้ตะกร้าได้
-      </section>
+      <EmptyState>เฉพาะบัญชีนักเรียนเท่านั้นที่ใช้ตะกร้าได้</EmptyState>
     );
   }
   const [lines, balance] = await Promise.all([listCartLines(user.id), getBalance(user.id)]);
 
   if (lines.length === 0) {
     return (
-      <section className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-gray-600 dark:border-gray-700 dark:text-gray-400">
+      <EmptyState>
         <p>ตะกร้าว่าง</p>
-        <Link href="/rewards" className="mt-3 inline-block text-sm text-green-700 underline">
+        <ButtonLink href="/rewards" variant="card" className="mt-3">
           ไปเลือกของรางวัล
-        </Link>
-      </section>
+        </ButtonLink>
+      </EmptyState>
     );
   }
 
@@ -62,24 +62,28 @@ async function Cart() {
           />
         ))}
       </ul>
-      <section aria-label="สรุปตะกร้า" className="mt-5 space-y-1 rounded-2xl border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950">
+      <Card as="section" tone="accent" aria-label="สรุปตะกร้า" className="mt-5 space-y-1">
         <p className="flex justify-between">
           <span>รวมทั้งหมด</span>
-          <strong data-testid="cart-total">{number.format(total)} แต้ม</strong>
+          <strong data-testid="cart-total">
+            <span className="font-mono">{number.format(total)}</span> แต้ม
+          </strong>
         </p>
         <p className="flex justify-between text-sm">
           <span>แต้มของฉัน</span>
-          <span data-testid="balance">{number.format(balance)} แต้ม</span>
+          <span data-testid="balance">
+            <span className="font-mono">{number.format(balance)}</span> แต้ม
+          </span>
         </p>
         {total > balance ? (
-          <p role="alert" className="pt-1 text-sm font-medium text-red-700">
-            แต้มไม่พอ ขาดอีก {number.format(total - balance)} แต้ม
+          <p role="alert" className="pt-1 text-sm font-medium text-danger">
+            แต้มไม่พอ ขาดอีก <span className="font-mono">{number.format(total - balance)}</span> แต้ม
           </p>
         ) : null}
-        <p className="pt-1 text-xs text-gray-600 dark:text-gray-400">
+        <p className="pt-1 text-xs text-muted">
           ตะกร้าไม่ได้กันสต็อกไว้ให้ ของอาจหมดก่อนยืนยันแลก
         </p>
-      </section>
+      </Card>
       <CheckoutButton
         disabled={total > balance}
         names={Object.fromEntries(lines.map((l) => [l.rewardId, l.reward?.active ? l.reward.name : "ของรางวัลที่ปิดการแลกแล้ว"]))}

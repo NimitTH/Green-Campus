@@ -5,13 +5,15 @@ import { Suspense } from "react";
 import { ProfileDetails } from "@/app/_components/account-sections";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { SignOutButton } from "@/app/_components/sign-out-button";
+import { Card, PageHeader, ThemeToggle } from "@/components/ui";
 import { requireUser } from "@/lib/auth/dal";
 import { isStaffRole } from "@/lib/auth/routes";
 
 export const metadata: Metadata = { title: "โปรไฟล์ | Green Campus" };
 
-const linkClass = "block rounded-2xl border border-gray-200 p-4 font-semibold hover:border-green-600 dark:border-gray-800";
-const hintClass = "block text-sm font-normal text-gray-600 dark:text-gray-400";
+const linkClass =
+  "block min-h-11 rounded-card border border-rule bg-surface p-4 font-semibold text-ink shadow-card transition-colors hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+const hintClass = "block text-sm font-normal text-muted";
 
 // "ฉัน" hub (spec 9.2): pages that are not in the bottom nav.
 const SHORTCUTS = [
@@ -25,7 +27,9 @@ const SHORTCUTS = [
 export default function ProfilePage() {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
-      <h1 className="mb-4 text-xl font-semibold">โปรไฟล์ของฉัน</h1>
+      <div className="mb-4">
+        <PageHeader title="โปรไฟล์ของฉัน" />
+      </div>
       <Suspense fallback={<PageSkeleton />}>
         <Profile />
       </Suspense>
@@ -48,6 +52,12 @@ async function Profile() {
           </Link>
         ))}
       </nav>
+      <Card as="section" aria-labelledby="profile-theme" className="mt-8 space-y-3">
+        <h2 id="profile-theme" className="font-display text-lg font-semibold">
+          ธีม
+        </h2>
+        <ThemeToggle />
+      </Card>
       <div className="mt-8">
         <SignOutButton />
       </div>

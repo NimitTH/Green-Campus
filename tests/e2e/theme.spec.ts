@@ -176,3 +176,18 @@ test("home page has a theme control that applies dark", async ({ page }) => {
   await chooseTheme(page, "มืด");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 });
+
+test("student can switch theme on ฉัน", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chrome", "mobile layout only");
+  let student: TestUser | undefined;
+  try {
+    student = await createConfirmedUser("student", `student-profile-theme-${Date.now()}`);
+    await signIn(page, student, "/profile");
+    const group = page.getByRole("radiogroup", { name: "ธีม" });
+    await expect(group).toBeVisible();
+    await group.getByRole("radio", { name: "มืด" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  } finally {
+    await deleteUsers([student]);
+  }
+});

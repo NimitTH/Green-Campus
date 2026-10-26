@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Badge } from "@/app/_components/activity-ui";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { buttonClass, Card } from "@/components/ui";
 import { requireUser } from "@/lib/auth/dal";
 import { isStaffRole } from "@/lib/auth/routes";
 import { formatBangkok } from "@/lib/datetime";
@@ -41,11 +42,11 @@ async function Order({ params }: { params: Promise<{ id: string }> }) {
   return (
     <article className="space-y-5">
       {/* Back to where the viewer came from: staff manage orders on /staff/orders. */}
-      <Link href={staff ? "/staff/orders" : "/orders"} className="inline-block text-sm text-green-700 underline">
+      <Link href={staff ? "/staff/orders" : "/orders"} className="inline-flex min-h-11 items-center text-sm text-accent underline">
         {staff ? "← ออเดอร์ทั้งหมด (ครู)" : "← ออเดอร์ของฉัน"}
       </Link>
-      <header className="rounded-2xl border border-green-200 bg-green-50 p-4 text-center dark:border-green-900 dark:bg-green-950">
-        <p className="text-sm text-gray-600 dark:text-gray-400">เลขที่ออเดอร์ (แสดงที่แผนกตอนรับของ)</p>
+      <Card tone="accent" className="text-center">
+        <p className="text-sm text-muted">เลขที่ออเดอร์ (แสดงที่แผนกตอนรับของ)</p>
         <h1 data-testid="order-number" className="font-mono text-4xl font-bold tracking-widest break-all">
           {orderNumber(order.id)}
         </h1>
@@ -53,40 +54,46 @@ async function Order({ params }: { params: Promise<{ id: string }> }) {
           <Badge tone={orderStatusTone(order.status, order.readyAt)}>{orderStatusLabelTh(order.status, order.readyAt)}</Badge>
         </p>
         {staff && order.studentName ? <p className="mt-2 text-sm break-words">{order.studentName}</p> : null}
-      </header>
+      </Card>
 
       {pending && overdue ? (
-        <p data-testid="order-overdue" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+        <p data-testid="order-overdue" className="rounded-input border border-warn bg-surface p-3 text-sm text-warn">
           {OVERDUE_NOTICE_TH}
         </p>
       ) : pending ? (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+        <p className="rounded-input border border-warn bg-surface p-3 text-sm text-warn">
           {isOrderReady(order.status, order.readyAt) ? "ของพร้อมแล้ว รับที่แผนกก่อนวันที่" : "รับของที่แผนกก่อนวันที่"}{" "}
           {formatBangkok(order.expiresAt)} ถ้าไม่มารับ ออเดอร์จะหมดอายุและได้แต้มคืน
         </p>
       ) : null}
 
       <section aria-label="รายการของรางวัล">
-        <ul className="divide-y divide-gray-200 rounded-2xl border border-gray-200 dark:divide-gray-800 dark:border-gray-800">
+        <Card flush className="overflow-hidden">
+        <ul className="divide-y divide-rule">
           {order.lines.map((l) => (
             <li key={l.rewardId} data-testid="order-item" className="flex items-start justify-between gap-3 p-4">
               <div className="min-w-0">
                 <p className="font-medium break-words">{l.name}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {number.format(l.qty)} ชิ้น × {number.format(l.unitCost)} แต้ม
+                <p className="text-sm text-muted">
+                  <span className="font-mono">{number.format(l.qty)}</span> ชิ้น × <span className="font-mono">{number.format(l.unitCost)}</span> แต้ม
                 </p>
               </div>
-              <p className="shrink-0 font-semibold">{number.format(l.qty * l.unitCost)} แต้ม</p>
+              <p className="shrink-0 font-semibold">
+                <span className="font-mono">{number.format(l.qty * l.unitCost)}</span> แต้ม
+              </p>
             </li>
           ))}
         </ul>
+        </Card>
         <p className="mt-3 flex justify-between px-1">
           <span>รวมทั้งหมด</span>
-          <strong data-testid="order-total">{number.format(order.totalPoints)} แต้ม</strong>
+          <strong data-testid="order-total">
+            <span className="font-mono">{number.format(order.totalPoints)}</span> แต้ม
+          </strong>
         </p>
       </section>
 
-      <dl className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
+      <dl className="space-y-1 text-sm text-muted">
         <div className="flex justify-between gap-3">
           <dt>สั่งเมื่อ</dt>
           <dd>{formatBangkok(order.createdAt)}</dd>
@@ -107,7 +114,7 @@ async function Order({ params }: { params: Promise<{ id: string }> }) {
       <a
         href={`/api/receipts/${order.id}`}
         download
-        className="block rounded-lg border border-green-700 px-4 py-3 text-center font-medium text-green-700 hover:bg-green-50 dark:hover:bg-green-950"
+        className={buttonClass({ variant: "card", size: "lg", className: "w-full" })}
       >
         ดาวน์โหลดใบเสร็จ
       </a>

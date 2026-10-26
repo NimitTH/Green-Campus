@@ -2,10 +2,7 @@
 export function RewardImage({ url, className = "" }: { url: string | null; className?: string }) {
   if (!url) {
     return (
-      <div
-        aria-hidden="true"
-        className={`flex items-center justify-center bg-gray-100 text-3xl dark:bg-gray-800 ${className}`}
-      >
+      <div aria-hidden="true" className={`flex items-center justify-center bg-paper-2 text-3xl ${className}`}>
         🎁
       </div>
     );

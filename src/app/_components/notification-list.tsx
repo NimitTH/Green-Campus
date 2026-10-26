@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { markAllNotificationsRead, markNotificationRead } from "@/app/actions/notifications";
+import { Button, EmptyState } from "@/components/ui";
 import { formatBangkok } from "@/lib/datetime";
 import { internalLink } from "@/lib/notifications/link";
 
@@ -23,9 +24,7 @@ export function NotificationList({ items }: { items: NotificationRow[] }) {
 
   if (items.length === 0) {
     return (
-      <p className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-gray-600 dark:border-gray-700 dark:text-gray-400">
-        ยังไม่มีการแจ้งเตือน
-      </p>
+      <EmptyState>ยังไม่มีการแจ้งเตือน</EmptyState>
     );
   }
 
@@ -59,17 +58,12 @@ export function NotificationList({ items }: { items: NotificationRow[] }) {
   return (
     <div>
       <div className="mb-3 flex justify-end">
-        <button
-          type="button"
-          onClick={readAll}
-          disabled={pending || !hasUnread}
-          className="min-h-11 rounded-lg border border-gray-300 px-4 py-2 text-sm hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
-        >
+        <Button type="button" onClick={readAll} disabled={pending || !hasUnread}>
           อ่านทั้งหมด
-        </button>
+        </Button>
       </div>
       {error ? (
-        <p role="alert" className="mb-3 rounded-lg border border-red-300 p-3 text-sm text-red-700">
+        <p role="alert" className="mb-3 rounded-input border border-danger bg-surface p-3 text-sm text-danger">
           {error}
         </p>
       ) : null}
@@ -80,20 +74,18 @@ export function NotificationList({ items }: { items: NotificationRow[] }) {
               type="button"
               onClick={() => open(n)}
               disabled={pending}
-              className={`block min-h-11 w-full rounded-2xl border p-4 text-left hover:border-green-600 ${
-                n.read_at === null
-                  ? "border-green-600 bg-green-50 dark:bg-green-950"
-                  : "border-gray-200 dark:border-gray-800"
+              className={`block min-h-11 w-full rounded-card border p-4 text-left text-ink shadow-card transition-colors hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-55 ${
+                n.read_at === null ? "border-accent bg-accent-soft" : "border-rule bg-surface"
               }`}
             >
               <span className="flex items-start justify-between gap-2">
                 <span className="font-semibold">{n.title}</span>
                 {n.read_at === null ? (
-                  <span className="shrink-0 rounded-full bg-green-700 px-2 text-xs leading-5 text-white">ใหม่</span>
+                  <span className="shrink-0 rounded-full bg-accent px-2 text-xs leading-5 text-on-accent">ใหม่</span>
                 ) : null}
               </span>
-              {n.body ? <span className="mt-1 block text-sm text-gray-700 dark:text-gray-300">{n.body}</span> : null}
-              <span className="mt-1 block text-xs text-gray-500">{formatBangkok(n.created_at)}</span>
+              {n.body ? <span className="mt-1 block text-sm text-ink">{n.body}</span> : null}
+              <span className="mt-1 block text-xs text-muted">{formatBangkok(n.created_at)}</span>
             </button>
           </li>
         ))}

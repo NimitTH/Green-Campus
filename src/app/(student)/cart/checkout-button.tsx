@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { checkoutCart } from "@/app/actions/orders";
+import { Button } from "@/components/ui";
 import { blockedReasonTh, type BlockedItem } from "@/lib/orders/format";
 
 /**
@@ -30,19 +31,14 @@ export function CheckoutButton({ disabled, names }: { disabled: boolean; names: 
 
   return (
     <div className="mt-4">
-      <button
-        type="button"
-        onClick={submit}
-        disabled={disabled || pending}
-        className="w-full rounded-lg bg-green-700 px-4 py-3 text-base font-semibold text-white hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-60"
-      >
+      <Button type="button" variant="primary" size="lg" onClick={submit} disabled={disabled || pending} className="w-full">
         {pending ? "กำลังแลก..." : "ยืนยันแลก"}
-      </button>
+      </Button>
       {error ? (
         <div
           role="alert"
           data-testid="checkout-blocked"
-          className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+          className="mt-3 rounded-input border border-danger bg-surface p-3 text-sm text-danger"
         >
           <p className="font-medium">{error.message}</p>
           {error.blocked.length > 0 ? (
