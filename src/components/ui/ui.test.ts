@@ -42,6 +42,14 @@ describe("Card", () => {
     expect(out).toContain("<li");
     expect(out).toContain("bg-accent-soft");
   });
+  it("keeps padding by default and drops it when flush", () => {
+    const def = html(createElement(Card, null, "x"));
+    expect(def).toContain("p-4");
+    expect(def).toContain("md:p-6");
+    const flush = html(createElement(Card, { flush: true }, "x"));
+    expect(flush).not.toMatch(/p-4/);
+    expect(flush).not.toContain("md:p-6");
+  });
 });
 
 describe("Badge", () => {

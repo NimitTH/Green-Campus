@@ -37,7 +37,7 @@ async function ArticleList() {
   return (
     <ul className="space-y-4">
       {articles.map((a) => (
-        <Card as="li" key={a.id} data-testid="article-card" className="p-0 transition-colors hover:border-accent md:p-0">
+        <Card as="li" flush key={a.id} data-testid="article-card" className="transition-colors hover:border-accent">
           <Link
             href={`/articles/${a.slug}`}
             className="flex gap-3 rounded-card p-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent md:p-4"
