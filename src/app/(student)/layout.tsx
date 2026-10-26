@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { NotificationBell } from "@/components/NotificationBell";
+import { ThemeToggle } from "@/components/ui";
 import { BottomNav, StudentTopNav } from "./_components/student-nav";
 
 // Student area shell (spec 9.2), also used by /dashboard. No session read here: each page checks the user
@@ -10,14 +11,15 @@ import { BottomNav, StudentTopNav } from "./_components/student-nav";
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-1 flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom)+1rem)] md:pb-0">
-      <header className="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-2 dark:border-gray-800">
-        <Link href="/dashboard" className="shrink-0 py-2 font-semibold text-green-700">
+      <header className="flex items-center justify-between gap-3 border-b border-rule bg-surface px-4 py-1 md:px-6 xl:px-10">
+        <Link href="/dashboard" className="shrink-0 py-2 font-display text-lg font-semibold text-accent">
           Green Campus
         </Link>
         <StudentTopNav />
-        {/* Phones get the bell as the bottom-nav "แจ้งเตือน" item. */}
-        <div className="hidden md:block">
+        {/* Phones get the bell as the bottom-nav "แจ้งเตือน" item and the theme control on the profile page. */}
+        <div className="hidden items-center gap-1 md:flex">
           <NotificationBell />
+          <ThemeToggle compact />
         </div>
       </header>
       {children}

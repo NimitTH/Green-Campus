@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { getCurrentUser, requireStaff } from "@/lib/auth/dal";
 import { isAdminRole } from "@/lib/auth/routes";
+import { ThemeToggle } from "@/components/ui";
 import { PageSkeleton } from "../_components/page-skeleton";
 import { SignOutButton } from "../_components/sign-out-button";
 import { StaffDrawer, StaffNavLinks, StaffSidebar, type StaffNavItem } from "./_components/staff-nav";
@@ -15,14 +16,15 @@ import { StaffDrawer, StaffNavLinks, StaffSidebar, type StaffNavItem } from "./_
 export default function StaffLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-1 flex-col">
-      <header className="relative flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-2 dark:border-gray-800">
+      <header className="relative flex items-center justify-between gap-3 border-b border-rule bg-surface px-4 py-1 md:px-6 xl:px-10">
         <div className="flex min-w-0 items-center gap-2">
           <StaffDrawer>
             <Suspense fallback={<NavSkeleton />}>
               <StaffNav />
             </Suspense>
+            <ThemeToggle className="px-3 pt-3" />
           </StaffDrawer>
-          <Link href="/staff" className="truncate py-2 font-semibold text-green-700">
+          <Link href="/staff" className="truncate py-2 font-display text-lg font-semibold text-accent">
             Green Campus · ครูและผู้ดูแล
           </Link>
         </div>
@@ -33,6 +35,7 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
           <Suspense fallback={<NavSkeleton />}>
             <StaffNav />
           </Suspense>
+          <ThemeToggle className="pt-3" />
         </StaffSidebar>
         <div className="flex min-w-0 flex-1 flex-col">
           <Suspense fallback={<PageSkeleton />}>
@@ -80,12 +83,12 @@ async function StaffNav() {
     <nav aria-label="เมนูผู้ดูแล" className="space-y-3 text-sm">
       <StaffNavLinks items={MAIN_ITEMS} />
       {admin ? (
-        <div className="border-t border-gray-200 pt-3 dark:border-gray-800">
-          <p className="px-3 pb-1 text-xs text-gray-500">ผู้ดูแลระบบ</p>
+        <div className="border-t border-rule pt-3">
+          <p className="px-3 pb-1 text-xs text-muted">ผู้ดูแลระบบ</p>
           <StaffNavLinks items={ADMIN_ITEMS} />
         </div>
       ) : null}
-      <div className="border-t border-gray-200 pt-3 dark:border-gray-800">
+      <div className="border-t border-rule pt-3">
         <StaffNavLinks items={ACCOUNT_ITEMS} />
         <div className="px-3 pt-2">
           <SignOutButton />
@@ -96,5 +99,5 @@ async function StaffNav() {
 }
 
 function NavSkeleton() {
-  return <div aria-hidden="true" className="h-64 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-900" />;
+  return <div aria-hidden="true" className="h-64 rounded-card bg-paper-2 motion-safe:animate-pulse" />;
 }

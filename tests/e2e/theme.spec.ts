@@ -1,4 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
+import { signIn } from "./helpers/auth";
+import { createConfirmedUser, deleteUsers, type TestUser } from "./helpers/supabase-admin";
 
 // Theme switcher (DESIGN 3.5): light / dark / system without a flash, persisted in localStorage.
 
@@ -118,3 +120,30 @@ for (const scheme of ["light", "dark"] as const) {
     }
   });
 }
+
+// App shell (DESIGN 4, "จุดอื่น"): the theme control sits in the student header and the staff sidebar.
+test("student desktop header has the theme control", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "desktop layout only");
+  let student: TestUser | undefined;
+  try {
+    student = await createConfirmedUser("student", `student-theme-${Date.now()}`);
+    await signIn(page, student, "/dashboard");
+    await expect(page.locator("header").getByRole("button", { name: "ธีม" })).toBeVisible();
+  } finally {
+    await deleteUsers([student]);
+  }
+});
+
+test("staff sidebar has the theme control", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "desktop layout only");
+  let teacher: TestUser | undefined;
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-theme-${Date.now()}`);
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await signIn(page, teacher, "/staff");
+    // the drawer copy is hidden at xl, so exactly the sidebar one is visible
+    await expect(page.getByRole("radiogroup", { name: "ธีม" })).toBeVisible();
+  } finally {
+    await deleteUsers([teacher]);
+  }
+});

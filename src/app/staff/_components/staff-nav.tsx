@@ -44,8 +44,8 @@ function LinksView({ items, pathname }: { items: StaffNavItem[]; pathname: strin
             <Link
               href={item.href}
               aria-current={current ? "page" : undefined}
-              className={`flex min-h-11 items-center rounded-lg px-3 ${
-                current ? "bg-green-50 font-semibold text-green-800 dark:bg-green-950 dark:text-green-300" : "hover:bg-gray-100 dark:hover:bg-gray-900"
+              className={`flex min-h-11 items-center rounded-input border-l-[3px] px-3 ${
+                current ? "border-accent bg-accent-soft font-semibold text-ink" : "border-transparent text-ink hover:bg-accent-soft"
               }`}
             >
               {item.label}
@@ -73,7 +73,7 @@ function SidebarWithPath({ children }: { children: React.ReactNode }) {
 function SidebarFrame({ station, children }: { station: boolean; children: React.ReactNode }) {
   return (
     <aside
-      className={`${station ? "hidden xl:block" : "hidden md:block"} w-52 shrink-0 border-r border-gray-200 px-3 py-4 dark:border-gray-800`}
+      className={`${station ? "hidden xl:block" : "hidden md:block"} w-60 shrink-0 border-r border-rule bg-paper-2 px-3 py-4`}
     >
       {children}
     </aside>
@@ -137,7 +137,7 @@ function DrawerFrame({ pathname, children }: { pathname: string | null; children
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => (open ? closeToToggle() : setOpen(true))}
-        className="inline-flex size-11 items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-900"
+        className="inline-flex size-11 items-center justify-center rounded-input text-ink hover:bg-accent-soft"
       >
         <span className="sr-only">เมนู</span>
         <svg aria-hidden="true" viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -153,7 +153,7 @@ function DrawerFrame({ pathname, children }: { pathname: string | null; children
           // Links navigate client-side and the layout stays mounted: close the drawer on any link tap.
           if ((e.target as HTMLElement).closest("a")) setOpen(false);
         }}
-        className="absolute inset-x-0 top-full z-40 outline-none max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-gray-200 bg-white px-3 py-3 shadow-lg dark:border-gray-800 dark:bg-gray-950"
+        className="absolute inset-x-0 top-full z-40 outline-none max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-rule bg-paper-2 px-3 py-3 shadow-cast"
       >
         {children}
       </div>

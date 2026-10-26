@@ -194,7 +194,7 @@ export function BellIcon({ className = "size-6" }: { className?: string }) {
 export function UnreadBadge({ count, className = "absolute right-0.5 top-0.5" }: { count: number; className?: string }) {
   if (count <= 0) return null;
   return (
-    <span aria-hidden="true" className={`${className} min-w-5 rounded-full bg-red-600 px-1 text-center text-xs font-semibold leading-5 text-white`}>
+    <span aria-hidden="true" className={`${className} min-w-5 rounded-full bg-danger px-1 text-center font-mono text-xs font-semibold leading-5 text-on-accent`}>
       {badgeText(count)}
     </span>
   );
@@ -209,7 +209,7 @@ export function NotificationBell({ href = "/notifications" }: { href?: string })
       href={href}
       aria-label={bellLabel(count)}
       data-realtime={subscribed ? "subscribed" : "connecting"}
-      className="relative inline-flex size-11 items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-900"
+      className="relative inline-flex size-11 items-center justify-center rounded-full text-ink hover:bg-accent-soft"
     >
       <BellIcon />
       <UnreadBadge count={count} />

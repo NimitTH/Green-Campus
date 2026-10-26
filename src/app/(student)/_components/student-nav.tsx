@@ -67,7 +67,7 @@ function TopNavView({ pathname }: { pathname: string | null }) {
             key={item.href}
             href={item.href}
             aria-current={current ? "page" : undefined}
-            className={`rounded-lg px-2.5 py-2 hover:bg-gray-100 dark:hover:bg-gray-900 ${current ? "font-semibold text-green-700" : ""}`}
+            className={`flex min-h-11 items-center rounded-t-input border-b-2 px-2.5 hover:bg-accent-soft ${current ? "border-accent font-semibold text-accent" : "border-transparent text-ink"}`}
           >
             {item.label}
           </Link>
@@ -111,7 +111,7 @@ function BottomNavView({ pathname }: { pathname: string | null }) {
     <nav
       aria-label="เมนูหลัก"
       data-bottom-nav=""
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] md:hidden dark:border-gray-800 dark:bg-gray-950"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-rule bg-surface pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] md:hidden"
     >
       <ul className="grid grid-cols-5">
         {BOTTOM.map((item) => {
@@ -126,10 +126,10 @@ function BottomNavView({ pathname }: { pathname: string | null }) {
                 aria-label={isBell ? bellLabel(count) : undefined}
                 data-realtime={isBell ? (unread.subscribed ? "subscribed" : "connecting") : undefined}
                 className={`relative flex min-h-14 flex-col items-center justify-center gap-0.5 px-1 text-xs ${
-                  current ? "font-semibold text-green-700" : "text-gray-600 dark:text-gray-400"
+                  current ? "font-semibold text-accent" : "text-muted"
                 }`}
               >
-                <span className="relative">
+                <span className={`relative flex h-7 w-14 items-center justify-center rounded-full ${current ? "bg-accent-soft" : ""}`}>
                   {isBell ? (
                     <BellIcon className="size-6" />
                   ) : (
@@ -137,7 +137,7 @@ function BottomNavView({ pathname }: { pathname: string | null }) {
                       {ICONS[item.href]}
                     </svg>
                   )}
-                  {isBell ? <UnreadBadge count={count} className="absolute -right-3 -top-1" /> : null}
+                  {isBell ? <UnreadBadge count={count} className="absolute right-1.5 -top-0.5" /> : null}
                 </span>
                 <span>{item.label}</span>
               </Link>
