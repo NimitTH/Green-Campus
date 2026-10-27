@@ -29,6 +29,8 @@ export default function EditRewardPage({ params }: { params: Promise<{ id: strin
 
 async function EditReward({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  // per-route id: two edit pages can be alive at once (hidden <Activity>); useId is identical across separate server renders
+  const deleteHeadingId = `delete-heading-${id}`;
   const user = await requireStaff(`/staff/rewards/${encodeURIComponent(id)}/edit`);
   if (!isUuid(id)) notFound();
   const reward = await getReward(id);
@@ -37,8 +39,8 @@ async function EditReward({ params }: { params: Promise<{ id: string }> }) {
     <>
       <RewardForm initial={rewardToInput(reward)} id={reward.id} imageUrl={reward.imageUrl} />
       {isAdminRole(user.role) ? (
-        <section aria-labelledby="delete-heading" className="mt-10 border-t border-rule pt-6">
-          <h2 id="delete-heading" className="mb-2 font-display text-lg font-semibold">
+        <section aria-labelledby={deleteHeadingId} className="mt-10 border-t border-rule pt-6">
+          <h2 id={deleteHeadingId} className="mb-2 font-display text-lg font-semibold">
             ลบของรางวัล
           </h2>
           <p className="mb-3 text-sm text-muted">

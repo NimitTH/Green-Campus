@@ -3,9 +3,8 @@ import { Suspense } from "react";
 import { Badge } from "@/app/_components/activity-ui";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { RewardImage } from "@/app/_components/reward-image";
-import { ButtonLink, Card, EmptyState, PageHeader } from "@/components/ui";
+import { ButtonLink, Card, EmptyState, PageHeader, Mono } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/dal";
-import { Mono } from "@/app/staff/reviews/[id]/mono";
 import { listRewardsForStaff } from "@/lib/rewards/queries";
 import { ActiveToggle } from "./_components/active-toggle";
 

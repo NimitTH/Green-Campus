@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
-import { Mono } from "@/app/staff/reviews/[id]/mono";
-import { ButtonLink, Card, EmptyState, Field, PageHeader, buttonClass, inputClass } from "@/components/ui";
+import { ButtonLink, Card, EmptyState, Field, PageHeader, buttonClass, inputClass, Mono } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/dal";
 import { getActivityReport, getStudentReport } from "@/lib/reports/data";
 import { bangkokMonthRange, parseDateRange } from "@/lib/reports/range";
@@ -48,6 +47,9 @@ export default function StaffReportsPage({ searchParams }: { searchParams: Searc
 }
 
 async function Reports({ searchParams }: { searchParams: SearchParams }) {
+  const uid = "reports"; // route-prefixed (useId repeats across server renders)
+  const activityHeadingId = `${uid}-by-activity`;
+  const studentHeadingId = `${uid}-by-student`;
   await requireStaff("/staff/reports");
   const params = await searchParams;
   // The default range is the current Bangkok calendar month (the clock is read after the session: request-time).
@@ -60,11 +62,11 @@ async function Reports({ searchParams }: { searchParams: SearchParams }) {
   return (
     <>
       <form method="get" className="mb-4 flex flex-wrap items-end gap-3">
-        <Field id="from" label="ตั้งแต่วันที่จบ" className="min-w-40 flex-1">
-          <input id="from" name="from" type="date" required defaultValue={range.from} className={inputClass} />
+        <Field id={`${uid}-from`} label="ตั้งแต่วันที่จบ" className="min-w-40 flex-1">
+          <input id={`${uid}-from`} name="from" type="date" required defaultValue={range.from} className={inputClass} />
         </Field>
-        <Field id="to" label="ถึงวันที่จบ" className="min-w-40 flex-1">
-          <input id="to" name="to" type="date" required defaultValue={range.to} className={inputClass} />
+        <Field id={`${uid}-to`} label="ถึงวันที่จบ" className="min-w-40 flex-1">
+          <input id={`${uid}-to`} name="to" type="date" required defaultValue={range.to} className={inputClass} />
         </Field>
         <button type="submit" className={buttonClass({ variant: "primary" })}>
           ดูรายงาน
@@ -103,8 +105,8 @@ async function Reports({ searchParams }: { searchParams: SearchParams }) {
         </a>
       </div>
 
-      <section aria-labelledby="by-activity" className="mb-8">
-        <h2 id="by-activity" className="mb-2 font-display text-lg font-semibold">
+      <section aria-labelledby={activityHeadingId} className="mb-8">
+        <h2 id={activityHeadingId} className="mb-2 font-display text-lg font-semibold">
           รายกิจกรรม
         </h2>
         {activities.length === 0 ? (
@@ -151,8 +153,8 @@ async function Reports({ searchParams }: { searchParams: SearchParams }) {
         )}
       </section>
 
-      <section aria-labelledby="by-student">
-        <h2 id="by-student" className="mb-2 font-display text-lg font-semibold">
+      <section aria-labelledby={studentHeadingId}>
+        <h2 id={studentHeadingId} className="mb-2 font-display text-lg font-semibold">
           รายนักเรียน
         </h2>
         {students.length === 0 ? (

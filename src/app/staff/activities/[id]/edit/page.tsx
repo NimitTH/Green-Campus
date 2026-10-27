@@ -29,6 +29,8 @@ export default function EditActivityPage({ params }: { params: Promise<{ id: str
 
 async function EditActivity({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  // per-route id: two edit pages can be alive at once (hidden <Activity>); useId is identical across separate server renders
+  const deleteHeadingId = `delete-heading-${id}`;
   await requireStaff(`/staff/activities/${encodeURIComponent(id)}/edit`);
   if (!isUuid(id)) notFound();
   const activity = await getActivity(id);
@@ -42,8 +44,8 @@ async function EditActivity({ params }: { params: Promise<{ id: string }> }) {
   return (
     <>
       <ActivityForm initial={activityToInput(activity)} id={activity.id} hasParticipants={(participants ?? 0) > 0} />
-      <section aria-labelledby="delete-heading" className="mt-10 border-t border-rule pt-6">
-        <h2 id="delete-heading" className="mb-2 font-display text-lg font-semibold">
+      <section aria-labelledby={deleteHeadingId} className="mt-10 border-t border-rule pt-6">
+        <h2 id={deleteHeadingId} className="mb-2 font-display text-lg font-semibold">
           ลบกิจกรรม
         </h2>
         <p className="mb-3 text-sm text-muted">

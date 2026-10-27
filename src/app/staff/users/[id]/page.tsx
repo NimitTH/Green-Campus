@@ -3,8 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Badge } from "@/app/_components/activity-ui";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
-import { Mono } from "@/app/staff/reviews/[id]/mono";
-import { ButtonLink, Card, EmptyState, PageHeader } from "@/components/ui";
+import { ButtonLink, Card, EmptyState, PageHeader, Mono } from "@/components/ui";
 import { getUser, listRecentLedger } from "@/lib/admin/queries";
 import { LEDGER_KIND_LABEL_TH, ROLE_LABEL_TH, signed } from "@/lib/admin/validation";
 import { requireAdmin } from "@/lib/auth/dal";
@@ -39,6 +38,7 @@ export default function StaffUserPage({ params }: { params: Promise<{ id: string
 
 async function UserDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const uid = `user-${id}`; // per-user: two user pages can be alive at once (useId repeats across server renders)
   await requireAdmin(`/staff/users/${encodeURIComponent(id)}`);
   if (!isUuid(id)) notFound();
   const user = await getUser(id);
@@ -72,8 +72,8 @@ async function UserDetail({ params }: { params: Promise<{ id: string }> }) {
         ) : null}
       </Card>
 
-      <section aria-labelledby="role-heading">
-        <h2 id="role-heading" className="mb-2 font-display text-lg font-semibold">
+      <section aria-labelledby={`${uid}-role-heading`}>
+        <h2 id={`${uid}-role-heading`} className="mb-2 font-display text-lg font-semibold">
           บทบาท
         </h2>
         <RoleForm userId={user.id} name={user.fullName} role={user.role} />
@@ -81,8 +81,8 @@ async function UserDetail({ params }: { params: Promise<{ id: string }> }) {
 
       {user.role === "student" ? (
         <>
-          <Card as="section" aria-labelledby="adjust-heading">
-            <h2 id="adjust-heading" className="mb-1 font-display text-lg font-semibold">
+          <Card as="section" aria-labelledby={`${uid}-adjust-heading`}>
+            <h2 id={`${uid}-adjust-heading`} className="mb-1 font-display text-lg font-semibold">
               ปรับแต้ม
             </h2>
             <p className="mb-3 text-sm text-muted">
@@ -91,8 +91,8 @@ async function UserDetail({ params }: { params: Promise<{ id: string }> }) {
             <AdjustForm studentId={user.id} />
           </Card>
 
-          <section aria-labelledby="ledger-heading">
-            <h2 id="ledger-heading" className="mb-2 font-display text-lg font-semibold">
+          <section aria-labelledby={`${uid}-ledger-heading`}>
+            <h2 id={`${uid}-ledger-heading`} className="mb-2 font-display text-lg font-semibold">
               รายการล่าสุด
             </h2>
             {ledger.length === 0 ? (

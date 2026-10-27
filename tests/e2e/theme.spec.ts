@@ -259,3 +259,44 @@ for (const scheme of ["light", "dark"] as const) {
     }
   });
 }
+
+// Review fix (DESIGN 1.3): /staff/orders and /staff/users both have a search box. After a client navigation the
+// first page can stay alive (hidden <Activity>), so their label/input ids must not collide.
+test("staff users search label binds to its own visible input after visiting orders", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "desktop sidebar only");
+  let admin: TestUser | undefined;
+  try {
+    admin = await createConfirmedUser("admin", `admin-ids-${Date.now()}`);
+    await signIn(page, admin, "/staff/orders");
+    await expect(page.getByRole("heading", { level: 1, name: "ออเดอร์" })).toBeVisible();
+    // visit users, back to orders and to users again: the earlier copies of both pages stay alive
+    const sidebar = page.getByRole("navigation", { name: "เมนูผู้ดูแล" });
+    for (const [link, heading] of [
+      ["ผู้ใช้", "จัดการผู้ใช้"],
+      ["ออเดอร์", "ออเดอร์"],
+      ["ผู้ใช้", "จัดการผู้ใช้"],
+    ]) {
+      await sidebar.getByRole("link", { name: link, exact: true }).click();
+      await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
+    }
+    // kept-alive pages must not share an id (a label would bind to the hidden copy)
+    await expect(page.locator("input[name=q]:visible")).toHaveCount(1);
+    const duplicates = await page.evaluate(() => {
+      const seen = new Set<string>();
+      const dup = new Set<string>();
+      for (const el of document.querySelectorAll("[id]")) {
+        if (seen.has(el.id)) dup.add(el.id);
+        seen.add(el.id);
+      }
+      return [...dup];
+    });
+    expect(duplicates).toEqual([]);
+    const search = page.getByLabel("ค้นหาชื่อ");
+    await expect(search).toHaveCount(1);
+    await expect(search).toBeVisible();
+    await search.fill("ทดสอบ");
+    await expect(page.locator('input[name="q"]:visible')).toHaveValue("ทดสอบ");
+  } finally {
+    await deleteUsers([admin]);
+  }
+});

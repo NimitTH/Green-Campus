@@ -53,6 +53,7 @@ function pageHref(q: string, role: RoleFilter, page: number): string {
 }
 
 async function Users({ searchParams }: { searchParams: SearchParams }) {
+  const uid = "users"; // route-prefixed: /staff/orders has its own search box (useId repeats across server renders)
   await requireAdmin("/staff/users");
   const sp = await searchParams;
   const query = cleanSearchTerm(sp.q);
@@ -67,22 +68,22 @@ async function Users({ searchParams }: { searchParams: SearchParams }) {
   return (
     <>
       <form role="search" method="get" className="mb-4 flex flex-wrap gap-2">
-        <label htmlFor="q" className="sr-only">
+        <label htmlFor={`${uid}-q`} className="sr-only">
           ค้นหาชื่อ
         </label>
         <input
-          id="q"
+          id={`${uid}-q`}
           name="q"
           type="search"
           defaultValue={query}
           placeholder="ชื่อ หรือชื่อที่แสดง"
           className={`${inputClass} min-w-0 flex-1`}
         />
-        <label htmlFor="role-filter" className="sr-only">
+        <label htmlFor={`${uid}-role`} className="sr-only">
           บทบาท
         </label>
         <div className="shrink-0">
-          <select id="role-filter" name="role" defaultValue={role} className={inputClass}>
+          <select id={`${uid}-role`} name="role" defaultValue={role} className={inputClass}>
             {FILTERS.map((f) => (
               <option key={f.value} value={f.value}>
                 {f.label}

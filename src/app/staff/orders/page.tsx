@@ -40,6 +40,7 @@ export default function StaffOrdersPage({ searchParams }: { searchParams: Search
 }
 
 async function Orders({ searchParams }: { searchParams: SearchParams }) {
+  const uid = "orders"; // route-prefixed: /staff/users has its own search box (useId repeats across server renders)
   const user = await requireStaff("/staff/orders");
   const { q } = await searchParams;
   const query = typeof q === "string" ? q.trim().slice(0, 100) : "";
@@ -50,11 +51,11 @@ async function Orders({ searchParams }: { searchParams: SearchParams }) {
       {isAdminRole(user.role) ? <ExpireButton /> : null}
 
       <form role="search" method="get" className="mb-4 flex gap-2">
-        <label htmlFor="q" className="sr-only">
+        <label htmlFor={`${uid}-q`} className="sr-only">
           ค้นหา
         </label>
         <input
-          id="q"
+          id={`${uid}-q`}
           name="q"
           type="search"
           defaultValue={query}

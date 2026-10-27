@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Badge } from "@/app/_components/activity-ui";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
-import { PageHeader } from "@/components/ui";
+import { PageHeader, Mono } from "@/components/ui";
 import { submissionStatusLabelTh, typeLabelTh } from "@/lib/activities/labels";
 import { requireStaff } from "@/lib/auth/dal";
 import { formatBangkok } from "@/lib/datetime";
@@ -20,7 +20,6 @@ import {
 } from "@/lib/reviews/queries";
 import { isUuid } from "@/lib/uuid";
 import { ReviewActions } from "../_components/review-actions";
-import { Mono } from "./mono";
 
 export const metadata: Metadata = { title: "ตรวจผล | Green Campus" };
 

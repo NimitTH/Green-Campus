@@ -28,6 +28,8 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
 
 async function EditArticle({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  // per-route id: two edit pages can be alive at once (hidden <Activity>); useId is identical across separate server renders
+  const deleteHeadingId = `delete-heading-${id}`;
   const user = await requireStaff(`/staff/articles/${encodeURIComponent(id)}/edit`);
   if (!isUuid(id)) notFound();
   const article = await getArticleForStaff(id);
@@ -43,8 +45,8 @@ async function EditArticle({ params }: { params: Promise<{ id: string }> }) {
         initial={{ title: article.title, slug: article.slug, body: article.body, published: article.published }}
       />
       {isAdminRole(user.role) ? (
-        <section aria-labelledby="delete-heading" className="mt-10 border-t border-rule pt-6">
-          <h2 id="delete-heading" className="mb-2 font-display text-lg font-semibold">
+        <section aria-labelledby={deleteHeadingId} className="mt-10 border-t border-rule pt-6">
+          <h2 id={deleteHeadingId} className="mb-2 font-display text-lg font-semibold">
             ลบบทความ
           </h2>
           <p className="mb-3 text-sm text-muted">ลบได้เฉพาะผู้ดูแลระบบ ถ้าแค่ไม่อยากให้เห็น ให้ยกเลิกการเผยแพร่แทน</p>
