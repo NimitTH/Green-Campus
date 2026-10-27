@@ -110,14 +110,12 @@ test("waste chart bars use theme chart tokens and follow the theme", async ({ pa
     await setTheme("light");
     const light = await fills();
     const lightTick = await tickFill();
-    console.log("light fills", light, "tick", lightTick);
     for (const f of light) expect(f).not.toBe("rgb(22, 163, 74)");
     expect(light[0]).not.toBe(light[1]);
 
     await setTheme("dark");
     const dark = await fills();
     const darkTick = await tickFill();
-    console.log("dark fills", dark, "tick", darkTick);
     expect(dark[0]).not.toBe(light[0]);
     expect(darkTick).not.toBe(lightTick);
 

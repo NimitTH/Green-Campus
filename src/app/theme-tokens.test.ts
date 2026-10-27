@@ -102,8 +102,7 @@ describe("theme tokens", () => {
       expect(tokens[fg], `missing --${fg}`).toBeDefined();
       expect(tokens[bg], `missing --${bg}`).toBeDefined();
       const ratio = contrast(tokens[fg], tokens[bg]);
-      console.log(`${_name} ${fg} on ${bg}: ${ratio.toFixed(2)}`);
-      expect(ratio).toBeGreaterThanOrEqual(min);
+      expect(ratio, `${_name} ${fg} on ${bg}: ${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(min);
     });
   });
 });
