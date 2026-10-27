@@ -30,7 +30,7 @@ const carbonFormat = new Intl.NumberFormat("th-TH", { maximumFractionDigits: 3 }
 export default function ReviewPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6">
-      <Link href="/staff/reviews" className="mb-4 inline-block text-sm text-accent underline">
+      <Link href="/staff/reviews" className="mb-4 inline-flex min-h-11 items-center text-sm text-accent underline">
         ← ผลที่รอตรวจ
       </Link>
       <Suspense fallback={<PageSkeleton />}>
@@ -81,8 +81,8 @@ async function Review({ params }: { params: Promise<{ id: string }> }) {
       ) : null}
 
       <div className="grid gap-6 md:grid-cols-2">
-        <section aria-labelledby="photo-heading">
-          <h2 id="photo-heading" className="mb-2 font-display text-lg font-semibold">
+        <section aria-labelledby={`photo-heading-${id}`}>
+          <h2 id={`photo-heading-${id}`} className="mb-2 font-display text-lg font-semibold">
             รูปหลักฐาน
           </h2>
           {photoUrl ? (
@@ -100,8 +100,8 @@ async function Review({ params }: { params: Promise<{ id: string }> }) {
           )}
         </section>
 
-        <section aria-labelledby="numbers-heading">
-          <h2 id="numbers-heading" className="mb-2 font-display text-lg font-semibold">
+        <section aria-labelledby={`numbers-heading-${id}`}>
+          <h2 id={`numbers-heading-${id}`} className="mb-2 font-display text-lg font-semibold">
             ข้อมูลที่นักเรียนกรอก
           </h2>
           <Amounts submission={submission} />

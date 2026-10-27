@@ -19,7 +19,7 @@ export const metadata: Metadata = { title: "รายละเอียดกิ
 export default function ActivityPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
-      <Link href="/activities" className="mb-4 inline-block text-sm text-accent underline">
+      <Link href="/activities" className="mb-4 inline-flex min-h-11 items-center text-sm text-accent underline">
         ← กิจกรรมทั้งหมด
       </Link>
       <Suspense fallback={<PageSkeleton />}>

@@ -113,33 +113,6 @@
   --shadow-cast-lift: 12px 10px 18px -8px color-mix(in oklab, var(--shadow-color) var(--shadow-a-cast), transparent);
 }
 
-/* Transition guard: remap Tailwind's default gray/green so unmigrated pages sit in the new palette.
-   L stays at Tailwind's value (contrast of existing classes is unchanged). */
-@theme {
-  --color-gray-50: oklch(98.5% 0.006 100);
-  --color-gray-100: oklch(96.7% 0.0074 106);
-  --color-gray-200: oklch(92.8% 0.0088 111);
-  --color-gray-300: oklch(87.2% 0.0102 117);
-  --color-gray-400: oklch(70.7% 0.0116 122);
-  --color-gray-500: oklch(55.1% 0.013 128);
-  --color-gray-600: oklch(44.6% 0.0144 133);
-  --color-gray-700: oklch(37.3% 0.0158 139);
-  --color-gray-800: oklch(27.8% 0.0172 144);
-  --color-gray-900: oklch(21% 0.0186 150);
-  --color-gray-950: oklch(13% 0.02 155);
-  --color-green-50: oklch(98.2% 0.0153 150);
-  --color-green-100: oklch(96.2% 0.0374 150);
-  --color-green-200: oklch(92.5% 0.0714 150);
-  --color-green-300: oklch(87.1% 0.1275 150);
-  --color-green-400: oklch(79.2% 0.1776 150);
-  --color-green-500: oklch(72.3% 0.1861 150);
-  --color-green-600: oklch(62.7% 0.1649 150);
-  --color-green-700: oklch(52.7% 0.1309 150);
-  --color-green-800: oklch(44.8% 0.1011 150);
-  --color-green-900: oklch(39.3% 0.0808 150);
-  --color-green-950: oklch(26.6% 0.0553 150);
-}
-
 /* In @layer base so Tailwind utilities (font-mono, tracking-*, outline-none...) override these. */
 @layer base {
   body {
@@ -180,5 +153,26 @@
     animation: none !important;
     transform: none !important;
     scroll-behavior: auto !important;
+  }
+
+  /* Tailwind 4 lifts/presses with the separate `translate` property. Kept in rules of their own with distinct
+     selectors: next to `transform` (or in adjacent identical rules) the CSS minifier folds them into one identity
+     `transform` and drops `translate`. */
+  html *,
+  html *::before,
+  html *::after {
+    translate: none !important;
+  }
+
+  :root *,
+  :root *::before,
+  :root *::after {
+    scale: none !important;
+  }
+
+  html body *,
+  html body *::before,
+  html body *::after {
+    rotate: none !important;
   }
 }

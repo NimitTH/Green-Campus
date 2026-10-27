@@ -4,7 +4,7 @@ import { Button } from "@/components/ui";
 export function SignOutButton() {
   return (
     <form action={signOut}>
-      <Button type="submit" variant="card" className="text-sm">
+      <Button type="submit" variant="card" size="sm">
         ออกจากระบบ
       </Button>
     </form>

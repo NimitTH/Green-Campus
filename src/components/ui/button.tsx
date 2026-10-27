@@ -1,11 +1,11 @@
 import Link from "next/link";
 
 export type ButtonVariant = "primary" | "card" | "quiet" | "danger";
-export type ButtonSize = "md" | "lg";
+export type ButtonSize = "sm" | "md" | "lg";
 
 const BASE =
-  "inline-flex items-center justify-center gap-2 rounded-input px-4 text-base font-medium " +
-  "transition duration-[var(--dur-short)] ease-[var(--ease-out)] motion-reduce:transform-none motion-reduce:transition-none " +
+  "inline-flex items-center justify-center gap-2 rounded-input font-medium " +
+  "transition duration-[var(--dur-short)] ease-[var(--ease-out)] motion-reduce:translate-none motion-reduce:transition-none " +
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent " +
   "disabled:opacity-55 disabled:pointer-events-none aria-disabled:opacity-55 aria-disabled:pointer-events-none";
 
@@ -18,8 +18,9 @@ const VARIANTS: Record<ButtonVariant, string> = {
 };
 
 const SIZES: Record<ButtonSize, string> = {
-  md: "min-h-11",
-  lg: "min-h-12",
+  sm: "min-h-11 px-3 text-sm",
+  md: "min-h-11 px-4 text-base",
+  lg: "min-h-12 px-4 text-base",
 };
 
 export function buttonClass({

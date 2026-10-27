@@ -34,6 +34,19 @@ describe("Button", () => {
     expect(buttonClass()).toContain("min-h-11");
     expect(buttonClass({ className: "w-full" }).endsWith("w-full")).toBe(true);
   });
+  it("sm keeps a 44px target and does not stack text-size or padding utilities", () => {
+    const sm = buttonClass({ size: "sm" });
+    expect(sm).toContain("min-h-11");
+    expect(sm).toContain("text-sm");
+    expect(sm).toContain("px-3");
+    for (const size of ["sm", "md", "lg"] as const) {
+      const tokens = buttonClass({ size }).split(" ");
+      expect(tokens.filter((t) => /^text-(sm|base|lg|xl)$/.test(t))).toHaveLength(1);
+      expect(tokens.filter((t) => /^px-\d/.test(t))).toHaveLength(1);
+      expect(tokens.filter((t) => /^min-h-/.test(t))).toHaveLength(1);
+    }
+    expect(buttonClass()).toContain("motion-reduce:translate-none");
+  });
 });
 
 describe("Card", () => {

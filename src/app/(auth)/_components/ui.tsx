@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { buttonClass, inputClass } from "@/components/ui";
 
 export function FormTitle({ title, subtitle }: { title: string; subtitle?: string }) {
@@ -27,21 +27,23 @@ export function Field({
   error?: string;
   hint?: string;
 }) {
-  const errorId = `${name}-error`;
+  // useId, not `name`: login and register stay mounted together (<Activity>), so a fixed id would collide.
+  const id = useId();
+  const errorId = `${id}-error`;
   return (
     <div className="mb-4">
-      <label htmlFor={name} className="mb-1 block text-sm font-medium text-ink">
+      <label htmlFor={id} className="mb-1 block text-sm font-medium text-ink">
         {label}
       </label>
       <input
-        id={name}
+        id={id}
         name={name}
         type={type}
         autoComplete={autoComplete}
         defaultValue={defaultValue}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
-        className={`${inputClass} aria-[invalid=true]:border-danger`}
+        className={inputClass}
       />
       {hint && !error ? <p className="mt-1 text-sm text-muted">{hint}</p> : null}
       {error ? (

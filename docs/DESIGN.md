@@ -164,7 +164,7 @@ git grep -hoE "<regex>" a28abcc -- 'src/*.tsx' | wc -l      # ก่อน
 grep -rhoE "<regex>" src --include=*.tsx | wc -l              # หลัง
 ```
 
-ไม่มีจุดค้างเพราะทุกหน้าย้ายมาใช้ token ครบแล้ว ตัวกันช่วงเปลี่ยน (override `--color-gray-*` / `--color-green-*`) จึงไม่มีคลาสใดใช้งานอยู่ในโค้ด
+ไม่มีจุดค้างเพราะทุกหน้าย้ายมาใช้ token ครบแล้ว ตัวกันช่วงเปลี่ยน (override `--color-gray-*` / `--color-green-*`) จึงไม่มีคลาสใดใช้งานอยู่ในโค้ด และถูก **ลบออกจาก `globals.css` แล้ว** หลังย้ายครบ (ตรวจแล้วคลาส `gray`/`green` ดิบเหลือ 0 จุดใน `src`)
 
 ### 3.3 ฟอนต์และขนาด
 
@@ -283,4 +283,4 @@ grep -rhoE "<regex>" src --include=*.tsx | wc -l              # หลัง
 | `/` | ○ (static) | 1m / 1h |
 | `/articles` | ○ (static) | 1m / 1h |
 
-ตรวจการลดการเคลื่อนไหว (reduced motion) ด้วย Playwright: ปุ่มหลัก hover/กดแล้ว `transform` เป็น `none` และไม่มี animation ทำงานบน dashboard ส่วน skeleton วัดจาก element `animate-pulse` สังเคราะห์ที่แทรกเข้าไป ร่วมกับกฎ global ของ reduce ไม่ได้วัด `PageSkeleton` จริง
+ตรวจการลดการเคลื่อนไหว (reduced motion) ด้วย Playwright: ปุ่มหลัก hover/กดแล้ว `translate` (computed) เป็น `none` และ bounding box ไม่ขยับ (วัด `translate` กับ bounding box ไม่ใช่ `transform` เพราะ Tailwind 4 คอมไพล์ `-translate-y-px` เป็น property `translate` แยกจาก `transform`) และไม่มี animation ทำงานบน dashboard ส่วน skeleton วัดจาก element `animate-pulse` สังเคราะห์ที่แทรกเข้าไป ร่วมกับกฎ global ของ reduce ไม่ได้วัด `PageSkeleton` จริง

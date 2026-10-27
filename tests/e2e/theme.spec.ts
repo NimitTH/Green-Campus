@@ -300,3 +300,57 @@ test("staff users search label binds to its own visible input after visiting ord
     await deleteUsers([admin]);
   }
 });
+
+// Review fix (DESIGN 3.4): reduced motion must stop the primary button's lift/press. Tailwind 4 compiles
+// hover:-translate-y-px / active:translate-y-px to the separate CSS `translate` property, not `transform`.
+test("reduced motion: primary button does not lift or press", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "hover needs a pointer");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/login");
+  const submit = page.getByRole("button", { name: "เข้าสู่ระบบ" });
+  await expect(submit).toBeVisible();
+  const before = (await submit.boundingBox())!;
+  await submit.hover();
+  await page.waitForTimeout(300);
+  const hovered = (await submit.boundingBox())!;
+  expect(await submit.evaluate((el) => getComputedStyle(el).translate)).toMatch(/^(none|0px|0px 0px)$/);
+  expect(hovered.y).toBe(before.y);
+  await page.mouse.down();
+  await page.waitForTimeout(300);
+  const pressed = (await submit.boundingBox())!;
+  expect(await submit.evaluate((el) => getComputedStyle(el).translate)).toMatch(/^(none|0px|0px 0px)$/);
+  expect(pressed.y).toBe(before.y);
+  await page.mouse.up();
+});
+
+// Review fix (DESIGN 1.3): login and register are kept alive by <Activity> and link to each other, so their
+// field ids must not collide (a label would bind to the hidden page's input).
+test("login and register keep unique ids and labels bind to the visible input", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "one project is enough");
+  await page.goto("/login");
+  await expect(page.getByRole("heading", { level: 1, name: "เข้าสู่ระบบ" })).toBeVisible();
+  for (const [link, heading] of [
+    ["สมัครสมาชิก", "สมัครสมาชิก"],
+    ["เข้าสู่ระบบ", "เข้าสู่ระบบ"],
+    ["สมัครสมาชิก", "สมัครสมาชิก"],
+  ]) {
+    await page.getByRole("main").getByRole("link", { name: link, exact: true }).click();
+    await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
+  }
+  const duplicates = await page.evaluate(() => {
+    const seen = new Set<string>();
+    const dup = new Set<string>();
+    for (const el of document.querySelectorAll("[id]")) {
+      if (seen.has(el.id)) dup.add(el.id);
+      seen.add(el.id);
+    }
+    return [...dup];
+  });
+  expect(duplicates).toEqual([]);
+  // the hidden copy of the other page may still exist; only the visible one may match the label
+  const email = page.getByLabel("อีเมล", { exact: true }).and(page.locator(":visible"));
+  await expect(email).toHaveCount(1);
+  await expect(email).toBeVisible();
+  await email.fill("a@example.com");
+  await expect(email).toHaveValue("a@example.com");
+});

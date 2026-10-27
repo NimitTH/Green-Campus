@@ -104,7 +104,7 @@ export async function StudentStats({ studentId }: { studentId: string }) {
       <Card as="section">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-display font-semibold">ประวัติล่าสุด</h2>
-          <Link href="/my-submissions" className="text-sm text-accent underline">
+          <Link href="/my-submissions" className="inline-flex min-h-11 items-center text-sm text-accent underline">
             ดูทั้งหมด
           </Link>
         </div>

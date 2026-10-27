@@ -28,7 +28,7 @@ function Notice({ activityId, children }: { activityId: string; children: React.
   return (
     <EmptyState>
       <p>{children}</p>
-      <Link href={`/activities/${activityId}`} className="mt-3 inline-block text-sm text-accent underline">
+      <Link href={`/activities/${activityId}`} className="mt-3 inline-flex min-h-11 items-center text-sm text-accent underline">
         กลับไปหน้ากิจกรรม
       </Link>
     </EmptyState>
@@ -43,7 +43,7 @@ async function Submit({ params }: { params: Promise<{ id: string }> }) {
   if (!activity) notFound();
 
   const back = (
-    <Link href={`/activities/${activity.id}`} className="mb-4 inline-block text-sm text-accent underline">
+    <Link href={`/activities/${activity.id}`} className="mb-4 inline-flex min-h-11 items-center text-sm text-accent underline">
       ← {activity.title}
     </Link>
   );
@@ -67,7 +67,7 @@ async function Submit({ params }: { params: Promise<{ id: string }> }) {
         {back}
         <EmptyState>
           <p className="font-semibold">ส่งผลแล้ว</p>
-          <Link href="/my-submissions" className="mt-3 inline-block text-sm text-accent underline">
+          <Link href="/my-submissions" className="mt-3 inline-flex min-h-11 items-center text-sm text-accent underline">
             ดูผลที่ส่ง
           </Link>
         </EmptyState>
