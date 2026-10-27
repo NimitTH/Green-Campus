@@ -71,6 +71,71 @@ test("student with one approved waste result sees points, carbon, chart fallback
   }
 });
 
+test("waste chart bars use theme chart tokens and follow the theme", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const title = `กิจกรรมกราฟ ${suffix}`;
+  let teacher: TestUser | undefined;
+  let student: TestUser | undefined;
+
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-chart-${suffix}`);
+    student = await createConfirmedUser("student", `student-chart-${suffix}`);
+    const activityId = await createJoinedCodeActivity(title, student.id, {
+      type: "waste",
+      unit_points: 0,
+      requires_code: false,
+    });
+    const submissionId = await seedSubmission(student, activityId, PNG_1X1, [
+      { waste_category_id: await wasteCategoryId("พลาสติก"), quantity: 1200 },
+      { waste_category_id: await wasteCategoryId("กระดาษ"), quantity: 800 },
+    ]);
+    const teacherClient = await signedInClient(teacher);
+    const { error } = await teacherClient.rpc("approve_submission", { p_submission_id: submissionId });
+    expect(error).toBeNull();
+
+    await signIn(page, student, "/dashboard");
+    const bars = page.getByTestId("waste-chart").locator("path.recharts-rectangle");
+    await expect(bars).toHaveCount(2);
+
+    const fills = async () => bars.evaluateAll((els) => els.map((el) => getComputedStyle(el).fill));
+    const tickFill = () =>
+      page
+        .getByTestId("waste-chart")
+        .locator("svg text", { hasText: "พลาสติก" })
+        .first()
+        .evaluate((el) => getComputedStyle(el).fill);
+    const setTheme = (t: "light" | "dark") =>
+      page.evaluate((v) => document.documentElement.setAttribute("data-theme", v), t);
+
+    await setTheme("light");
+    const light = await fills();
+    const lightTick = await tickFill();
+    console.log("light fills", light, "tick", lightTick);
+    for (const f of light) expect(f).not.toBe("rgb(22, 163, 74)");
+    expect(light[0]).not.toBe(light[1]);
+
+    await setTheme("dark");
+    const dark = await fills();
+    const darkTick = await tickFill();
+    console.log("dark fills", dark, "tick", darkTick);
+    expect(dark[0]).not.toBe(light[0]);
+    expect(darkTick).not.toBe(lightTick);
+
+    const dir = "test-results/screens/chart";
+    for (const theme of ["light", "dark"] as const) {
+      for (const width of [360, 1280]) {
+        await setTheme(theme);
+        await page.setViewportSize({ width, height: 900 });
+        await page.waitForTimeout(200);
+        await page.screenshot({ path: `${dir}/dashboard-${width}-${theme}-${testInfo.project.name}.png`, fullPage: true });
+      }
+    }
+  } finally {
+    await deleteActivitiesByTitle(title);
+    await deleteUsers([teacher, student]);
+  }
+});
+
 test("a new student sees the empty state and no chart", async ({ page }, testInfo) => {
   const suffix = uniqueSuffix(testInfo.project.name);
   let student: TestUser | undefined;
