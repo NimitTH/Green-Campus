@@ -55,7 +55,7 @@
 - **หน้าจุดชั่ง** (`/staff/weigh-station`) ใช้ยืนที่จุดชั่ง ต้องคงไว้: ปุ่มใหญ่, รหัส 6 หลักตัวใหญ่, นับถอยหลังชัด และแถบข้างต้องไม่บีบพื้นที่บนแท็บเล็ต
 - ทุกหน้าที่ดึงข้อมูลมีสถานะกำลังโหลดและสถานะว่างอยู่แล้ว ห้ามลบ
 - ความต่างของสี (contrast) ต้องผ่าน WCAG AA ทั้งธีมสว่างและมืด (ข้อความปกติ 4.5:1, ข้อความใหญ่และขอบปุ่ม 3:1) สีเขียวสดบนพื้นขาวมักไม่ผ่าน ต้องเช็ก
-- ต้องมี focus ring ที่มองเห็นได้ทุกองค์ประกอบที่กดได้
+- ต้องมี focus | `b(bg|| `b(bg|text|border)-(red|amber)-[0-9]{2,3}`|border|ring|divide)-(gray|green)-[0-9]{2,3}` ที่มองเห็นได้ทุกองค์ประกอบที่กดได้
 - เคารพ `prefers-reduced-motion`
 
 ### 1.5 ฟอนต์และภาษา
@@ -96,18 +96,18 @@
 **หยิบจาก Hallmark Coral** (อ้างอิงไฟล์ `tokens.css` / `style.css` / `base.css` ของธีม ไม่มีสกิล hallmark ติดตั้งในเครื่อง):
 
 - พื้นกระดาษอุ่น + ตัวอักษรสีหมึกเข้ม + **สีเน้นสีเดียว** (เปลี่ยนจากปะการังเป็นเขียวใบไม้)
-- หัวข้อใหญ่ ตัวหนา tracking แน่นเล็กน้อย, `text-wrap: balance`
+- หัวข้อใหญ่ ตัวหนา tracking แน่นเล็กน้อย, `| `b(bg|| `b(bg|text|border)-(red|amber)-[0-9]{2,3}`|border|ring|divide)-(gray|green)-[0-9]{2,3}`-wrap: balance`
 - ปุ่มหลักเป็น "การ์ด" มีเงาตกไปทางขวาล่าง (แสงมาจากซ้าย) ยกขึ้น 1px ตอน hover กดลง 1px ตอน active
 - ตัวเลขสถิติเป็น monospace (`tabular-nums`)
 - ระยะห่างเยอะ, เส้นแบ่งบาง (hairline), easing `cubic-bezier(0.16, 1, 0.3, 1)`
 
-**ไม่เอา:** ลายผิวกระดาษ (SVG texture), ฉาก still-life ทำด้วย CSS, เงาพิมพ์นูนหลายชั้น, `line-height` 1.05 ของหัวข้อ (วรรณยุกต์ไทยชน), General Sans (ไม่มีอักษรไทย)
+**ไม่เอา:** ลายผิวกระดาษ (SVG | `b(bg|| `b(bg|text|border)-(red|amber)-[0-9]{2,3}`|border|ring|divide)-(gray|green)-[0-9]{2,3}`ure), ฉาก still-life ทำด้วย CSS, เงาพิมพ์นูนหลายชั้น, `line-height` 1.05 ของหัวข้อ (วรรณยุกต์ไทยชน), General Sans (ไม่มีอักษรไทย)
 
 **ธีมมืด:** ไม่ใช่การกลับสี แต่เป็น "ป่าตอนกลางคืน" พื้นเขียวดำ ตัวอักษรขาวอุ่น สีเน้นเป็นเขียวมิ้นท์สว่าง
 
 ## 3. Token
 
-ประกาศเป็น CSS variable ใน `src/app/globals.css` แล้วผูกเป็น utility ของ Tailwind ผ่าน `@theme inline` (เช่น `bg-paper`, `text-ink`, `border-rule`, `bg-accent`, `text-on-accent`)
+ประกาศเป็น CSS variable ใน `src/app/globals.css` แล้วผูกเป็น utility ของ Tailwind ผ่าน `@theme inline` (เช่น `bg-paper`, `| `b(bg|| `b(bg|text|border)-(red|amber)-[0-9]{2,3}`|border|ring|divide)-(gray|green)-[0-9]{2,3}`-ink`, `border-rule`, `bg-accent`, `text-on-accent`)
 
 ### 3.1 สี
 
@@ -120,7 +120,7 @@
 | `muted` | `oklch(47% 0.02 150)` | `oklch(74% 0.02 140)` | ข้อความรอง |
 | `rule` | `oklch(87% 0.01 110)` | `oklch(32% 0.02 160)` | เส้นแบ่งบาง (ตกแต่ง) |
 | `rule-strong` | `oklch(62% 0.02 130)` | `oklch(52% 0.02 150)` | ขอบช่องกรอกและขอบปุ่ม |
-| `accent` | `oklch(45% 0.12 150)` | `oklch(78% 0.14 150)` | ปุ่มหลัก, ลิงก์, focus ring |
+| `accent` | `oklch(45% 0.12 150)` | `oklch(78% 0.14 150)` | ปุ่มหลัก, ลิงก์, focus | `b(bg|| `b(bg|text|border)-(red|amber)-[0-9]{2,3}`|border|ring|divide)-(gray|green)-[0-9]{2,3}` |
 | `on-accent` | `oklch(99% 0.004 95)` | `oklch(18% 0.02 160)` | ตัวอักษรบนปุ่มหลัก |
 | `accent-soft` | `oklch(92% 0.06 140)` | `oklch(30% 0.05 155)` | พื้นไฮไลต์, เมนูที่เลือก |
 | `danger` | `oklch(50% 0.18 27)` | `oklch(72% 0.15 27)` | error, ปฏิเสธ, ยกเลิก |
@@ -153,9 +153,16 @@
 
 | รายการตรวจ | ก่อน redesign | หลัง | หมายเหตุ |
 |---|---|---|---|
-| `(bg\|text\|border\|ring\|divide)-(gray\|green)-NNN` ใน `src/**/*.tsx` | 786 (gray 568 + green 218) | 0 | ไม่มีจุดที่คงไว้ |
-| `(bg\|text\|border)-(red\|amber)-NNN` | 274 (red 214 + amber 60) | 0 | ใช้ token `danger` / `warn` แล้ว |
-| `dark:` ที่ซ้ำกับ token | ไม่ได้นับ | 0 | ไม่มี `dark:` เหลือใน `src` (ธีมมืดมาจาก token ทั้งหมด) |
+| `\b(bg\|text\|border\|ring\|divide)-(gray\|green)-[0-9]{2,3}` ใน `src/**/*.tsx` | 786 (gray 568 + green 218) | 0 | ไม่มีจุดที่คงไว้ |
+| `\b(bg\|text\|border)-(red\|amber)-[0-9]{2,3}` | 274 (red 214 + amber 60) | 0 | ใช้ token `danger` / `warn` แล้ว |
+| `\bdark:` ทุกจุดใน `src/**/*.tsx` | 433 | 0 | ไม่มี `dark:` เหลือใน `src` (ธีมมืดมาจาก token ทั้งหมด) |
+
+วัดค่า "ก่อน" ที่ commit ฐานก่อน redesign `a28abcc` และค่า "หลัง" ที่ working tree ด้วย regex เดียวกันทุกแถว (นับจำนวนที่พบ ไม่ใช่จำนวนบรรทัด):
+
+```
+git grep -hoE "<regex>" a28abcc -- 'src/*.tsx' | wc -l      # ก่อน
+grep -rhoE "<regex>" src --include=*.tsx | wc -l              # หลัง
+```
 
 ไม่มีจุดค้างเพราะทุกหน้าย้ายมาใช้ token ครบแล้ว ตัวกันช่วงเปลี่ยน (override `--color-gray-*` / `--color-green-*`) จึงไม่มีคลาสใดใช้งานอยู่ในโค้ด
 
@@ -215,11 +222,11 @@
 
 | ชิ้น | รายละเอียด |
 |---|---|
-| `Button` | `variant`: `primary` (พื้น accent, ตัวอักษร on-accent, `shadow-cast`, hover ยก 1px + `shadow-cast-lift`, active กด 1px) / `card` (surface + ขอบ rule-strong + `shadow-card`) / `quiet` (โปร่ง, hover พื้น accent-soft) / `danger` (ขอบและตัวอักษร danger) · `size`: `md` สูง 44px / `lg` สูง 48px · `disabled` ทึบ 55% ไม่ยก · focus ring 2px accent offset 2px |
+| `Button` | `variant`: `primary` (พื้น accent, ตัวอักษร on-accent, `shadow-cast`, hover ยก 1px + `shadow-cast-lift`, active กด 1px) / `card` (surface + ขอบ rule-strong + `shadow-card`) / `quiet` (โปร่ง, hover พื้น accent-soft) / `danger` (ขอบและตัวอักษร danger) · `size`: `md` สูง 44px / `lg` สูง 48px · `disabled` ทึบ 55% ไม่ยก · focus | `b(bg|| `b(bg|text|border)-(red|amber)-[0-9]{2,3}`|border|ring|divide)-(gray|green)-[0-9]{2,3}` 2px accent offset 2px |
 | `ButtonLink` | สไตล์เดียวกับ `Button` แต่เป็น `<Link>` |
 | `Card` | surface, ขอบ rule, `radius-card`, `shadow-card`, padding 16/24px · `tone="accent"` พื้น accent-soft · `as` ได้ `section`/`article`/`li`/`div` |
 | `Field` | `label` + ช่องกรอก + `hint` + `error` · ผู้เรียกส่ง `id` จาก `useId()` เอง · error คง `role="alert"` · ช่องกรอกสูง ≥ 44px, ขอบ rule-strong, focus ขอบ accent |
-| `inputClass` | สตริงคลาสของช่องกรอก สำหรับจุดที่ใช้ `<input>`/`<select>`/`<textarea>` ตรง ๆ |
+| `inputClass` | สตริงคลาสของช่องกรอก สำหรับจุดที่ใช้ `<input>`/`<select>`/`<| `b(bg|| `b(bg|text|border)-(red|amber)-[0-9]{2,3}`|border|ring|divide)-(gray|green)-[0-9]{2,3}`area>` ตรง ๆ |
 | `Badge` | **แทน `Badge` ใน `src/app/_components/activity-ui.tsx`** API เดิม (`tone`: `gray`/`green`/`amber`) + เพิ่ม `red` · pill, พื้นผสมสี 14%, ตัวอักษร muted/accent/warn/danger |
 | `Stat` | ป้ายเล็ก muted อยู่บน ตัวเลขใหญ่ `font-mono` · ส่ง `data-testid` ผ่านไปที่ตัวเลข ถ้าเดิมอยู่ที่ตัวเลข |
 | `PageHeader` | `h1` `font-display` + คำอธิบาย muted + ช่อง action ด้านขวา (ล้นลงบรรทัดใหม่บนมือถือ) |
@@ -247,7 +254,7 @@
 - **รางวัล / cart / ออเดอร์:** grid ของ `Card` รูปอัตราส่วนคงที่ 4:3 `object-cover` (ยังเป็น `<img>`) · แต้มเป็น `font-mono` · สถานะออเดอร์ใช้ `Badge`
 - **ตรวจผล (staff):** รายการเป็น `Card` · หน้ารายละเอียดแสดงรูปหลักฐานใหญ่ ตารางน้ำหนักแบบ §4 ปุ่มอนุมัติ `primary` ปุ่มปฏิเสธ `danger`
 - **จุดชั่ง:**
-  - รหัส 6 หลัก `font-mono` `text-6xl sm:text-7xl` บนการ์ด `tone="accent"` ขอบ accent 2px
+  - รหัส 6 หลัก `font-mono` `| `b(bg|| `b(bg|text|border)-(red|amber)-[0-9]{2,3}`|border|ring|divide)-(gray|green)-[0-9]{2,3}`-6xl sm:text-7xl` บนการ์ด `tone="accent"` ขอบ accent 2px
   - นับถอยหลัง `font-mono` **5 นาทีสุดท้ายเป็นสี warn และหมดเวลาเป็น danger** (เลือกคลาสจากเวลาที่เหลือที่คอมโพเนนต์คำนวณอยู่แล้ว ไม่เพิ่ม state ใหม่)
   - ปุ่ม `lg` ช่องกรอกสูง 48px
   - แถบข้างครูแสดงตั้งแต่ `xl` เหมือนเดิม
@@ -269,9 +276,11 @@
 
 ## 7. ผลตรวจ build ปิดงาน
 
-`npm run build` บน branch redesign (เทียบ `tests/redesign/build-routes.baseline.txt` ตรงกัน):
+`npm run build` บน branch redesign (เทียบไฟล์ baseline `tests/redesign/build-routes.baseline.txt` ตรงกัน):
 
 | route | สัญลักษณ์ | Revalidate / Expire |
 |---|---|---|
 | `/` | ○ (static) | 1m / 1h |
 | `/articles` | ○ (static) | 1m / 1h |
+
+ตรวจการลดการเคลื่อนไหว (reduced motion) ด้วย Playwright: ปุ่มหลัก hover/กดแล้ว `transform` เป็น `none` และไม่มี animation ทำงานบน dashboard ส่วน skeleton วัดจาก element `animate-pulse` สังเคราะห์ที่แทรกเข้าไป ร่วมกับกฎ global ของ reduce ไม่ได้วัด `PageSkeleton` จริง
