@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useRef, useState } from "react";
 import { saveReward } from "@/app/actions/rewards";
+import { Button, ButtonLink, Field, inputClass } from "@/components/ui";
 import { errorMessageTh, uploadErrorCode } from "@/lib/errors";
 import { ImageError, resizeToJpeg } from "@/lib/image";
 import type { RewardFieldErrors, RewardInput } from "@/lib/rewards/validation";
@@ -14,12 +14,9 @@ import { uniqueId } from "@/lib/unique-id";
 const BUCKET = "reward-images";
 const REQUEST_TIMEOUT_MS = 60_000;
 
-const inputClass =
-  "w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-base outline-none focus:border-green-600 focus:ring-2 focus:ring-green-600/30 aria-[invalid=true]:border-red-500 dark:border-gray-700 dark:bg-gray-900";
-
 function FieldError({ id, message }: { id: string; message?: string }) {
   return message ? (
-    <p id={id} className="mt-1 text-sm text-red-600">
+    <p id={id} className="text-sm text-danger">
       {message}
     </p>
   ) : null;
@@ -144,20 +141,17 @@ export function RewardForm({
     <form onSubmit={onSubmit} noValidate>
       {id ? <input type="hidden" name="loadedStock" value={loadedStock} /> : null}
       {error ? (
-        <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+        <div role="alert" className="mb-4 rounded-input border border-danger bg-surface p-3 text-sm text-danger">
           {error}
         </div>
       ) : null}
       {hasFieldErrors ? (
-        <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+        <div role="alert" className="mb-4 rounded-input border border-danger bg-surface p-3 text-sm text-danger">
           กรุณาแก้ช่องที่มีข้อความสีแดง
         </div>
       ) : null}
 
-      <div className="mb-4">
-        <label htmlFor={f("name")} className="mb-1 block text-sm font-medium">
-          ชื่อของรางวัล
-        </label>
+      <Field id={f("name")} label="ชื่อของรางวัล" className="mb-4">
         <input
           id={f("name")}
           value={values.name}
@@ -167,13 +161,10 @@ export function RewardForm({
           className={inputClass}
         />
         <FieldError id={f("name-error")} message={fieldErrors.name} />
-      </div>
+      </Field>
 
       <div className="grid gap-x-4 sm:grid-cols-2">
-        <div className="mb-4">
-          <label htmlFor={f("pointsCost")} className="mb-1 block text-sm font-medium">
-            แต้มที่ใช้แลก
-          </label>
+        <Field id={f("pointsCost")} label="แต้มที่ใช้แลก" className="mb-4">
           <input
             id={f("pointsCost")}
             inputMode="numeric"
@@ -184,11 +175,8 @@ export function RewardForm({
             className={inputClass}
           />
           <FieldError id={f("pointsCost-error")} message={fieldErrors.pointsCost} />
-        </div>
-        <div className="mb-4">
-          <label htmlFor={f("stock")} className="mb-1 block text-sm font-medium">
-            จำนวนในสต็อก
-          </label>
+        </Field>
+        <Field id={f("stock")} label="จำนวนในสต็อก" className="mb-4">
           <input
             id={f("stock")}
             inputMode="numeric"
@@ -199,37 +187,40 @@ export function RewardForm({
             className={inputClass}
           />
           <FieldError id={f("stock-error")} message={fieldErrors.stock} />
-        </div>
+        </Field>
       </div>
 
-      <div className="mb-4">
-        <label htmlFor={f("image")} className="mb-1 block text-sm font-medium">
-          รูปของรางวัล (ไม่บังคับ)
-        </label>
+      <Field
+        id={f("image")}
+        label="รูปของรางวัล (ไม่บังคับ)"
+        hint={
+          <>
+            {id ? "เลือกรูปใหม่เพื่อเปลี่ยนรูป " : ""}ระบบจะย่อรูปให้อัตโนมัติ
+          </>
+        }
+        className="mb-4"
+      >
         {imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- public Supabase Storage URL
-          <img src={imageUrl} alt="รูปปัจจุบัน" className="mb-2 h-24 w-24 rounded-lg object-cover" />
+          <img src={imageUrl} alt="รูปปัจจุบัน" className="mb-2 h-24 w-24 rounded-input object-cover" />
         ) : null}
         <input
           ref={fileInput}
           id={f("image")}
           type="file"
           accept="image/*"
-          className="block w-full text-sm"
+          className="block w-full text-sm text-ink file:mr-3 file:min-h-11 file:rounded-input file:border file:border-rule-strong file:bg-surface file:px-3 file:text-ink"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         />
-        <p className="mt-1 text-xs text-gray-500">
-          {id ? "เลือกรูปใหม่เพื่อเปลี่ยนรูป " : ""}ระบบจะย่อรูปให้อัตโนมัติ
-        </p>
-      </div>
+      </Field>
 
-      <div className="mb-6 flex items-center gap-2">
+      <div className="mb-6 flex min-h-11 items-center gap-2">
         <input
           id={f("active")}
           type="checkbox"
           checked={values.active}
           onChange={(e) => set("active", e.target.checked)}
-          className="h-5 w-5 accent-green-700"
+          className="h-5 w-5 accent-accent"
         />
         <label htmlFor={f("active")} className="text-sm">
           เปิดให้แลก (นักเรียนเห็นและใส่ตะกร้าได้)
@@ -237,19 +228,12 @@ export function RewardForm({
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row-reverse">
-        <button
-          type="submit"
-          disabled={busy}
-          className="w-full rounded-lg bg-green-700 px-4 py-3 text-base font-semibold text-white hover:bg-green-800 disabled:opacity-60 sm:w-auto"
-        >
+        <Button type="submit" variant="primary" disabled={busy} className="w-full sm:w-auto">
           {busy ? (stage ?? "กำลังบันทึก...") : "บันทึกของรางวัล"}
-        </button>
-        <Link
-          href="/staff/rewards"
-          className="w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-base dark:border-gray-700 sm:w-auto"
-        >
+        </Button>
+        <ButtonLink href="/staff/rewards" variant="card" className="w-full sm:w-auto">
           ยกเลิก
-        </Link>
+        </ButtonLink>
       </div>
     </form>
   );

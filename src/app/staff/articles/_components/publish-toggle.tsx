@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { Button } from "@/components/ui";
 import { setArticlePublished } from "@/app/actions/articles";
 
 /** Publish or unpublish an article from the list (optimistic concurrency on updated_at). */
@@ -35,17 +36,17 @@ export function PublishToggle({
 
   return (
     <div>
-      <button
+      <Button
         type="button"
         onClick={toggle}
         disabled={pending}
         aria-label={`${label} ${title}`}
-        className="rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-100 disabled:opacity-60 dark:border-gray-700 dark:hover:bg-gray-900"
+        variant="card"
       >
         {pending ? "กำลังบันทึก..." : label}
-      </button>
+      </Button>
       {error ? (
-        <p role="alert" className="mt-2 text-sm text-red-700">
+        <p role="alert" className="mt-2 text-sm text-danger">
           {error}
         </p>
       ) : null}

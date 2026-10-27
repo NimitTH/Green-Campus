@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useId, useState } from "react";
 import { saveActivityForm, type ActivityFormState } from "@/app/actions/activities";
+import { Button, ButtonLink, Field, inputClass } from "@/components/ui";
 import { typeLabelTh } from "@/lib/activities/labels";
 import {
   ACTIVITY_TYPES,
@@ -12,12 +12,9 @@ import {
   type ActivityInput,
 } from "@/lib/activities/validation";
 
-const inputClass =
-  "w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-base outline-none focus:border-green-600 focus:ring-2 focus:ring-green-600/30 aria-[invalid=true]:border-red-500 dark:border-gray-700 dark:bg-gray-900";
-
 function FieldError({ id, message }: { id: string; message?: string }) {
   return message ? (
-    <p id={id} className="mt-1 text-sm text-red-600">
+    <p id={id} className="text-sm text-danger">
       {message}
     </p>
   ) : null;
@@ -44,10 +41,7 @@ function TextField({
   // unique per instance: the new and edit forms can both be alive (hidden <Activity>)
   const fid = useId();
   return (
-    <div className="mb-4">
-      <label htmlFor={fid} className="mb-1 block text-sm font-medium">
-        {label}
-      </label>
+    <Field id={fid} label={label} hint={hint && !error ? hint : undefined} className="mb-4">
       <input
         id={fid}
         name={name}
@@ -58,9 +52,8 @@ function TextField({
         aria-describedby={error ? `${fid}-error` : undefined}
         className={inputClass}
       />
-      {hint && !error ? <p className="mt-1 text-xs text-gray-500">{hint}</p> : null}
       <FieldError id={`${fid}-error`} message={error} />
-    </div>
+    </Field>
   );
 }
 
@@ -107,22 +100,19 @@ function ActivityFormFields({
     <form action={action} noValidate>
       {id ? <input type="hidden" name="id" value={id} /> : null}
       {state?.error ? (
-        <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+        <div role="alert" className="mb-4 rounded-input border border-danger bg-surface p-3 text-sm text-danger">
           {state.error}
         </div>
       ) : null}
       {errors && Object.keys(errors).length > 0 ? (
-        <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+        <div role="alert" className="mb-4 rounded-input border border-danger bg-surface p-3 text-sm text-danger">
           กรุณาแก้ช่องที่มีข้อความสีแดง
         </div>
       ) : null}
 
       <TextField label="ชื่อกิจกรรม" name="title" defaultValue={values.title} errors={errors} />
 
-      <div className="mb-4">
-        <label htmlFor={f("description")} className="mb-1 block text-sm font-medium">
-          รายละเอียด (ไม่บังคับ)
-        </label>
+      <Field id={f("description")} label="รายละเอียด (ไม่บังคับ)" className="mb-4">
         <textarea
           id={f("description")}
           name="description"
@@ -133,17 +123,17 @@ function ActivityFormFields({
           className={inputClass}
         />
         <FieldError id={f("description-error")} message={errors?.description} />
-      </div>
+      </Field>
 
       <TextField label="สถานที่ (ไม่บังคับ)" name="location" defaultValue={values.location} errors={errors} />
 
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-4 flex min-h-11 items-center gap-2">
         <input
           id={f("isOffsite")}
           name="isOffsite"
           type="checkbox"
           defaultChecked={values.isOffsite}
-          className="h-5 w-5 accent-green-700"
+          className="h-5 w-5 accent-accent"
         />
         <label htmlFor={f("isOffsite")} className="text-sm">
           จัดนอกโรงเรียน
@@ -170,12 +160,12 @@ function ActivityFormFields({
       </div>
 
       <fieldset className="mb-4" aria-describedby={errors?.type ? f("type-error") : undefined}>
-        <legend className="mb-1 block text-sm font-medium">ชนิดกิจกรรม</legend>
+        <legend className="mb-1 block text-sm font-medium text-ink">ชนิดกิจกรรม</legend>
         <div className="grid gap-2 sm:grid-cols-3">
           {ACTIVITY_TYPES.map((t) => (
             <label
               key={t}
-              className="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 px-3 py-3 has-[:checked]:border-green-600 has-[:checked]:bg-green-50 dark:border-gray-700 dark:has-[:checked]:bg-green-950"
+              className="flex min-h-11 cursor-pointer items-center gap-2 rounded-input border border-rule-strong bg-surface px-3 py-2 text-ink has-[:checked]:border-accent has-[:checked]:bg-accent-soft"
             >
               <input
                 type="radio"
@@ -183,7 +173,7 @@ function ActivityFormFields({
                 value={t}
                 checked={type === t}
                 onChange={() => chooseType(t)}
-                className="h-4 w-4 accent-green-700"
+                className="h-4 w-4 accent-accent"
               />
               {typeLabelTh(t)}
             </label>
@@ -194,7 +184,7 @@ function ActivityFormFields({
 
       {type === "waste" ? (
         <div key="waste">
-          <p className="mb-3 text-sm text-gray-600 dark:text-gray-400">
+          <p className="mb-3 text-sm text-muted">
             แต้มและ carbon คิดจากอัตราของแต่ละกลุ่มขยะ (ผู้ดูแลตั้งค่าไว้)
           </p>
           <TextField
@@ -243,26 +233,23 @@ function ActivityFormFields({
       ) : null}
 
       <div className="mb-4">
-        <div className="flex items-center gap-2">
+        <div className="flex min-h-11 items-center gap-2">
           <input
             id={f("requiresCode")}
             name="requiresCode"
             type="checkbox"
             checked={requiresCode}
             onChange={(e) => setRequiresCode(e.target.checked)}
-            className="h-5 w-5 accent-green-700"
+            className="h-5 w-5 accent-accent"
           />
           <label htmlFor={f("requiresCode")} className="text-sm">
             ต้องใช้รหัสยืนยันจากจุดชั่งเมื่อส่งผล
           </label>
         </div>
-        <p className="mt-1 text-xs text-gray-500">ค่าเริ่มต้น: ชั่งน้ำหนักขยะต้องใช้รหัส ชนิดอื่นไม่ต้อง</p>
+        <p className="mt-1 text-sm text-muted">ค่าเริ่มต้น: ชั่งน้ำหนักขยะต้องใช้รหัส ชนิดอื่นไม่ต้อง</p>
       </div>
 
-      <div className="mb-6">
-        <label htmlFor={f("status")} className="mb-1 block text-sm font-medium">
-          สถานะ
-        </label>
+      <Field id={f("status")} label="สถานะ" className="mb-6">
         <select
           id={f("status")}
           name="status"
@@ -277,22 +264,15 @@ function ActivityFormFields({
           <option value="closed">ปิดแล้ว</option>
         </select>
         <FieldError id={f("status-error")} message={errors?.status} />
-      </div>
+      </Field>
 
       <div className="flex flex-col gap-3 sm:flex-row-reverse">
-        <button
-          type="submit"
-          disabled={pending}
-          className="w-full rounded-lg bg-green-700 px-4 py-3 text-base font-semibold text-white hover:bg-green-800 disabled:opacity-60 sm:w-auto"
-        >
+        <Button type="submit" variant="primary" disabled={pending} className="w-full sm:w-auto">
           {pending ? "กำลังบันทึก..." : "บันทึกกิจกรรม"}
-        </button>
-        <Link
-          href="/staff/activities"
-          className="w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-base dark:border-gray-700 sm:w-auto"
-        >
+        </Button>
+        <ButtonLink href="/staff/activities" variant="card" className="w-full sm:w-auto">
           ยกเลิก
-        </Link>
+        </ButtonLink>
       </div>
     </form>
   );

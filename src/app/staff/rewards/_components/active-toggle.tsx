@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Button } from "@/components/ui";
 import { setRewardActive } from "@/app/actions/rewards";
 
 /** Turn a reward on or off for redemption. */
@@ -19,17 +20,17 @@ export function ActiveToggle({ rewardId, name, active }: { rewardId: string; nam
 
   return (
     <div>
-      <button
+      <Button
         type="button"
         onClick={toggle}
         disabled={pending}
         aria-label={`${label} ${name}`}
-        className="rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-100 disabled:opacity-60 dark:border-gray-700 dark:hover:bg-gray-900"
+        variant="card"
       >
         {pending ? "กำลังบันทึก..." : label}
-      </button>
+      </Button>
       {error ? (
-        <p role="alert" className="mt-2 text-sm text-red-700">
+        <p role="alert" className="mt-2 text-sm text-danger">
           {error}
         </p>
       ) : null}

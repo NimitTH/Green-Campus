@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { Button } from "@/components/ui";
 import { deleteArticle } from "@/app/actions/articles";
 
 /** Two-step delete (admin only; the page does not render it for teachers). */
@@ -27,16 +28,16 @@ export function DeleteArticleButton({ articleId, name }: { articleId: string; na
   if (!confirming) {
     return (
       <div>
-        <button
+        <Button
           type="button"
           onClick={() => setConfirming(true)}
           aria-label={`ลบ ${name}`}
-          className="rounded-lg border border-red-300 px-3 py-2 text-sm text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950"
+          variant="danger"
         >
           ลบ
-        </button>
+        </Button>
         {error ? (
-          <p role="alert" className="mt-2 text-sm text-red-700">
+          <p role="alert" className="mt-2 text-sm text-danger">
             {error}
           </p>
         ) : null}
@@ -48,31 +49,31 @@ export function DeleteArticleButton({ articleId, name }: { articleId: string; na
     <div
       role="group"
       aria-label={`ยืนยันการลบ ${name}`}
-      className="w-full rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950"
+      className="w-full rounded-card border border-danger bg-surface p-3"
     >
-      <p className="mb-3 text-sm text-red-800 dark:text-red-200">ยืนยันลบบทความนี้? ลบแล้วกู้คืนไม่ได้ และรูปปกจะถูกลบด้วย</p>
+      <p className="mb-3 text-sm text-ink">ยืนยันลบบทความนี้? ลบแล้วกู้คืนไม่ได้ และรูปปกจะถูกลบด้วย</p>
       {error ? (
-        <p role="alert" className="mb-3 text-sm font-medium text-red-800 dark:text-red-200">
+        <p role="alert" className="mb-3 text-sm font-medium text-danger">
           {error}
         </p>
       ) : null}
       <div className="flex flex-wrap gap-2">
-        <button
+        <Button
           type="button"
           onClick={confirm}
           disabled={pending}
-          className="rounded-lg bg-red-700 px-3 py-2 text-sm font-semibold text-white hover:bg-red-800 disabled:opacity-60"
+          variant="danger"
         >
           {pending ? "กำลังลบ..." : "ยืนยันลบ"}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
           disabled={pending}
           onClick={() => setConfirming(false)}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700"
+          variant="card"
         >
           ยกเลิก
-        </button>
+        </Button>
       </div>
     </div>
   );

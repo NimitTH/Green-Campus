@@ -3,17 +3,15 @@
 import { useRouter } from "next/navigation";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { adjustStudentLedger } from "@/app/actions/admin";
+import { Button, Field, inputClass } from "@/components/ui";
 import type { AdjustFieldErrors, AdjustInput } from "@/lib/admin/validation";
 import { GENERIC_ERROR_TH } from "@/lib/errors";
 
 const EMPTY: AdjustInput = { points: "", carbonKg: "", note: "" };
 
-const inputClass =
-  "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-base outline-none focus:border-green-600 focus:ring-2 focus:ring-green-600/30 aria-[invalid=true]:border-red-500 dark:border-gray-700 dark:bg-gray-900";
-
 function FieldError({ id, message }: { id: string; message?: string }) {
   return message ? (
-    <p id={id} className="mt-1 text-sm text-red-600">
+    <p id={id} className="text-sm text-danger">
       {message}
     </p>
   ) : null;
@@ -69,20 +67,17 @@ export function AdjustForm({ studentId }: { studentId: string }) {
   return (
     <form onSubmit={onSubmit} noValidate aria-label="ปรับแต้ม" className="space-y-3">
       {error ? (
-        <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+        <div role="alert" className="rounded-input border border-danger bg-surface p-3 text-sm text-danger">
           {error}
         </div>
       ) : null}
       {saved ? (
-        <p role="status" className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200">
+        <p role="status" className="rounded-input border border-accent bg-accent-soft p-3 text-sm text-ink">
           ปรับแต้มเรียบร้อยแล้ว นักเรียนได้รับแจ้งเตือน
         </p>
       ) : null}
       <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <label htmlFor={f("adjust-points")} className="mb-1 block text-sm font-medium">
-            แต้ม (ใส่ลบเพื่อหัก)
-          </label>
+        <Field id={f("adjust-points")} label="แต้ม (ใส่ลบเพื่อหัก)">
           <input
             id={f("adjust-points")}
             inputMode="numeric"
@@ -94,11 +89,8 @@ export function AdjustForm({ studentId }: { studentId: string }) {
             className={inputClass}
           />
           <FieldError id={f("adjust-points-error")} message={fieldErrors.points} />
-        </div>
-        <div>
-          <label htmlFor={f("adjust-carbon")} className="mb-1 block text-sm font-medium">
-            carbon (กก. CO2e, ไม่บังคับ)
-          </label>
+        </Field>
+        <Field id={f("adjust-carbon")} label="carbon (กก. CO2e, ไม่บังคับ)">
           <input
             id={f("adjust-carbon")}
             inputMode="decimal"
@@ -110,12 +102,9 @@ export function AdjustForm({ studentId }: { studentId: string }) {
             className={inputClass}
           />
           <FieldError id={f("adjust-carbon-error")} message={fieldErrors.carbonKg} />
-        </div>
+        </Field>
       </div>
-      <div>
-        <label htmlFor={f("adjust-note")} className="mb-1 block text-sm font-medium">
-          เหตุผล (นักเรียนจะเห็นข้อความนี้)
-        </label>
+      <Field id={f("adjust-note")} label="เหตุผล (นักเรียนจะเห็นข้อความนี้)">
         <textarea
           id={f("adjust-note")}
           rows={2}
@@ -127,14 +116,10 @@ export function AdjustForm({ studentId }: { studentId: string }) {
           className={inputClass}
         />
         <FieldError id={f("adjust-note-error")} message={fieldErrors.note} />
-      </div>
-      <button
-        type="submit"
-        disabled={busy}
-        className="w-full rounded-lg bg-green-700 px-4 py-3 text-base font-semibold text-white hover:bg-green-800 disabled:opacity-60 sm:w-auto"
-      >
+      </Field>
+      <Button type="submit" variant="primary" disabled={busy} className="w-full sm:w-auto">
         {busy ? "กำลังบันทึก..." : "บันทึกการปรับแต้ม"}
-      </button>
+      </Button>
     </form>
   );
 }

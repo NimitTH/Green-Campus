@@ -1,17 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { saveRate } from "@/app/actions/admin";
+import { Button, Card, Field, inputClass } from "@/components/ui";
 import type { RateFieldErrors, RateInput } from "@/lib/admin/validation";
 import { GENERIC_ERROR_TH } from "@/lib/errors";
 
-const inputClass =
-  "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-base outline-none focus:border-green-600 focus:ring-2 focus:ring-green-600/30 aria-[invalid=true]:border-red-500 dark:border-gray-700 dark:bg-gray-900";
-
 function FieldError({ id, message }: { id: string; message?: string }) {
   return message ? (
-    <p id={id} className="mt-1 text-sm text-red-600">
+    <p id={id} className="text-sm text-danger">
       {message}
     </p>
   ) : null;
@@ -25,18 +23,18 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 export function RateCard(props: { id: string; code: string; initial: RateInput; updatedAt: string }) {
   const [saved, setSaved] = useState(false);
   return (
-    <div data-testid={`rate-${props.code}`} className="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+    <Card data-testid={`rate-${props.code}`}>
       {saved ? (
         <p
           role="status"
           data-testid={`rate-${props.code}-saved`}
-          className="mb-3 rounded-lg bg-green-50 p-2 text-sm text-green-800 dark:bg-green-950 dark:text-green-300"
+          className="mb-3 rounded-input bg-accent-soft p-2 text-sm text-ink"
         >
           บันทึกแล้ว
         </p>
       ) : null}
       <RateForm key={props.updatedAt} {...props} onSaved={() => setSaved(true)} onEdit={() => setSaved(false)} />
-    </div>
+    </Card>
   );
 }
 
@@ -46,14 +44,13 @@ export function RateCard(props: { id: string; code: string; initial: RateInput; 
  */
 function RateForm({
   id,
-  code,
   initial,
   updatedAt,
   onSaved,
   onEdit,
 }: {
   id: string;
-  code: string;
+  code?: string;
   initial: RateInput;
   updatedAt: string;
   onSaved: () => void;
@@ -65,7 +62,9 @@ function RateForm({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
-  const f = (name: keyof RateInput) => `rate-${code}-${name}`;
+  // unique per instance (DESIGN 1.3): was a fixed `rate-${code}-${name}`
+  const uid = useId();
+  const f = (name: keyof RateInput) => `${uid}-${name}`;
 
   function set<K extends keyof RateInput>(key: K, value: string) {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -111,16 +110,13 @@ function RateForm({
     >
       <input type="hidden" name="loadedUpdatedAt" value={updatedAt} />
       {error ? (
-        <div role="alert" className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+        <div role="alert" className="mb-3 rounded-input border border-danger bg-surface p-3 text-sm text-danger">
           {error}
         </div>
       ) : null}
       <div className="grid gap-3 sm:grid-cols-3">
         {fields.map(({ key, label, inputMode }) => (
-          <div key={key}>
-            <label htmlFor={f(key)} className="mb-1 block text-sm font-medium">
-              {label}
-            </label>
+          <Field key={key} id={f(key)} label={label}>
             <input
               id={f(key)}
               inputMode={inputMode}
@@ -131,13 +127,10 @@ function RateForm({
               className={inputClass}
             />
             <FieldError id={`${f(key)}-error`} message={fieldErrors[key]} />
-          </div>
+          </Field>
         ))}
       </div>
-      <div className="mt-3">
-        <label htmlFor={f("sourceNote")} className="mb-1 block text-sm font-medium">
-          ที่มาของค่า carbon
-        </label>
+      <Field id={f("sourceNote")} label="ที่มาของค่า carbon" className="mt-3">
         <textarea
           id={f("sourceNote")}
           rows={2}
@@ -148,15 +141,11 @@ function RateForm({
           className={inputClass}
         />
         <FieldError id={`${f("sourceNote")}-error`} message={fieldErrors.sourceNote} />
-      </div>
+      </Field>
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <button
-          type="submit"
-          disabled={busy}
-          className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white hover:bg-green-800 disabled:opacity-60"
-        >
+        <Button type="submit" variant="primary" disabled={busy}>
           {busy ? "กำลังบันทึก..." : "บันทึกอัตรา"}
-        </button>
+        </Button>
       </div>
     </form>
   );

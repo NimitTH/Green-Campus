@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { PageHeader } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/dal";
 import { isAdminRole } from "@/lib/auth/routes";
 import { getReward } from "@/lib/rewards/queries";
@@ -16,7 +17,9 @@ export const metadata: Metadata = { title: "แก้ไขของรางว
 export default function EditRewardPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
-      <h1 className="mb-5 text-xl font-semibold">แก้ไขของรางวัล</h1>
+      <div className="mb-6">
+        <PageHeader title="แก้ไขของรางวัล" />
+      </div>
       <Suspense fallback={<PageSkeleton />}>
         <EditReward params={params} />
       </Suspense>
@@ -34,11 +37,11 @@ async function EditReward({ params }: { params: Promise<{ id: string }> }) {
     <>
       <RewardForm initial={rewardToInput(reward)} id={reward.id} imageUrl={reward.imageUrl} />
       {isAdminRole(user.role) ? (
-        <section aria-labelledby="delete-heading" className="mt-10 border-t border-gray-200 pt-6 dark:border-gray-800">
-          <h2 id="delete-heading" className="mb-2 font-semibold">
+        <section aria-labelledby="delete-heading" className="mt-10 border-t border-rule pt-6">
+          <h2 id="delete-heading" className="mb-2 font-display text-lg font-semibold">
             ลบของรางวัล
           </h2>
-          <p className="mb-3 text-sm text-gray-600 dark:text-gray-400">
+          <p className="mb-3 text-sm text-muted">
             ลบได้เฉพาะของรางวัลที่ยังไม่มีคนแลก ถ้ามีคนแลกแล้วให้ปิดการแลกแทน
           </p>
           <DeleteRewardButton rewardId={reward.id} name={reward.name} />

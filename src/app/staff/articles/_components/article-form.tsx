@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useRef, useState } from "react";
 import { saveArticle } from "@/app/actions/articles";
+import { Button, ButtonLink, Field, inputClass } from "@/components/ui";
 import { ARTICLE_BUCKET, ARTICLE_LIMITS, type ArticleFieldErrors, type ArticleInput } from "@/lib/articles/format";
 import { errorMessageTh, uploadErrorCode } from "@/lib/errors";
 import { ImageError, resizeToJpeg } from "@/lib/image";
@@ -13,12 +13,9 @@ import { uniqueId } from "@/lib/unique-id";
 
 const REQUEST_TIMEOUT_MS = 60_000;
 
-const inputClass =
-  "w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-base outline-none focus:border-green-600 focus:ring-2 focus:ring-green-600/30 aria-[invalid=true]:border-red-500 dark:border-gray-700 dark:bg-gray-900";
-
 function FieldError({ id, message }: { id: string; message?: string }) {
   return message ? (
-    <p id={id} className="mt-1 text-sm text-red-600">
+    <p id={id} className="text-sm text-danger">
       {message}
     </p>
   ) : null;
@@ -145,20 +142,17 @@ export function ArticleForm({
     <form onSubmit={onSubmit} noValidate>
       {id ? <input type="hidden" name="loadedUpdatedAt" value={updatedAt} /> : null}
       {error ? (
-        <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+        <div role="alert" className="mb-4 rounded-input border border-danger bg-surface p-3 text-sm text-danger">
           {error}
         </div>
       ) : null}
       {hasFieldErrors ? (
-        <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+        <div role="alert" className="mb-4 rounded-input border border-danger bg-surface p-3 text-sm text-danger">
           กรุณาแก้ช่องที่มีข้อความสีแดง
         </div>
       ) : null}
 
-      <div className="mb-4">
-        <label htmlFor={f("title")} className="mb-1 block text-sm font-medium">
-          ชื่อบทความ
-        </label>
+      <Field id={f("title")} label="ชื่อบทความ" className="mb-4">
         <input
           id={f("title")}
           value={values.title}
@@ -168,12 +162,9 @@ export function ArticleForm({
           className={inputClass}
         />
         <FieldError id={f("title-error")} message={fieldErrors.title} />
-      </div>
+      </Field>
 
-      <div className="mb-4">
-        <label htmlFor={f("slug")} className="mb-1 block text-sm font-medium">
-          slug (ส่วนท้ายของลิงก์ ไม่บังคับ)
-        </label>
+      <Field id={f("slug")} label="slug (ส่วนท้ายของลิงก์ ไม่บังคับ)" className="mb-4">
         <input
           id={f("slug")}
           value={values.slug}
@@ -186,17 +177,14 @@ export function ArticleForm({
           aria-describedby={fieldErrors.slug ? `${f("slug-error")} ${f("slug-hint")}` : f("slug-hint")}
           className={inputClass}
         />
-        <p id={f("slug-hint")} className="mt-1 text-xs text-gray-500">
+        <p id={f("slug-hint")} className="text-sm text-muted">
           ใช้ a-z, 0-9 และขีด (-) ไม่เกิน {ARTICLE_LIMITS.slugMax} ตัว{" "}
           {id ? "เว้นว่างเพื่อใช้ slug เดิม" : "เว้นว่างให้ระบบสร้างให้"}
         </p>
         <FieldError id={f("slug-error")} message={fieldErrors.slug} />
-      </div>
+      </Field>
 
-      <div className="mb-4">
-        <label htmlFor={f("body")} className="mb-1 block text-sm font-medium">
-          เนื้อหา
-        </label>
+      <Field id={f("body")} label="เนื้อหา" className="mb-4">
         <textarea
           id={f("body")}
           rows={12}
@@ -206,52 +194,49 @@ export function ArticleForm({
           aria-describedby={fieldErrors.body ? `${f("body-error")} ${f("body-hint")}` : f("body-hint")}
           className={inputClass}
         />
-        <p id={f("body-hint")} className="mt-1 text-xs text-gray-500">
+        <p id={f("body-hint")} className="text-sm text-muted">
           ข้อความล้วน เว้นบรรทัดว่างหนึ่งบรรทัดเพื่อขึ้นย่อหน้าใหม่
         </p>
         <FieldError id={f("body-error")} message={fieldErrors.body} />
-      </div>
+      </Field>
 
-      <div className="mb-4">
-        <label htmlFor={f("cover")} className="mb-1 block text-sm font-medium">
-          รูปปก (ไม่บังคับ)
-        </label>
+      <Field id={f("cover")} label="รูปปก (ไม่บังคับ)" className="mb-4">
         {coverUrl && !removeCover ? (
           // eslint-disable-next-line @next/next/no-img-element -- public Supabase Storage URL
-          <img src={coverUrl} alt="รูปปกปัจจุบัน" className="mb-2 h-24 w-40 rounded-lg object-cover" />
+          <img src={coverUrl} alt="รูปปกปัจจุบัน" className="mb-2 h-24 w-40 rounded-input object-cover" />
         ) : null}
         <input
           ref={fileInput}
           id={f("cover")}
           type="file"
           accept="image/*"
-          className="block w-full text-sm"
+          className="block w-full text-sm text-ink file:mr-3 file:min-h-11 file:rounded-input file:border file:border-rule-strong file:bg-surface file:px-3 file:text-ink"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         />
-        <p className="mt-1 text-xs text-gray-500">{id && coverUrl ? "เลือกรูปใหม่เพื่อเปลี่ยนรูปปก " : ""}ระบบจะย่อรูปให้อัตโนมัติ</p>
+        <p className="text-sm text-muted">{id && coverUrl ? "เลือกรูปใหม่เพื่อเปลี่ยนรูปปก " : ""}ระบบจะย่อรูปให้อัตโนมัติ</p>
         {id && coverUrl ? (
-          <div className="mt-2 flex items-center gap-2">
+          <div className="flex min-h-11 items-center gap-2">
             <input
               id={f("removeCover")}
               type="checkbox"
               checked={removeCover}
               onChange={(e) => setRemoveCover(e.target.checked)}
-              className="h-5 w-5 accent-green-700"
+              className="h-5 w-5 accent-accent"
             />
             <label htmlFor={f("removeCover")} className="text-sm">
               ลบรูปปก
             </label>
           </div>
         ) : null}
-      </div>
+      </Field>
 
-      <div className="mb-6 flex items-center gap-2">
+      <div className="mb-6 flex min-h-11 items-center gap-2">
         <input
           id={f("published")}
           type="checkbox"
           checked={values.published}
           onChange={(e) => set("published", e.target.checked)}
-          className="h-5 w-5 accent-green-700"
+          className="h-5 w-5 accent-accent"
         />
         <label htmlFor={f("published")} className="text-sm">
           เผยแพร่ (ทุกคนเห็นที่หน้าบทความ)
@@ -259,19 +244,12 @@ export function ArticleForm({
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row-reverse">
-        <button
-          type="submit"
-          disabled={busy}
-          className="w-full rounded-lg bg-green-700 px-4 py-3 text-base font-semibold text-white hover:bg-green-800 disabled:opacity-60 sm:w-auto"
-        >
+        <Button type="submit" variant="primary" disabled={busy} className="w-full sm:w-auto">
           {busy ? (stage ?? "กำลังบันทึก...") : "บันทึกบทความ"}
-        </button>
-        <Link
-          href="/staff/articles"
-          className="w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-base dark:border-gray-700 sm:w-auto"
-        >
+        </Button>
+        <ButtonLink href="/staff/articles" variant="card" className="w-full sm:w-auto">
           ยกเลิก
-        </Link>
+        </ButtonLink>
       </div>
     </form>
   );

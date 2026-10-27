@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { PageHeader } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/dal";
 import { getActivity } from "@/lib/activities/queries";
 import { activityToInput } from "@/lib/activities/validation";
@@ -16,7 +17,9 @@ export const metadata: Metadata = { title: "แก้ไขกิจกรรม
 export default function EditActivityPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
-      <h1 className="mb-5 text-xl font-semibold">แก้ไขกิจกรรม</h1>
+      <div className="mb-6">
+        <PageHeader title="แก้ไขกิจกรรม" />
+      </div>
       <Suspense fallback={<PageSkeleton />}>
         <EditActivity params={params} />
       </Suspense>
@@ -39,11 +42,11 @@ async function EditActivity({ params }: { params: Promise<{ id: string }> }) {
   return (
     <>
       <ActivityForm initial={activityToInput(activity)} id={activity.id} hasParticipants={(participants ?? 0) > 0} />
-      <section aria-labelledby="delete-heading" className="mt-10 border-t border-gray-200 pt-6 dark:border-gray-800">
-        <h2 id="delete-heading" className="mb-2 font-semibold">
+      <section aria-labelledby="delete-heading" className="mt-10 border-t border-rule pt-6">
+        <h2 id="delete-heading" className="mb-2 font-display text-lg font-semibold">
           ลบกิจกรรม
         </h2>
-        <p className="mb-3 text-sm text-gray-600 dark:text-gray-400">
+        <p className="mb-3 text-sm text-muted">
           ลบได้เฉพาะกิจกรรมที่ยังไม่มีผู้ส่งผล ถ้ามีผลแล้วให้เปลี่ยนสถานะเป็นปิดแทน
         </p>
         <DeleteActivityButton activityId={activity.id} title={activity.title} />

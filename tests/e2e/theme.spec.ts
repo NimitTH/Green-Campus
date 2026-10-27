@@ -4,7 +4,9 @@ import {
   createConfirmedUser,
   createOrderFor,
   createRewardRow,
+  deleteActivitiesByTitle,
   deleteRewardsByName,
+  seedClosedApprovedActivity,
   deleteUsers,
   grantPoints,
   setFullName,
@@ -226,6 +228,34 @@ for (const scheme of ["light", "dark"] as const) {
     } finally {
       await deleteUsers([student, teacher]);
       await deleteRewardsByName(rewardNames);
+    }
+  });
+}
+
+// Task 10 (Review Focus 5): the reports page renders real rows in both tables and still fits a phone.
+for (const scheme of ["light", "dark"] as const) {
+  test(`staff reports fit 360 px in the ${scheme} theme`, async ({ page }) => {
+    const stamp = `${scheme}-${Date.now()}`;
+    const title = `รายงานกิจกรรมชื่อยาวมากสำหรับทดสอบการล้นของตารางบนจอเล็ก ${stamp}`;
+    const studentName = "นักเรียนชื่อยาวมากสำหรับทดสอบการล้นของตารางรายงานบนจอเล็ก";
+    let teacher: TestUser | undefined;
+    let student: TestUser | undefined;
+    try {
+      teacher = await createConfirmedUser("teacher", `teacher-rep360-${stamp}`);
+      student = await createConfirmedUser("student", `student-rep360-${stamp}`);
+      await setFullName(student.id, studentName);
+      await seedClosedApprovedActivity(student, teacher, 50, title);
+      await page.setViewportSize({ width: 360, height: 800 });
+      await page.emulateMedia({ colorScheme: scheme });
+      await signIn(page, teacher, "/staff/reports");
+      await expect(page.getByRole("heading", { level: 1, name: "รายงาน" })).toBeVisible();
+      await expect(page.getByTestId("report-activities")).toContainText(title);
+      await expect(page.getByTestId("report-students")).toContainText(studentName);
+      await noSideScroll(page);
+    } finally {
+      // activity first: its submissions point at the evidence files, which the user cascade would orphan
+      await deleteActivitiesByTitle(title);
+      await deleteUsers([student, teacher]);
     }
   });
 }

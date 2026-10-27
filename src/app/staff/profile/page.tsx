@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ProfileDetails } from "@/app/_components/account-sections";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { PageHeader } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/dal";
 
 export const metadata: Metadata = { title: "โปรไฟล์ | Green Campus" };
@@ -10,7 +11,9 @@ export const metadata: Metadata = { title: "โปรไฟล์ | Green Campus
 export default function StaffProfilePage() {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
-      <h1 className="mb-4 text-xl font-semibold">โปรไฟล์ของฉัน</h1>
+      <div className="mb-6">
+        <PageHeader title="โปรไฟล์ของฉัน" />
+      </div>
       <Suspense fallback={<PageSkeleton />}>
         <Profile />
       </Suspense>

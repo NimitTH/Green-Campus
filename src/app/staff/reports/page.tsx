@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { Mono } from "@/app/staff/reviews/[id]/mono";
+import { ButtonLink, Card, EmptyState, Field, PageHeader, buttonClass, inputClass } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/dal";
 import { getActivityReport, getStudentReport } from "@/lib/reports/data";
 import { bangkokMonthRange, parseDateRange } from "@/lib/reports/range";
@@ -18,21 +19,26 @@ const kg = (grams: number) => decimal.format(grams / 1000);
 const day = (isoDate: string) => dateFormat.format(new Date(`${isoDate}T00:00:00Z`));
 const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : null);
 
-const inputClass =
-  "rounded-lg border border-gray-300 bg-white px-3 py-2 text-base outline-none focus:border-green-600 focus:ring-2 focus:ring-green-600/30 dark:border-gray-700 dark:bg-gray-900";
-const buttonClass = "inline-block rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white hover:bg-green-800";
-const th = "whitespace-nowrap px-3 py-2 text-left font-semibold";
+const th = "whitespace-nowrap px-3 py-2 text-left text-sm font-medium text-muted";
+const thNum = "whitespace-nowrap px-3 py-2 text-right text-sm font-medium text-muted";
 const td = "whitespace-nowrap px-3 py-2";
+const tdNum = "whitespace-nowrap px-3 py-2 text-right font-mono";
+const tdName = "px-3 py-2"; // wraps: a long title or name must not stretch the table
+const tableWrap = "overflow-x-auto rounded-card border border-rule bg-surface shadow-card";
 
 // cacheComponents: searchParams and the session are request-time data, read them inside <Suspense>.
 export default function StaffReportsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">รายงาน</h1>
-        <Link href="/staff" className="text-sm text-green-700 underline">
-          กลับ
-        </Link>
+      <div className="mb-6">
+        <PageHeader
+          title="รายงาน"
+          actions={
+            <ButtonLink href="/staff" variant="quiet">
+              กลับ
+            </ButtonLink>
+          }
+        />
       </div>
       <Suspense fallback={<PageSkeleton />}>
         <Reports searchParams={searchParams} />
@@ -54,30 +60,24 @@ async function Reports({ searchParams }: { searchParams: SearchParams }) {
   return (
     <>
       <form method="get" className="mb-4 flex flex-wrap items-end gap-3">
-        <div className="flex flex-col gap-1">
-          <label htmlFor="from" className="text-sm">
-            ตั้งแต่วันที่จบ
-          </label>
+        <Field id="from" label="ตั้งแต่วันที่จบ" className="min-w-40 flex-1">
           <input id="from" name="from" type="date" required defaultValue={range.from} className={inputClass} />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="to" className="text-sm">
-            ถึงวันที่จบ
-          </label>
+        </Field>
+        <Field id="to" label="ถึงวันที่จบ" className="min-w-40 flex-1">
           <input id="to" name="to" type="date" required defaultValue={range.to} className={inputClass} />
-        </div>
-        <button type="submit" className={buttonClass}>
+        </Field>
+        <button type="submit" className={buttonClass({ variant: "primary" })}>
           ดูรายงาน
         </button>
       </form>
 
       {parsed.ok ? null : (
-        <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">
+        <p role="alert" className="mb-4 rounded-input border border-danger bg-surface p-3 text-sm text-danger">
           {parsed.message} (แสดงเดือนปัจจุบันแทน)
         </p>
       )}
 
-      <section aria-label="หมายเหตุเกณฑ์การนับ" className="mb-6 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-gray-800 dark:border-green-900 dark:bg-green-950 dark:text-gray-200">
+      <Card as="section" tone="accent" aria-label="หมายเหตุเกณฑ์การนับ" className="mb-6 text-sm">
         <p className="font-semibold">เกณฑ์การนับรายงาน</p>
         <ul className="mt-1 list-disc space-y-1 pl-5">
           <li>นับเฉพาะผลที่อนุมัติแล้ว ของกิจกรรมที่จบแล้ว (ปิดกิจกรรมหรือเลยเวลาสิ้นสุด) ไม่นับกิจกรรมฉบับร่าง</li>
@@ -89,60 +89,60 @@ async function Reports({ searchParams }: { searchParams: SearchParams }) {
             ส่วนแต้มคงเหลือหักการแลกของแล้ว จึงอาจต่ำกว่าแต้มในรายงาน
           </li>
         </ul>
-      </section>
+      </Card>
 
       <div className="mb-6 flex flex-wrap gap-3">
-        <a href={`/api/reports/csv?kind=activities&${query}`} className={buttonClass}>
+        <a href={`/api/reports/csv?kind=activities&${query}`} className={buttonClass({ variant: "card" })}>
           ดาวน์โหลด CSV รายกิจกรรม
         </a>
-        <a href={`/api/reports/csv?kind=students&${query}`} className={buttonClass}>
+        <a href={`/api/reports/csv?kind=students&${query}`} className={buttonClass({ variant: "card" })}>
           ดาวน์โหลด CSV รายนักเรียน
         </a>
-        <a href={`/api/reports/pdf?${query}`} className={buttonClass}>
+        <a href={`/api/reports/pdf?${query}`} className={buttonClass({ variant: "card" })}>
           ดาวน์โหลด PDF สรุป
         </a>
       </div>
 
       <section aria-labelledby="by-activity" className="mb-8">
-        <h2 id="by-activity" className="mb-2 text-lg font-semibold">
+        <h2 id="by-activity" className="mb-2 font-display text-lg font-semibold">
           รายกิจกรรม
         </h2>
         {activities.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-gray-600 dark:border-gray-700 dark:text-gray-400">
-            ไม่มีกิจกรรมที่จบในช่วงนี้
-          </p>
+          <EmptyState>ไม่มีกิจกรรมที่จบในช่วงนี้</EmptyState>
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-gray-200 dark:border-gray-800">
+          <div className={tableWrap}>
             <table data-testid="report-activities" className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-900">
+              <thead>
                 <tr>
                   <th className={th}>กิจกรรม</th>
                   <th className={th}>วันที่จบ</th>
-                  <th className={th}>ผู้เข้าร่วม</th>
-                  <th className={th}>ผลที่อนุมัติ</th>
-                  <th className={th}>พลาสติก (กก.)</th>
-                  <th className={th}>กระดาษ (กก.)</th>
-                  <th className={th}>โลหะ/แก้ว (กก.)</th>
-                  <th className={th}>ขยะทั่วไป/อื่นๆ (กก.)</th>
-                  <th className={th}>ต้นไม้ (ต้น)</th>
-                  <th className={th}>แต้ม</th>
-                  <th className={th}>carbon (kgCO2e)</th>
+                  <th className={thNum}>ผู้เข้าร่วม</th>
+                  <th className={thNum}>ผลที่อนุมัติ</th>
+                  <th className={thNum}>พลาสติก (กก.)</th>
+                  <th className={thNum}>กระดาษ (กก.)</th>
+                  <th className={thNum}>โลหะ/แก้ว (กก.)</th>
+                  <th className={thNum}>ขยะทั่วไป/อื่นๆ (กก.)</th>
+                  <th className={thNum}>ต้นไม้ (ต้น)</th>
+                  <th className={thNum}>แต้ม</th>
+                  <th className={thNum}>carbon (kgCO2e)</th>
                 </tr>
               </thead>
               <tbody>
                 {activities.map((r, i) => (
-                  <tr key={i} className="border-t border-gray-200 dark:border-gray-800">
-                    <td className={`${td} whitespace-normal`}>{r.title}</td>
-                    <td className={td}>{day(r.endsOn)}</td>
-                    <td className={td}>{number.format(r.participants)}</td>
-                    <td className={td}>{number.format(r.approvedSubmissions)}</td>
-                    <td className={td}>{kg(r.gramsPlastic)}</td>
-                    <td className={td}>{kg(r.gramsPaper)}</td>
-                    <td className={td}>{kg(r.gramsMetalGlass)}</td>
-                    <td className={td}>{kg(r.gramsOther)}</td>
-                    <td className={td}>{number.format(r.trees)}</td>
-                    <td className={td}>{number.format(r.points)}</td>
-                    <td className={td}>{decimal.format(r.carbonKg)}</td>
+                  <tr key={i} className="border-t border-rule">
+                    <td className={`${tdName} min-w-48`}>{r.title}</td>
+                    <td className={td}>
+                      <Mono text={day(r.endsOn)} />
+                    </td>
+                    <td className={tdNum}>{number.format(r.participants)}</td>
+                    <td className={tdNum}>{number.format(r.approvedSubmissions)}</td>
+                    <td className={tdNum}>{kg(r.gramsPlastic)}</td>
+                    <td className={tdNum}>{kg(r.gramsPaper)}</td>
+                    <td className={tdNum}>{kg(r.gramsMetalGlass)}</td>
+                    <td className={tdNum}>{kg(r.gramsOther)}</td>
+                    <td className={tdNum}>{number.format(r.trees)}</td>
+                    <td className={tdNum}>{number.format(r.points)}</td>
+                    <td className={tdNum}>{decimal.format(r.carbonKg)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -152,33 +152,31 @@ async function Reports({ searchParams }: { searchParams: SearchParams }) {
       </section>
 
       <section aria-labelledby="by-student">
-        <h2 id="by-student" className="mb-2 text-lg font-semibold">
+        <h2 id="by-student" className="mb-2 font-display text-lg font-semibold">
           รายนักเรียน
         </h2>
         {students.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-gray-600 dark:border-gray-700 dark:text-gray-400">
-            ไม่มีนักเรียนที่มีผลอนุมัติในช่วงนี้
-          </p>
+          <EmptyState>ไม่มีนักเรียนที่มีผลอนุมัติในช่วงนี้</EmptyState>
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-gray-200 dark:border-gray-800">
+          <div className={tableWrap}>
             <table data-testid="report-students" className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-900">
+              <thead>
                 <tr>
                   <th className={th}>ชื่อ</th>
-                  <th className={th}>แต้ม</th>
-                  <th className={th}>carbon (kgCO2e)</th>
-                  <th className={th}>น้ำหนักรวม (กก.)</th>
-                  <th className={th}>ต้นไม้ (ต้น)</th>
+                  <th className={thNum}>แต้ม</th>
+                  <th className={thNum}>carbon (kgCO2e)</th>
+                  <th className={thNum}>น้ำหนักรวม (กก.)</th>
+                  <th className={thNum}>ต้นไม้ (ต้น)</th>
                 </tr>
               </thead>
               <tbody>
                 {students.map((r, i) => (
-                  <tr key={i} className="border-t border-gray-200 dark:border-gray-800">
-                    <td className={`${td} whitespace-normal`}>{r.fullName}</td>
-                    <td className={td}>{number.format(r.points)}</td>
-                    <td className={td}>{decimal.format(r.carbonKg)}</td>
-                    <td className={td}>{kg(r.gramsTotal)}</td>
-                    <td className={td}>{number.format(r.trees)}</td>
+                  <tr key={i} className="border-t border-rule">
+                    <td className={`${tdName} min-w-48`}>{r.fullName}</td>
+                    <td className={tdNum}>{number.format(r.points)}</td>
+                    <td className={tdNum}>{decimal.format(r.carbonKg)}</td>
+                    <td className={tdNum}>{kg(r.gramsTotal)}</td>
+                    <td className={tdNum}>{number.format(r.trees)}</td>
                   </tr>
                 ))}
               </tbody>

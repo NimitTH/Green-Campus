@@ -304,6 +304,24 @@ export async function seedApprovedEarn(student: TestUser, staff: TestUser, point
   if (error) throw new Error(`e2e: approve failed: ${error.message}`);
 }
 
+/**
+ * Like seedApprovedEarn, but the activity is then closed (ends now) so it counts in the current month of /staff/reports:
+ * one row in the activity table and one in the student table. Returns the activity id.
+ */
+export async function seedClosedApprovedActivity(student: TestUser, staff: TestUser, points: number, title: string): Promise<string> {
+  const activityId = await createJoinedCodeActivity(title, student.id, { unit_points: points, requires_code: false });
+  const submissionId = await seedSubmission(student, activityId, PNG_1X1);
+  const c = await signedInClient(staff);
+  const { error } = await c.rpc("approve_submission", { p_submission_id: submissionId });
+  if (error) throw new Error(`e2e: approve failed: ${error.message}`);
+  const { error: closeError } = await admin()
+    .from("activities")
+    .update({ status: "closed", ends_at: new Date().toISOString() })
+    .eq("id", activityId);
+  if (closeError) throw new Error(`e2e: close activity failed: ${closeError.message}`);
+  return activityId;
+}
+
 /** Points balance of a student: the sum of every ledger row (service role). */
 export async function ledgerBalance(studentId: string): Promise<number> {
   const { data, error } = await admin().from("ledger_entries").select("points").eq("student_id", studentId);

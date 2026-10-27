@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { PageHeader } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/dal";
 import type { RewardInput } from "@/lib/rewards/validation";
 import { RewardForm } from "../_components/reward-form";
@@ -12,7 +13,9 @@ const EMPTY: RewardInput = { name: "", pointsCost: "", stock: "0", active: true 
 export default function NewRewardPage() {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
-      <h1 className="mb-5 text-xl font-semibold">เพิ่มของรางวัล</h1>
+      <div className="mb-6">
+        <PageHeader title="เพิ่มของรางวัล" />
+      </div>
       <Suspense fallback={<PageSkeleton />}>
         <NewReward />
       </Suspense>
