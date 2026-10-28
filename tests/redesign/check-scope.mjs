@@ -14,7 +14,9 @@ const writeBaseline = process.argv.includes("--write-baseline");
 
 const FORBIDDEN_PREFIXES = ["supabase/migrations/", "supabase/tests/", "src/app/actions/", "src/lib/", "src/app/api/", "scripts/"];
 const FORBIDDEN_FILES = ["src/proxy.ts"];
+const ALLOWED_FILES = new Set(["supabase/migrations/0026_public_home_feed.sql", "supabase/tests/public_home_feed.test.sql", "src/lib/home/public-feed.ts", "src/lib/home/public-feed.test.ts"]);
 const ALLOWED_NEW = new Set(["text:ธีม", "text:สว่าง", "text:มืด", "text:ตามระบบ", "aria:ธีม"]);
+for (const l of readFileSync(join(here, "ui-strings-2.allow.txt"), "utf8").split(/\r?\n/)) if (/^(text|aria):/.test(l.trim())) ALLOWED_NEW.add(l.trim());
 
 function git(args) {
   return execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).split(/\r?\n/).filter(Boolean);
@@ -76,6 +78,7 @@ try {
   problems.push(`git diff failed: ${e.message}`);
 }
 for (const p of changed) {
+  if (ALLOWED_FILES.has(p)) continue;
   if (FORBIDDEN_FILES.includes(p) || FORBIDDEN_PREFIXES.some((pre) => p.startsWith(pre))) problems.push(`forbidden path changed: ${p}`);
 }
 

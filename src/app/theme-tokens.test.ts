@@ -35,7 +35,10 @@ function firstLightBlock(): string {
   return "";
 }
 
-const light = parseTokens(firstLightBlock());
+const lightBody = firstLightBlock();
+const darkBody = blockAfter(css, ':root[data-theme="dark"]');
+const systemBody = blockAfter(css, ':root:not([data-theme="light"])');
+const light = parseTokens(lightBody);
 const dark = parseTokens(blockAfter(css, ':root[data-theme="dark"]'));
 const system = parseTokens(
   blockAfter(css, ':root:not([data-theme="light"])'),
@@ -82,6 +85,46 @@ describe("base rules", () => {
       expect(base).toContain(sel + " {");
     },
   );
+});
+
+const NEW_TOKENS = ["paper-3", "kraft", "kraft-2", "sun", "sea", "accent-deep", "margin", "line"];
+const decl = (body: string, name: string) => body.match(new RegExp(`--${name}:\\s*([^;]+);`))?.[1].trim();
+
+describe("redesign 2 tokens", () => {
+  it("new tokens exist in light and both dark blocks", () => {
+    for (const n of NEW_TOKENS) {
+      expect(decl(lightBody, n), `light --${n}`).toBeDefined();
+      expect(decl(darkBody, n), `dark --${n}`).toBeDefined();
+      expect(decl(systemBody, n), `system --${n}`).toBeDefined();
+      expect(decl(systemBody, n)).toBe(decl(darkBody, n));
+    }
+  });
+
+  describe.each([
+    ["light", light],
+    ["dark", dark],
+  ] as const)("%s kraft/paper-3 AA", (name, t) => {
+    it.each([
+      ["ink", "kraft", 4.5],
+      ["ink", "kraft-2", 4.5],
+      ["muted", "kraft", 4.5],
+      ["ink", "paper-3", 4.5],
+      ["muted", "paper-3", 4.5],
+      ["accent", "kraft-2", 3],
+    ] as [string, string, number][])("%s on %s >= %s", (fg, bg, min) => {
+      expect(t[fg], `missing --${fg}`).toBeDefined();
+      expect(t[bg], `missing --${bg}`).toBeDefined();
+      const r = contrast(t[fg], t[bg]);
+      expect(r, `${name} ${fg} on ${bg}: ${r.toFixed(2)}`).toBeGreaterThanOrEqual(min);
+    });
+  });
+
+  it("paper surfaces live in components layer", () => {
+    const comp = blockAfter(css, "@layer components").replace(/\s+/g, " ");
+    for (const c of ["paper-ruled", "paper-dots", "paper-grid", "paper-kraft", "paper-torn"]) {
+      expect(comp, `.${c}`).toContain(`.${c}`);
+    }
+  });
 });
 
 describe("theme tokens", () => {
