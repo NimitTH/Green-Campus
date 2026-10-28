@@ -11,8 +11,8 @@ const BASE =
 
 const VARIANTS: Record<ButtonVariant, string> = {
   primary:
-    "bg-accent text-on-accent shadow-cast hover:-translate-y-px hover:shadow-cast-lift active:translate-y-px",
-  card: "bg-surface text-ink border border-rule-strong shadow-card hover:bg-accent-soft",
+    "bg-accent text-on-accent shadow-press hover:-translate-y-px active:translate-y-px",
+  card: "bg-surface text-ink border border-rule-strong shadow-sheet hover:bg-accent-soft",
   quiet: "bg-transparent text-ink hover:bg-accent-soft",
   danger: "bg-surface text-danger border border-danger hover:bg-[color-mix(in_oklab,var(--danger)_14%,var(--surface))]",
 };

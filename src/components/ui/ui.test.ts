@@ -47,6 +47,27 @@ describe("Button", () => {
     }
     expect(buttonClass()).toContain("motion-reduce:translate-none");
   });
+  it("primary has a single letterpress shadow token", () => {
+    const tokens = buttonClass({ variant: "primary" }).split(" ");
+    expect(tokens.filter((t) => /(^|:)shadow-/.test(t))).toHaveLength(1);
+  });
+});
+
+describe("Card decoration", () => {
+  it("renders deco as an aria-hidden, non-interactive span", () => {
+    const out = html(createElement(Card, { deco: "tape" }, "x"));
+    expect(out).toContain('aria-hidden="true"');
+    expect(out).toContain("pointer-events-none");
+    expect(out).toContain("data-deco");
+  });
+  it("renders no deco span by default", () => {
+    expect(html(createElement(Card, null, "x"))).not.toContain("data-deco");
+  });
+  it("tilt is disabled under reduced motion and straightens on hover", () => {
+    const out = html(createElement(Card, { tilt: true }, "x"));
+    expect(out).toContain("motion-reduce:rotate-0");
+    expect(out).toContain("hover:rotate-0");
+  });
 });
 
 describe("Card", () => {

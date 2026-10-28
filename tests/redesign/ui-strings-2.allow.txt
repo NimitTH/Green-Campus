@@ -1,0 +1,8 @@
+text:เริ่มต้น
+text:อ่าน
+text:ค่า carbon อ้างอิง อบก. LESS-WM-01 v06
+aria:Facebook
+aria:YouTube
+aria:Instagram
+aria:X
+aria:LINE

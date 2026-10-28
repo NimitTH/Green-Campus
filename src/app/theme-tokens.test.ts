@@ -148,4 +148,11 @@ describe("theme tokens", () => {
       expect(ratio, `${_name} ${fg} on ${bg}: ${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(min);
     });
   });
+
+  it("html scroll-padding-top clears the sticky header", () => {
+    const body = blockAfter(css, "html {");
+    const m = body.match(/scroll-padding-top:\s*([\d.]+)rem/);
+    expect(m, "html scroll-padding-top in rem").not.toBeNull();
+    expect(Number(m![1])).toBeGreaterThanOrEqual(4);
+  });
 });
