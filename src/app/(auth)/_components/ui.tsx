@@ -4,7 +4,9 @@ import { buttonClass, inputClass } from "@/components/ui";
 export function FormTitle({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <div className="mb-5">
-      <h1 className="font-display text-2xl font-semibold text-ink">{title}</h1>
+      <h1 className="font-display text-2xl font-semibold text-ink">
+        <span className="ink-highlight">{title}</span>
+      </h1>
       {subtitle ? <p className="mt-1 text-sm text-muted">{subtitle}</p> : null}
     </div>
   );

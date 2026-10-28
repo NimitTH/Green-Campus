@@ -13,7 +13,9 @@ export const metadata: Metadata = { title: "บทความ | Green Campus", 
 export default function ArticlesPage() {
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 md:px-6 lg:py-12">
-      <h1 className="mb-6 font-display text-3xl font-semibold text-ink">บทความความรู้</h1>
+      <h1 className="mb-6 font-display text-3xl font-semibold text-ink">
+        <span className="ink-highlight">บทความความรู้</span>
+      </h1>
       <Suspense fallback={<PageSkeleton />}>
         <ArticleList />
       </Suspense>
@@ -35,9 +37,9 @@ async function ArticleList() {
     );
   }
   return (
-    <ul className="space-y-4">
+    <ul className="space-y-5 pt-2">
       {articles.map((a) => (
-        <Card as="li" flush key={a.id} data-testid="article-card" className="transition-colors hover:border-accent">
+        <Card as="li" flush deco="pin" tilt key={a.id} data-testid="article-card" className="hover:border-accent">
           <Link
             href={`/articles/${a.slug}`}
             className="flex gap-3 rounded-card p-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent md:p-4"

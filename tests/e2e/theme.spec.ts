@@ -128,7 +128,7 @@ for (const scheme of ["light", "dark"] as const) {
   test(`public pages fit 360 px in the ${scheme} theme`, async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     await page.emulateMedia({ colorScheme: scheme });
-    for (const path of ["/", "/articles"]) {
+    for (const path of ["/", "/articles", "/login"]) {
       await page.goto(path);
       await noSideScroll(page);
     }
