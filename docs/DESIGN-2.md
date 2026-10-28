@@ -226,8 +226,8 @@ as $$
   limit least(greatest(coalesce(p_limit, 4), 1), 12);
 $$;
 
-revoke all on function public.public_open_activities(int) from public;
-revoke all on function public.public_active_rewards(int) from public;
+revoke execute on function public.public_open_activities(int) from public;
+revoke execute on function public.public_active_rewards(int) from public;
 grant execute on function public.public_open_activities(int) to anon, authenticated;
 grant execute on function public.public_active_rewards(int) to anon, authenticated;
 ```
