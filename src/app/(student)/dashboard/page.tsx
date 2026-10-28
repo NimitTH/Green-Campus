@@ -12,7 +12,7 @@ import { StudentStats } from "./_components/student-stats";
 export const metadata: Metadata = { title: "หน้าหลัก | Green Campus" };
 
 const cardClass =
-  "block rounded-card border border-rule bg-surface p-4 font-semibold break-words text-ink shadow-card hover:border-accent";
+  "block rounded-card border border-rule bg-surface p-4 font-semibold break-words text-ink shadow-sheet transition-colors hover:border-accent";
 
 // Hub for the pages that are not in the bottom nav (spec 9.2). Sign out lives on /profile ("ฉัน").
 const HUB = [

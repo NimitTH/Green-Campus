@@ -358,3 +358,21 @@ test("login and register keep unique ids and labels bind to the visible input", 
   await email.fill("a@example.com");
   await expect(email).toHaveValue("a@example.com");
 });
+
+// Task 7: the student dashboard (tape-decorated stat card) fits a phone in both themes.
+for (const scheme of ["light", "dark"] as const) {
+  test(`student dashboard fits 360 px in the ${scheme} theme`, async ({ page }) => {
+    let student: TestUser | undefined;
+    try {
+      student = await createConfirmedUser("student", `student-dash360-${scheme}-${Date.now()}`);
+      await setFullName(student.id, "นักเรียนชื่อยาวมากสำหรับทดสอบการล้นของหน้าหลักบนจอเล็ก");
+      await page.setViewportSize({ width: 360, height: 800 });
+      await page.emulateMedia({ colorScheme: scheme });
+      await signIn(page, student, "/dashboard");
+      await expect(page.getByTestId("points")).toBeVisible();
+      await noSideScroll(page);
+    } finally {
+      await deleteUsers([student]);
+    }
+  });
+}

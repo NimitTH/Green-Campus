@@ -70,7 +70,7 @@ export async function StudentStats({ studentId }: { studentId: string }) {
 
   return (
     <>
-      <Card tone="accent" className="mb-4 grid grid-cols-2 gap-4">
+      <Card tone="accent" deco="tape" className="mb-6 grid grid-cols-2 gap-4">
         <Stat label="แต้มคงเหลือ" size="lg" data-testid="points" className="break-words">
           {intFormat.format(points)}
         </Stat>
