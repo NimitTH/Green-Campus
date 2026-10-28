@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { signIn } from "./helpers/auth";
-import { createConfirmedUser, deleteUsers, grantCarbon, type TestUser } from "./helpers/supabase-admin";
+import { createConfirmedUser, deleteUsers, grantCarbon, setFullName, type TestUser } from "./helpers/supabase-admin";
 
 // Plan Task 15 (R95-R98): leaderboard, dashboard rank card, public totals on the home page.
 
@@ -83,18 +83,28 @@ test("staff can open the leaderboard and get no own-rank card on the dashboard",
   }
 });
 
-test("signed out, / shows the three totals and no names", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByTestId("stat-carbon")).toBeVisible();
-  await expect(page.getByTestId("stat-waste")).toBeVisible();
-  await expect(page.getByTestId("stat-trees")).toBeVisible();
-  await expect(page.getByTestId("stat-carbon")).toContainText("กก.");
-  await expect(page.getByTestId("stat-trees")).toContainText("ต้น");
-  // Redesign 2: the header and footer repeat these links; the page's own pair is the closing call to action.
-  const main = page.getByRole("main");
-  await expect(main.getByRole("link", { name: "สมัครสมาชิก", exact: true })).toBeVisible();
-  await expect(main.getByRole("link", { name: "เข้าสู่ระบบ", exact: true })).toBeVisible();
-  // No user names (every e2e user is "ทดสอบ <role>"). The home feed may show other specs' public
-  // activity / article / reward titles, which also contain "ทดสอบ", so only names are checked.
-  await expect(page.locator("body")).not.toContainText(/ทดสอบ (student|teacher|admin)/);
+test("signed out, / shows the three totals and no names", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const uniqueName = `นักเรียนลับ${suffix.replace(/[^a-z0-9]/gi, "")}`;
+  let student: TestUser | undefined;
+  try {
+    // a student who is on the leaderboard: their name must still never reach the public home page
+    student = await createConfirmedUser("student", `student-lbpub-${suffix}`);
+    await setFullName(student.id, uniqueName);
+    await grantCarbon(student.id, 98765.432);
+    await page.goto("/");
+    await expect(page.getByTestId("stat-carbon")).toBeVisible();
+    await expect(page.getByTestId("stat-waste")).toBeVisible();
+    await expect(page.getByTestId("stat-trees")).toBeVisible();
+    await expect(page.getByTestId("stat-carbon")).toContainText("กก.");
+    await expect(page.getByTestId("stat-trees")).toContainText("ต้น");
+    // Redesign 2: the header and footer repeat these links; the page's own pair is the closing call to action.
+    const main = page.getByRole("main");
+    await expect(main.getByRole("link", { name: "สมัครสมาชิก", exact: true })).toBeVisible();
+    await expect(main.getByRole("link", { name: "เข้าสู่ระบบ", exact: true })).toBeVisible();
+    await expect(page.locator("body")).not.toContainText(uniqueName);
+    await expect(page.locator("body")).not.toContainText(/ทดสอบ (student|teacher|admin)/);
+  } finally {
+    await deleteUsers([student]);
+  }
 });

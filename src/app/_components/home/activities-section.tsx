@@ -32,6 +32,7 @@ export function ActivitiesSection({ activities, now }: { activities: PublicActiv
 function ActivityCard({ activity: a, now }: { activity: PublicActivity; now: Date }) {
   const { percent, daysLeft } = activityProgress(a.startsAt, a.endsAt, now);
   const progressId = `home-activity-${a.id}-progress`;
+  const titleId = `home-activity-${a.id}-title`;
   return (
     <Card
       as="li"
@@ -40,10 +41,11 @@ function ActivityCard({ activity: a, now }: { activity: PublicActivity; now: Dat
     >
       <Link
         href={`/activities/${a.id}`}
+        aria-labelledby={titleId}
         className="flex h-full flex-col rounded-card p-5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         <span className="self-start rounded-full bg-accent-soft px-2.5 py-1 text-xs font-semibold text-ink">{typeLabelTh(a.type)}</span>
-        <h3 className="mt-2.5 line-clamp-3 font-display text-lg leading-[1.4] font-semibold break-words text-ink">{a.title}</h3>
+        <h3 id={titleId} className="mt-2.5 line-clamp-3 font-display text-lg leading-[1.4] font-semibold break-words text-ink">{a.title}</h3>
         <p className="mt-1.5 text-sm text-muted">
           <Mono text={`${formatBangkok(a.startsAt)} – ${formatBangkok(a.endsAt)}`} />
         </p>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useSyncExternalStore } from "react";
-import { applyThemeChoice, nextThemeChoice, readThemeChoice } from "./theme";
+import { applyThemeChoice, nextThemeChoice, readThemeChoice, THEME_STORAGE_KEY } from "./theme";
 
 const DARK_QUERY = "(prefers-color-scheme: dark)";
 
@@ -13,13 +13,26 @@ function safeLocalStorage(): Storage | undefined {
   }
 }
 
+// Sets or clears <html data-theme> from the stored choice (no storage write).
+function applyStoredChoice(): void {
+  const stored = readThemeChoice(safeLocalStorage());
+  const root = document.documentElement;
+  if (stored === "system") root.removeAttribute("data-theme");
+  else root.setAttribute("data-theme", stored);
+}
+
 function subscribe(onChange: () => void): () => void {
   const media = window.matchMedia(DARK_QUERY);
-  window.addEventListener("storage", onChange);
+  // Another tab changed the choice: show it here too, then re-read the snapshot.
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === null || e.key === THEME_STORAGE_KEY) applyStoredChoice();
+    onChange();
+  };
+  window.addEventListener("storage", onStorage);
   window.addEventListener("themechange", onChange);
   media.addEventListener("change", onChange);
   return () => {
-    window.removeEventListener("storage", onChange);
+    window.removeEventListener("storage", onStorage);
     window.removeEventListener("themechange", onChange);
     media.removeEventListener("change", onChange);
   };
@@ -38,14 +51,10 @@ function getSnapshot(): boolean {
 function useShowingDark(): boolean {
   const showingDark = useSyncExternalStore(subscribe, getSnapshot, () => false);
   // Re-apply <html data-theme> (no storage write) for React's dev Strict Mode remount, which clears attributes it
-  // does not manage. Apply the value read from storage now, NOT state: during hydration state is still the server
-  // snapshot, and applying it would remove the attribute the head script set (a flash).
-  useLayoutEffect(() => {
-    const stored = readThemeChoice(safeLocalStorage());
-    const root = document.documentElement;
-    if (stored === "system") root.removeAttribute("data-theme");
-    else root.setAttribute("data-theme", stored);
-  }, [showingDark]);
+  // does not manage. Mount only: re-running on every snapshot change would overwrite a click with the stored value
+  // when storage is unavailable. Apply the value read from storage now, NOT state: during hydration state is still
+  // the server snapshot, and applying it would remove the attribute the head script set (a flash).
+  useLayoutEffect(applyStoredChoice, []);
   return showingDark;
 }
 

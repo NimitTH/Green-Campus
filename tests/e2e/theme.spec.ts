@@ -116,6 +116,37 @@ test("icon toggle flips from system", async ({ page }) => {
   expect(await page.evaluate(() => localStorage.getItem("theme"))).toBe("light");
 });
 
+test("toggle still flips when localStorage throws", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "localStorage", {
+      get() {
+        throw new DOMException("blocked", "SecurityError");
+      },
+    });
+  });
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto("/");
+  const html = page.locator("html");
+  await flipTheme(page);
+  await expect(html).toHaveAttribute("data-theme", "dark");
+  await flipTheme(page);
+  await expect(html).toHaveAttribute("data-theme", "light");
+});
+
+test("a theme change in another tab updates this tab", async ({ context }) => {
+  const first = await context.newPage();
+  const second = await context.newPage();
+  await first.emulateMedia({ colorScheme: "light" });
+  await second.emulateMedia({ colorScheme: "light" });
+  await first.goto("/articles");
+  await second.goto("/articles");
+  await expect(second.locator("html")).not.toHaveAttribute("data-theme", /.+/);
+  await flipTheme(first);
+  await expect(first.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(second.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(second.getByRole("button", { name: "ธีม" })).toHaveAttribute("aria-pressed", "true");
+});
+
 test("icon toggle first press from a dark system goes light", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "dark" });
   await page.goto("/articles");
@@ -373,6 +404,22 @@ for (const scheme of ["light", "dark"] as const) {
       await noSideScroll(page);
     } finally {
       await deleteUsers([student]);
+    }
+  });
+}
+
+for (const scheme of ["light", "dark"] as const) {
+  test(`staff home fits 360 px in the ${scheme} theme`, async ({ page }) => {
+    let teacher: TestUser | undefined;
+    try {
+      teacher = await createConfirmedUser("teacher", `teacher-home360-${scheme}-${Date.now()}`);
+      await page.setViewportSize({ width: 360, height: 800 });
+      await page.emulateMedia({ colorScheme: scheme });
+      await signIn(page, teacher, "/staff");
+      await expect(page.getByRole("main")).toBeVisible();
+      await noSideScroll(page);
+    } finally {
+      await deleteUsers([teacher]);
     }
   });
 }

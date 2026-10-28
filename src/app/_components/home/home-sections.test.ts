@@ -40,6 +40,8 @@ describe("ActivitiesSection", () => {
     expect(out).toContain('href="/activities/x1"');
     expect(out).toContain('href="/activities/x2"');
     expect(out).toContain('role="progressbar"');
+    expect(out).toContain('aria-labelledby="home-activity-x1-title"');
+    expect(out).toContain('id="home-activity-x1-title"');
     expect(out).toContain('aria-valuenow="50"');
   });
   it("empty list keeps the heading and says so", () => {
