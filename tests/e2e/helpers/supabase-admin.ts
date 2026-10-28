@@ -481,6 +481,20 @@ export async function createActivityRow(title: string, fields: Record<string, un
   return data.id as string;
 }
 
+/**
+ * Runs `fn` while an open activity with a long Thai title and no spaces exists (redesign 2: the home page
+ * must not scroll sideways at 360 px), then deletes it, also when `fn` throws.
+ */
+export async function withLongTitleOpenActivity<T>(fn: (title: string) => Promise<T>): Promise<T> {
+  const title = `กิจกรรมเก็บขยะรอบอาคารเรียนและโรงอาหารประจำสัปดาห์สิ่งแวดล้อมของวิทยาลัย${Date.now()}`;
+  await createActivityRow(title);
+  try {
+    return await fn(title);
+  } finally {
+    await deleteActivitiesByTitle(title);
+  }
+}
+
 // Full flow (Task 20) ---------------------------------------------------------------------------------
 
 /**

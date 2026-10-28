@@ -90,7 +90,11 @@ test("signed out, / shows the three totals and no names", async ({ page }) => {
   await expect(page.getByTestId("stat-trees")).toBeVisible();
   await expect(page.getByTestId("stat-carbon")).toContainText("กก.");
   await expect(page.getByTestId("stat-trees")).toContainText("ต้น");
-  await expect(page.getByRole("link", { name: "สมัครสมาชิก" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "เข้าสู่ระบบ" })).toBeVisible();
-  await expect(page.locator("body")).not.toContainText("ทดสอบ");
+  // Redesign 2: the header and footer repeat these links; the page's own pair is the closing call to action.
+  const main = page.getByRole("main");
+  await expect(main.getByRole("link", { name: "สมัครสมาชิก", exact: true })).toBeVisible();
+  await expect(main.getByRole("link", { name: "เข้าสู่ระบบ", exact: true })).toBeVisible();
+  // No user names (every e2e user is "ทดสอบ <role>"). The home feed may show other specs' public
+  // activity / article / reward titles, which also contain "ทดสอบ", so only names are checked.
+  await expect(page.locator("body")).not.toContainText(/ทดสอบ (student|teacher|admin)/);
 });
