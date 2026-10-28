@@ -205,7 +205,7 @@ export function WeighStation({ activities }: { activities: Activity[] }) {
         // Hand-written, not Card: Card has no border variant, and stacking border-2 border-accent on Card's border-rule would be order-dependent.
         <section
           aria-label="รหัสจุดชั่ง"
-          className="rounded-card border-2 border-accent bg-accent-soft p-6 text-center text-ink shadow-card"
+          className="rounded-card border-2 border-accent bg-accent-soft p-6 text-center text-ink shadow-sheet"
         >
           <p className="mb-2 text-base">รหัสสำหรับ {issued.student.name}</p>
           <p

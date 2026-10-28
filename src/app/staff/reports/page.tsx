@@ -23,7 +23,7 @@ const thNum = "whitespace-nowrap px-3 py-2 text-right text-sm font-medium text-m
 const td = "whitespace-nowrap px-3 py-2";
 const tdNum = "whitespace-nowrap px-3 py-2 text-right font-mono";
 const tdName = "px-3 py-2"; // wraps: a long title or name must not stretch the table
-const tableWrap = "overflow-x-auto rounded-card border border-rule bg-surface shadow-card";
+const tableWrap = "overflow-x-auto rounded-card border border-rule bg-surface shadow-sheet";
 
 // cacheComponents: searchParams and the session are request-time data, read them inside <Suspense>.
 export default function StaffReportsPage({ searchParams }: { searchParams: SearchParams }) {

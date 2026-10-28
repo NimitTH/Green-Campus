@@ -21,7 +21,7 @@ export default function StaffPage() {
 }
 
 const linkClass =
-  "block rounded-card border border-rule bg-surface p-4 font-semibold text-ink shadow-card transition-colors hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent md:p-5";
+  "block rounded-card border border-rule bg-surface p-4 font-semibold text-ink shadow-sheet transition-colors hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent md:p-5";
 const hintClass = "block text-sm font-normal text-muted";
 
 const MENU = [

@@ -98,7 +98,7 @@ async function UserDetail({ params }: { params: Promise<{ id: string }> }) {
             {ledger.length === 0 ? (
               <EmptyState className="text-sm">ยังไม่มีรายการแต้ม</EmptyState>
             ) : (
-              <ul className="divide-y divide-rule rounded-card border border-rule bg-surface shadow-card">
+              <ul className="divide-y divide-rule rounded-card border border-rule bg-surface shadow-sheet">
                 {ledger.map((r) => (
                   <li key={r.id} data-testid="ledger-row" className="p-3 text-sm">
                     <div className="flex flex-wrap justify-between gap-2">

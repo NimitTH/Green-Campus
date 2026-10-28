@@ -5,7 +5,7 @@ import { formatBangkok } from "@/lib/datetime";
 import { formatCount, formatKg, formatKgFromGrams } from "@/lib/leaderboard/format";
 
 const linkCardClass =
-  "block rounded-card border border-rule bg-surface p-4 text-ink shadow-card transition-colors hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent md:p-6";
+  "block rounded-card border border-rule bg-surface p-4 text-ink shadow-sheet transition-colors hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent md:p-6";
 
 /** R118: work waiting for staff and the whole-school totals, above the menu. */
 export async function StaffStats() {
@@ -42,7 +42,7 @@ export async function StaffStats() {
             </span>
           </span>
         </Link>
-        <Card data-testid="stat-totals">
+        <Card data-testid="stat-totals" deco="clip">
           <span className="block text-sm text-muted">ยอดสะสมทั้งโรงเรียน</span>
           <dl className="mt-1 space-y-0.5 text-sm">
             <div className="flex justify-between gap-2">
