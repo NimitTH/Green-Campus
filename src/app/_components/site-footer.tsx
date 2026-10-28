@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { SocialIcon } from "./social-icons";
 import { visibleSocialLinks } from "./social-links";
-import { LeafMark } from "./site-header";
+import { LeafMark } from "./leaf-mark";
 
 const FOOT_LINK = "inline-flex min-h-11 items-center text-sm text-ink underline-offset-4 hover:text-accent hover:underline";
 

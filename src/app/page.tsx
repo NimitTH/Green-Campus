@@ -34,13 +34,13 @@ export default function Home() {
         <ProcessSection />
         <AudienceSection />
         <FactsSection />
-        <Suspense fallback={<Skeleton className="paper-kraft paper-torn h-[36rem] sm:h-[30rem]" />}>
+        <Suspense fallback={<Skeleton className="paper-kraft paper-torn h-[56rem] sm:h-[46rem] lg:h-[31rem]" />}>
           <OpenActivities />
         </Suspense>
-        <Suspense fallback={<Skeleton className="h-[40rem] sm:h-[34rem]" />}>
+        <Suspense fallback={<Skeleton className="h-[110rem] min-[400px]:h-[58rem] sm:h-[80rem] lg:h-[42rem]" />}>
           <ActiveRewards />
         </Suspense>
-        <Suspense fallback={<Skeleton className="paper-dots paper-torn h-[40rem] [--torn-bg:var(--paper)] sm:h-[30rem]" />}>
+        <Suspense fallback={<Skeleton className="paper-dots paper-torn h-[105rem] [--torn-bg:var(--paper)] min-[400px]:h-[48rem] sm:h-[60rem] lg:h-[34rem]" />}>
           <LatestArticles />
         </Suspense>
         <ClosingCta />

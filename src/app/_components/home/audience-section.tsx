@@ -14,9 +14,9 @@ export function AudienceSection() {
       <div className={HOME_CONTAINER}>
         <SectionHeading id="audience" num="03" kicker="ทำเพื่อใคร" title="สร้างมาเพื่อนักศึกษา และทุกคนในวิทยาลัย" />
         <div className="mt-8 grid items-start gap-7 lg:grid-cols-[1.3fr_1fr]">
-          <Card flush deco="clip" className="paper-ruled py-6 pr-6 pl-15">
-            <h3 className="font-display text-[1.625rem] font-semibold text-ink">นักศึกษา</h3>
-            <ul className="mt-2.5 list-disc space-y-1 pl-4.5 text-muted marker:text-accent">
+          <Card flush deco="clip" className="paper-ruled pt-[1.9rem] pr-6 pb-6 pl-15">
+            <h3 className="font-display text-[1.625rem] leading-[1.9rem] font-semibold text-ink">นักศึกษา</h3>
+            <ul className="list-disc pl-4.5 leading-[1.9rem] text-muted marker:text-accent">
               {STUDENT_POINTS.map((p) => (
                 <li key={p}>{p}</li>
               ))}

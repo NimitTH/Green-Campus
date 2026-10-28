@@ -19,7 +19,7 @@ export function ActivitiesSection({ activities, now }: { activities: PublicActiv
           <p className="mt-7 text-ink">ยังไม่มีกิจกรรมที่เปิดรับ</p>
         ) : (
           <ul className="mt-7 grid gap-5.5 sm:grid-cols-2 lg:grid-cols-3">
-            {activities.map((a) => (
+            {activities.slice(0, 3).map((a) => (
               <ActivityCard key={a.id} activity={a} now={now} />
             ))}
           </ul>
@@ -42,7 +42,7 @@ function ActivityCard({ activity: a, now }: { activity: PublicActivity; now: Dat
         href={`/activities/${a.id}`}
         className="flex h-full flex-col rounded-card p-5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
-        <span className="self-start rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-ink">{typeLabelTh(a.type)}</span>
+        <span className="self-start rounded-full bg-accent-soft px-2.5 py-1 text-xs font-semibold text-ink">{typeLabelTh(a.type)}</span>
         <h3 className="mt-2.5 line-clamp-3 font-display text-lg leading-[1.4] font-semibold break-words text-ink">{a.title}</h3>
         <p className="mt-1.5 text-sm text-muted">
           <Mono text={`${formatBangkok(a.startsAt)} – ${formatBangkok(a.endsAt)}`} />

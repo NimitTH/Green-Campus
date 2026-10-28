@@ -16,14 +16,14 @@ export function ProblemSection() {
           <span
             data-deco
             aria-hidden="true"
-            className="pointer-events-none absolute -right-2 -bottom-4 size-22 rounded-full border-[6px] border-[color-mix(in_oklab,var(--kraft)_80%,transparent)] opacity-60 blur-[0.4px]"
+            className="pointer-events-none absolute -right-4 -bottom-6 size-22 rounded-full border-[6px] border-[color-mix(in_oklab,var(--kraft)_80%,transparent)] opacity-60 blur-[0.4px]"
           />
           {/* docs/carbon-sources.md: paper recycled instead of virgin material (net) 3.5460 */}
-          <p className="font-mono text-[3.25rem] leading-[1.1] font-semibold text-accent">
+          <p className="relative font-mono text-[3.25rem] leading-[1.1] font-semibold text-accent">
             3.5 <span className="font-sans text-lg font-normal text-muted">กก. CO2e</span>
           </p>
-          <p className="mt-1.5 text-ink">ลดได้เมื่อรีไซเคิลกระดาษ 1 กก. แทนการผลิตใหม่</p>
-          <p className="mt-2.5 border-t border-dashed border-rule pt-2 text-xs text-muted">ที่มา: อบก. โครงการ LESS, LESS-WM-01 v06 (ค่า 3.5460)</p>
+          <p className="relative mt-1.5 text-ink">ลดได้เมื่อรีไซเคิลกระดาษ 1 กก. แทนการผลิตใหม่</p>
+          <p className="relative mt-2.5 border-t border-dashed border-rule pt-2 text-xs text-muted">ที่มา: อบก. โครงการ LESS, LESS-WM-01 v06 (ค่า 3.5460)</p>
         </Card>
       </div>
     </section>

@@ -22,7 +22,7 @@ export function RewardsSection({ rewards }: { rewards: PublicReward[] | null }) 
       <div className={HOME_CONTAINER}>
         <SectionHeading id="rewards" num="06" kicker="ของรางวัล" title="แต้มของคุณ แลกอะไรได้บ้าง" />
         <ul className="mt-7 grid gap-4 min-[400px]:grid-cols-2 lg:grid-cols-4 lg:gap-5.5">
-          {rewards.map((r, i) => (
+          {rewards.slice(0, 4).map((r, i) => (
             <Card
               as="li"
               flush
@@ -36,7 +36,7 @@ export function RewardsSection({ rewards }: { rewards: PublicReward[] | null }) 
                 <div className="relative">
                   <RewardImage
                     url={r.imageUrl}
-                    className={`aspect-square w-full ${r.imageUrl ? "" : `${PLACEHOLDER_TONES[i % PLACEHOLDER_TONES.length]} dark:brightness-80 dark:saturate-80`}`}
+                    className={`aspect-[4/3] w-full min-[400px]:aspect-square ${r.imageUrl ? "" : `${PLACEHOLDER_TONES[i % PLACEHOLDER_TONES.length]} dark:brightness-80 dark:saturate-80`}`}
                   />
                   <span className="absolute right-2.5 bottom-2.5 rotate-[4deg] rounded-input border border-dashed border-accent bg-surface px-2.5 py-1 text-sm font-semibold text-accent shadow-card">
                     <Mono text={`${formatCount(r.pointsCost)} แต้ม`} />

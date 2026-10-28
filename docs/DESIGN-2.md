@@ -1,6 +1,6 @@
 # Green Campus: Design system แบบที่สอง ("สมุดบันทึกภาคสนาม จัดเต็ม")
 
-> สถานะ: spec รอเจ้าของตรวจ · branch `redesign-2` (แตกจาก `redesign` ที่ 7a83b48) · brainstorming 28 ต.ค. 2026
+> สถานะ: ใช้งานแล้ว บน branch redesign-2 (แตกจาก `redesign` ที่ 7a83b48) · brainstorming 28 ต.ค. 2026
 > แบบที่หนึ่งอยู่ใน `docs/DESIGN.md` และ branch `redesign` (PR เดิม) **ห้ามแก้ทั้งคู่**
 > mockup ที่เจ้าของผ่านแล้ว: `.superpowers/brainstorm/10-1793165009/content/home-v5.html` (ไม่ได้ commit, gitignored)
 
@@ -275,4 +275,32 @@ anon เรียกได้ทั้งสอง · ไม่คืน draft/c
 
 ## 10. ผลตรวจ build ปิดงาน
 
-(เติมตอนปิดงาน)
+ปิดงาน 28 ต.ค. 2026 (Task 9) · gate เต็มหลัง `npx supabase db reset`
+
+| ขั้น | ผล |
+|---|---|
+| `npx supabase test db` (pgTAP) | 1042 ผ่าน (23 ไฟล์) |
+| `npm test` (vitest) | 679 ผ่าน (50 ไฟล์) |
+| `npm run test:e2e` | 189 ผ่าน, ข้าม 13 |
+| `npm run test:seed` | 12 ผ่าน |
+| `npm run test:e2e:prod` | 24 ผ่าน |
+| `npm run lint` | 0 error (111 warning เดิม) |
+| `npx tsc -p scripts/tsconfig.json`, `npm run build` | ผ่าน |
+| `node tests/redesign/check-scope.mjs` | `scope OK` |
+
+บรรทัด build (ยังเป็น static ตาม `tests/redesign/build-routes.baseline.txt`):
+
+```
+┌ ○ /                                      1m      1h
+├ ○ /articles                              1m      1h
+```
+
+ตัวเลขเทสต์ก่อน/หลัง
+
+| ชุด | จบแบบแรก (redesign-1) | จบแบบที่สอง (redesign-2) |
+|---|---|---|
+| pgTAP | 1021 | 1042 |
+| vitest | 633 | 679 |
+| e2e ผ่าน / ข้าม | 165 / 13 | 189 / 13 |
+
+`use-cache-count` สุดท้าย = **8** (ไม่ใช่ 7 ตาม §1.3): สองตัวใน `src/lib/home/public-feed.ts` ตามแผน บวกอีกหนึ่งตัวที่ตัวห่อ `OpenActivities` ใน `src/app/page.tsx` เพื่อจับ "เวลาปัจจุบัน" ให้แถบความคืบหน้า (§5.2) ใน scope ที่ cache ตามแบบใน `node_modules/next/dist/docs` (io.md) ถ้าเรียก `new Date()` นอก cache ภายใต้ Cache Components การ prerender ของ `/` จะล้ม (ข้อวินิจฉัย Ruling T5a) · baseline ใน check-scope บันทึกเป็น 8
