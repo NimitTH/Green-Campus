@@ -1,4 +1,4 @@
-use-cache-count:5
+use-cache-count:7
 aria:${c.name} กิโลกรัม
 aria:${c.name} ขีด
 aria:${label} ${name}
