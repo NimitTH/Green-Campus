@@ -6,6 +6,11 @@ export function parseThemeChoice(value: string | null): ThemeChoice {
   return value === "light" || value === "dark" ? value : "system";
 }
 
+// The single icon button flips whichever theme is on screen (system is only the starting point).
+export function nextThemeChoice(showingDark: boolean): "light" | "dark" {
+  return showingDark ? "light" : "dark";
+}
+
 export function readThemeChoice(storage: Pick<Storage, "getItem"> | undefined): ThemeChoice {
   try {
     return parseThemeChoice(storage ? storage.getItem(THEME_STORAGE_KEY) : null);

@@ -12,7 +12,7 @@ export default function Home() {
         <Link href="/" className="py-2 font-display text-lg font-semibold text-accent">
           Green Campus
         </Link>
-        <ThemeToggle compact />
+        <ThemeToggle />
       </header>
       <main className="mx-auto grid w-full max-w-6xl flex-1 content-center gap-10 px-4 py-18 md:px-6 lg:grid-cols-2 lg:items-center lg:gap-16 lg:py-30 xl:px-10">
         <div className="flex flex-col items-start gap-6">

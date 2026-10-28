@@ -19,7 +19,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         {/* Phones get the bell as the bottom-nav "แจ้งเตือน" item and the theme control on the profile page. */}
         <div className="hidden items-center gap-1 md:flex">
           <NotificationBell />
-          <ThemeToggle compact />
+          <ThemeToggle />
         </div>
       </header>
       {children}

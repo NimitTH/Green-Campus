@@ -22,7 +22,7 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
             <Suspense fallback={<NavSkeleton />}>
               <StaffNav />
             </Suspense>
-            <ThemeToggle className="px-3 pt-3" />
+            <ThemeToggle className="mx-3 mt-3" />
           </StaffDrawer>
           <Link href="/staff" className="truncate py-2 font-display text-lg font-semibold text-accent">
             Green Campus · ครูและผู้ดูแล
@@ -35,7 +35,7 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
           <Suspense fallback={<NavSkeleton />}>
             <StaffNav />
           </Suspense>
-          <ThemeToggle className="mt-auto pt-3 [&_[role=radio]]:flex-1 [&_[role=radio]]:px-1 [&_[role=radio]]:text-xs [&_[role=radiogroup]]:flex [&_[role=radiogroup]]:w-full" />
+          <ThemeToggle className="mt-auto self-start" />
         </StaffSidebar>
         <div className="flex min-w-0 flex-1 flex-col">
           <Suspense fallback={<PageSkeleton />}>

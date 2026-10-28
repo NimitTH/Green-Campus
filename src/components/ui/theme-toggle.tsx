@@ -1,13 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
-import { applyThemeChoice, readThemeChoice, type ThemeChoice } from "./theme";
+import { useLayoutEffect, useSyncExternalStore } from "react";
+import { applyThemeChoice, nextThemeChoice, readThemeChoice } from "./theme";
 
-const OPTIONS: { value: ThemeChoice; label: string }[] = [
-  { value: "light", label: "สว่าง" },
-  { value: "dark", label: "มืด" },
-  { value: "system", label: "ตามระบบ" },
-];
+const DARK_QUERY = "(prefers-color-scheme: dark)";
 
 function safeLocalStorage(): Storage | undefined {
   try {
@@ -18,130 +14,60 @@ function safeLocalStorage(): Storage | undefined {
 }
 
 function subscribe(onChange: () => void): () => void {
+  const media = window.matchMedia(DARK_QUERY);
   window.addEventListener("storage", onChange);
   window.addEventListener("themechange", onChange);
+  media.addEventListener("change", onChange);
   return () => {
     window.removeEventListener("storage", onChange);
     window.removeEventListener("themechange", onChange);
+    media.removeEventListener("change", onChange);
   };
 }
 
-function getSnapshot(): ThemeChoice {
-  return readThemeChoice(safeLocalStorage());
+// Dark is on screen when <html data-theme="dark">, or when no attribute is set and the system prefers dark.
+function getSnapshot(): boolean {
+  const attr = document.documentElement.getAttribute("data-theme");
+  if (attr === "dark") return true;
+  if (attr === "light") return false;
+  return window.matchMedia(DARK_QUERY).matches;
 }
 
-// The server cannot know the stored choice, so the server snapshot is "system"; React reconciles the real value
-// after hydration without a hydration error (the <html> attribute itself is set earlier by THEME_INIT_SCRIPT).
-function useThemeChoice(): ThemeChoice {
-  const choice = useSyncExternalStore(subscribe, getSnapshot, () => "system" as ThemeChoice);
+// The server cannot know the stored choice or the system scheme, so the server snapshot is false. Only aria-pressed
+// depends on it; the icons swap by CSS, so hydration cannot mismatch visually.
+function useShowingDark(): boolean {
+  const showingDark = useSyncExternalStore(subscribe, getSnapshot, () => false);
   // Re-apply <html data-theme> (no storage write) for React's dev Strict Mode remount, which clears attributes it
-  // does not manage. Apply the value read from storage now, NOT `choice`: during hydration `choice` is still the
-  // server snapshot "system", and applying it would remove the attribute the head script set (a flash). `choice`
-  // stays a dependency so a cross-tab `storage` change re-runs this.
+  // does not manage. Apply the value read from storage now, NOT state: during hydration state is still the server
+  // snapshot, and applying it would remove the attribute the head script set (a flash).
   useLayoutEffect(() => {
     const stored = readThemeChoice(safeLocalStorage());
     const root = document.documentElement;
     if (stored === "system") root.removeAttribute("data-theme");
     else root.setAttribute("data-theme", stored);
-  }, [choice]);
-  return choice;
+  }, [showingDark]);
+  return showingDark;
 }
 
-function select(choice: ThemeChoice): void {
-  applyThemeChoice(choice, document.documentElement, safeLocalStorage());
-}
-
-function Options({ choice, onPick }: { choice: ThemeChoice; onPick?: () => void }) {
+export function ThemeToggle({ className = "" }: { className?: string }) {
+  const showingDark = useShowingDark();
   return (
-    <div
-      role="radiogroup"
+    <button
+      type="button"
       aria-label="ธีม"
-      className="inline-flex gap-1 rounded-input bg-paper-2 p-1"
+      aria-pressed={showingDark}
+      onClick={() => {
+        applyThemeChoice(nextThemeChoice(getSnapshot()), document.documentElement, safeLocalStorage());
+      }}
+      className={`inline-flex size-11 shrink-0 items-center justify-center rounded-input border border-rule bg-surface text-ink shadow-[1px_1px_0_var(--rule),2px_2px_0_var(--rule)] transition-colors duration-(--dur-short) ease-(--ease-out) hover:bg-paper-2 ${className}`}
     >
-      {OPTIONS.map((o) => {
-        const checked = choice === o.value;
-        return (
-          <button
-            key={o.value}
-            type="button"
-            role="radio"
-            aria-checked={checked}
-            onClick={() => {
-              select(o.value);
-              onPick?.();
-            }}
-            className={`inline-flex min-h-11 items-center justify-center whitespace-nowrap rounded-input px-3 text-sm transition-colors duration-(--dur-short) ease-(--ease-out) ${
-              checked ? "bg-surface text-ink shadow-card" : "text-muted hover:text-ink"
-            }`}
-          >
-            {o.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-export function ThemeToggle({ compact = false, className = "" }: { compact?: boolean; className?: string }) {
-  const choice = useThemeChoice();
-  const panelId = useId();
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-
-  const close = useCallback((returnFocus: boolean) => {
-    setOpen(false);
-    if (returnFocus) buttonRef.current?.focus();
-  }, []);
-
-  useEffect(() => {
-    if (!open) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") close(true);
-    }
-    function onPointer(e: PointerEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) close(false);
-    }
-    document.addEventListener("keydown", onKey);
-    document.addEventListener("pointerdown", onPointer);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("pointerdown", onPointer);
-    };
-  }, [open, close]);
-
-  if (!compact) {
-    return (
-      <div className={className}>
-        <Options choice={choice} />
-      </div>
-    );
-  }
-
-  return (
-    <div ref={wrapRef} className={`relative ${className}`}>
-      <button
-        ref={buttonRef}
-        type="button"
-        aria-label="ธีม"
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={() => setOpen((v) => !v)}
-        className="inline-flex size-11 items-center justify-center rounded-input text-muted transition-colors duration-(--dur-short) ease-(--ease-out) hover:bg-paper-2 hover:text-ink"
-      >
-        <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="9" />
-          <path d="M12 3v18" />
-          <path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none" />
-        </svg>
-      </button>
-      <div
-        id={panelId}
-        hidden={!open}
-        className="absolute right-0 top-full z-50 mt-2 rounded-card border border-rule bg-surface p-2 shadow-card"
-      >
-        {open ? <Options choice={choice} onPick={() => close(true)} /> : null}
-      </div>
-    </div>
+      <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5 dark:hidden" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+      </svg>
+      <svg aria-hidden="true" viewBox="0 0 24 24" className="hidden size-5 dark:block" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+      </svg>
+    </button>
   );
 }

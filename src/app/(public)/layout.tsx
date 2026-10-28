@@ -17,7 +17,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
             เข้าสู่ระบบ / หน้าของฉัน
           </Link>
         </nav>
-        <ThemeToggle compact className="ml-auto" />
+        <ThemeToggle className="ml-auto" />
       </header>
       {children}
     </div>

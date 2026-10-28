@@ -30,9 +30,8 @@ async function noSideScroll(page: Page): Promise<void> {
   expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
 }
 
-async function chooseTheme(page: Page, name: "สว่าง" | "มืด" | "ตามระบบ"): Promise<void> {
+async function flipTheme(page: Page): Promise<void> {
   await page.getByRole("button", { name: "ธีม" }).click();
-  await page.getByRole("radio", { name }).click();
 }
 
 async function bodyBackground(page: Page): Promise<string> {
@@ -75,8 +74,9 @@ test("theme choice survives a reload with no flash", async ({ page }) => {
       wait.observe(document, { childList: true });
     }
   });
+  await page.emulateMedia({ colorScheme: "light" });
   await page.goto("/articles");
-  await chooseTheme(page, "มืด");
+  await flipTheme(page);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.reload();
   await expect.poll(() => page.evaluate(() => window.__themeAtDcl)).toBe("dark");
@@ -86,8 +86,7 @@ test("theme choice survives a reload with no flash", async ({ page }) => {
   const log = await page.evaluate(() => window.__themeLog);
   expect(log![0]).toEqual({ from: null, to: "dark" });
   expect(log!.slice(1).filter((e) => e.from !== "dark" || e.to !== "dark")).toEqual([]);
-  await page.getByRole("button", { name: "ธีม" }).click();
-  await expect(page.getByRole("radio", { name: "มืด" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("button", { name: "ธีม" })).toHaveAttribute("aria-pressed", "true");
   expect(problems).toEqual([]);
 });
 
@@ -98,27 +97,31 @@ test("no choice follows the system", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "dark" });
   await page.goto("/articles");
   await expect.poll(() => bodyBackground(page)).not.toBe(lightBg);
-  await chooseTheme(page, "สว่าง");
+  await flipTheme(page);
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await expect.poll(() => bodyBackground(page)).toBe(lightBg);
 });
 
-test("ตามระบบ clears the stored choice", async ({ page }) => {
+test("icon toggle flips from system", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "light" });
   await page.goto("/articles");
-  await chooseTheme(page, "มืด");
-  expect(await page.evaluate(() => localStorage.getItem("theme"))).toBe("dark");
-  await chooseTheme(page, "ตามระบบ");
-  expect(await page.evaluate(() => localStorage.getItem("theme"))).toBeNull();
-  await expect(page.locator("html")).not.toHaveAttribute("data-theme", /.+/);
+  const html = page.locator("html");
+  await expect(html).not.toHaveAttribute("data-theme", /.+/);
+  await flipTheme(page);
+  await expect(html).toHaveAttribute("data-theme", "dark");
+  await flipTheme(page);
+  await expect(html).toHaveAttribute("data-theme", "light");
+  await page.reload();
+  await expect(html).toHaveAttribute("data-theme", "light");
+  expect(await page.evaluate(() => localStorage.getItem("theme"))).toBe("light");
 });
 
-test("compact popover closes with Esc and returns focus to the button", async ({ page }) => {
+test("icon toggle first press from a dark system goes light", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
   await page.goto("/articles");
-  const button = page.getByRole("button", { name: "ธีม" });
-  await button.click();
-  await expect(button).toHaveAttribute("aria-expanded", "true");
-  await page.keyboard.press("Escape");
-  await expect(button).toHaveAttribute("aria-expanded", "false");
-  await expect(button).toBeFocused();
+  await expect(page.getByRole("button", { name: "ธีม" })).toHaveAttribute("aria-pressed", "true");
+  await flipTheme(page);
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 });
 
 for (const scheme of ["light", "dark"] as const) {
@@ -153,7 +156,7 @@ test("staff sidebar has the theme control", async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await signIn(page, teacher, "/staff");
     // the drawer copy is hidden at xl, so exactly the sidebar one is visible
-    await expect(page.getByRole("radiogroup", { name: "ธีม" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "ธีม" })).toBeVisible();
   } finally {
     await deleteUsers([teacher]);
   }
@@ -167,15 +170,14 @@ test("staff sidebar stays 208 px at md and holds the theme control", async ({ pa
     await page.setViewportSize({ width: 768, height: 1024 });
     await signIn(page, teacher, "/staff");
     const sidebar = (await page.locator("aside").boundingBox())!;
-    const group = page.getByRole("radiogroup", { name: "ธีม" });
-    await expect(group).toBeVisible();
-    const box = (await group.boundingBox())!;
+    const button = page.getByRole("button", { name: "ธีม" });
+    await expect(button).toBeVisible();
+    const box = (await button.boundingBox())!;
     expect(sidebar.width).toBeLessThanOrEqual(208);
     expect(box.x).toBeGreaterThanOrEqual(sidebar.x);
     expect(box.x + box.width).toBeLessThanOrEqual(sidebar.x + sidebar.width);
-    for (const radio of await group.getByRole("radio").all()) {
-      expect((await radio.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-    }
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.width).toBeGreaterThanOrEqual(44);
   } finally {
     await deleteUsers([teacher]);
   }
@@ -184,7 +186,8 @@ test("staff sidebar stays 208 px at md and holds the theme control", async ({ pa
 test("home page has a theme control that applies dark", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("button", { name: "ธีม" })).toBeVisible();
-  await chooseTheme(page, "มืด");
+  await page.emulateMedia({ colorScheme: "light" });
+  await flipTheme(page);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 });
 
@@ -194,9 +197,10 @@ test("student can switch theme on ฉัน", async ({ page }, testInfo) => {
   try {
     student = await createConfirmedUser("student", `student-profile-theme-${Date.now()}`);
     await signIn(page, student, "/profile");
-    const group = page.getByRole("radiogroup", { name: "ธีม" });
-    await expect(group).toBeVisible();
-    await group.getByRole("radio", { name: "มืด" }).click();
+    await page.emulateMedia({ colorScheme: "light" });
+    const toggle = page.getByRole("button", { name: "ธีม" });
+    await expect(toggle).toBeVisible();
+    await toggle.click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   } finally {
     await deleteUsers([student]);

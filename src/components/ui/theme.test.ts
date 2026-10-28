@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { THEME_INIT_SCRIPT, THEME_STORAGE_KEY, applyThemeChoice, parseThemeChoice, readThemeChoice } from "./theme";
+import { THEME_INIT_SCRIPT, THEME_STORAGE_KEY, applyThemeChoice, nextThemeChoice, parseThemeChoice, readThemeChoice } from "./theme";
 
 function fakeRoot() {
   return { setAttribute: vi.fn(), removeAttribute: vi.fn() };
@@ -51,6 +51,22 @@ describe("applyThemeChoice", () => {
     expect(() => applyThemeChoice("dark", root, storage)).not.toThrow();
     expect(root.setAttribute).toHaveBeenCalledWith("data-theme", "dark");
     expect(() => applyThemeChoice("system", root, storage)).not.toThrow();
+  });
+});
+
+describe("nextThemeChoice", () => {
+  it("flips the theme currently shown", () => {
+    expect(nextThemeChoice(true)).toBe("light");
+    expect(nextThemeChoice(false)).toBe("dark");
+  });
+  it("still applies dark on the root when storage throws", () => {
+    const root = fakeRoot();
+    const storage = {
+      setItem: () => { throw new Error("blocked"); },
+      removeItem: () => { throw new Error("blocked"); },
+    };
+    expect(() => applyThemeChoice(nextThemeChoice(false), root, storage)).not.toThrow();
+    expect(root.setAttribute).toHaveBeenCalledWith("data-theme", "dark");
   });
 });
 
