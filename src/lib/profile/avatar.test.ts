@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AVATAR_BUCKET, avatarInitial, avatarPublicUrl, isOwnAvatarPath } from "./avatar";
 
-const uid = "11111111-1111-4111-8111-111111111111";
+const uid = "11111111-1111-4111-8111-11111111111b";
 const other = "22222222-2222-4222-8222-222222222222";
-const file = "33333333-3333-4333-8333-333333333333";
+const file = "33333333-3333-4333-8333-33333333333a";
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -30,6 +30,9 @@ describe("isOwnAvatarPath", () => {
     [`${uid}/../${file}.jpg`],
     [`${uid}/x/${file}.jpg`],
     [`${uid}/${file}.jpg/`],
+    [`${uid}/${file}Xjpg`],
+    [`${uid}/${file.toUpperCase()}.jpg`],
+    [`${uid.toUpperCase()}/${file}.jpg`],
     [""],
   ])("rejects %j", (path) => {
     expect(isOwnAvatarPath(path, uid)).toBe(false);
