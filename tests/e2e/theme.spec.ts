@@ -179,6 +179,23 @@ test("student desktop header has the theme control", async ({ page }, testInfo) 
   }
 });
 
+// Redesign 3 (DESIGN-3 3.2): the header theme control is the only one (the profile page has none), so phones get it too.
+test("student phone header has the theme control", async ({ page }, testInfo) => {
+  let student: TestUser | undefined;
+  try {
+    student = await createConfirmedUser("student", `student-theme-phone-${testInfo.project.name}-${Date.now()}`);
+    await page.setViewportSize({ width: 360, height: 760 });
+    await signIn(page, student, "/dashboard");
+    const button = page.getByRole("banner").getByRole("button", { name: "ธีม" });
+    await expect(button).toBeVisible();
+    const box = (await button.boundingBox())!;
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.width).toBeGreaterThanOrEqual(44);
+  } finally {
+    await deleteUsers([student]);
+  }
+});
+
 test("staff sidebar has the theme control", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium", "desktop layout only");
   let teacher: TestUser | undefined;

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openAccountMenu } from "./helpers/account-menu";
 import { signIn } from "./helpers/auth";
 import { PNG_1X1 } from "./helpers/images";
 import { openStaffMenu } from "./helpers/staff-menu";
@@ -20,7 +21,8 @@ test("a student changes the display name on /profile and sees it on the leaderbo
     await page.getByRole("navigation", { name: "เมนูนักเรียน" }).getByRole("link", { name: /โปรไฟล์/ }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/profile");
     await page.goto("/activities");
-    await page.getByRole("navigation", { name: "เมนูหลัก" }).getByRole("link", { name: "ฉัน" }).click();
+    await openAccountMenu(page);
+    await page.getByRole("banner").getByRole("link", { name: "โปรไฟล์", exact: true }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/profile");
     await expect(page.getByTestId("profile-role")).toHaveText("นักเรียน");
     await expect(page.getByTestId("profile-email")).toHaveText(student.email);

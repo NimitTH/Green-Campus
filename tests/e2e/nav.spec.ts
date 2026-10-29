@@ -1,10 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
+import { openAccountMenu } from "./helpers/account-menu";
 import { signIn } from "./helpers/auth";
 import { openStaffMenu } from "./helpers/staff-menu";
 import { createConfirmedUser, createJoinedCodeActivity, deleteActivitiesByTitle, deleteUsers, type TestUser } from "./helpers/supabase-admin";
 
-// R142 (spec 9.2, 9.3): the app navigation shell. Student: 5-item bottom nav on mobile, one-row header nav on
-// desktop. Staff: left sidebar on desktop, drawer on mobile, admin items only for admins.
+// R142 (spec 9.2, 9.3) and DESIGN-3 3: the app navigation shell. Student: 4-item bottom nav on mobile, one-row
+// centre nav in the shared header on desktop, the profile in the header account menu. Staff: left sidebar on
+// desktop, drawer on mobile, admin items only for admins.
 
 function uniqueSuffix(projectName: string): string {
   return `${projectName}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -18,7 +20,7 @@ async function noSideScroll(page: Page): Promise<void> {
   expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
 }
 
-test("student on a 360 px phone: 5-item bottom nav, one tap to rewards, nothing hidden behind it", async ({ page }, testInfo) => {
+test("student on a 360 px phone: 4-item bottom nav, one tap to rewards, nothing hidden behind it", async ({ page }, testInfo) => {
   const suffix = uniqueSuffix(testInfo.project.name);
   const title = `กิจกรรมเมนูล่าง ${suffix}`;
   let student: TestUser | undefined;
@@ -34,12 +36,11 @@ test("student on a 360 px phone: 5-item bottom nav, one tap to rewards, nothing 
     // viewport-fit=cover, so the safe-area padding of the nav takes effect on notched phones
     await expect(page.locator('meta[name="viewport"]')).toHaveAttribute("content", /viewport-fit=cover/);
     const links = nav.getByRole("link");
-    await expect(links).toHaveCount(5);
+    await expect(links).toHaveCount(4);
     await expect(links.nth(0)).toHaveAccessibleName("หน้าหลัก");
     await expect(links.nth(1)).toHaveAccessibleName("กิจกรรม");
     await expect(links.nth(2)).toHaveAccessibleName("รางวัล");
     await expect(links.nth(3)).toHaveAccessibleName("แจ้งเตือน ยังไม่อ่าน 1 รายการ");
-    await expect(links.nth(4)).toHaveAccessibleName("ฉัน");
     await expect(links.nth(0)).toHaveAttribute("aria-current", "page");
     // reuses the bell: only one notification link on the page (no second bell, no second subscription)
     await expect(page.getByRole("link", { name: /^แจ้งเตือน/ })).toHaveCount(1);
@@ -48,7 +49,7 @@ test("student on a 360 px phone: 5-item bottom nav, one tap to rewards, nothing 
     const navBox = await nav.boundingBox();
     expect(navBox).not.toBeNull();
     expect(Math.abs(navBox!.y + navBox!.height - 640)).toBeLessThanOrEqual(1);
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 4; i++) {
       const box = await links.nth(i).boundingBox();
       expect(box!.height).toBeGreaterThanOrEqual(44);
       expect(box!.width).toBeGreaterThanOrEqual(44);
@@ -78,8 +79,9 @@ test("student on a 360 px phone: 5-item bottom nav, one tap to rewards, nothing 
     await expect(page.getByRole("link", { name: "ออเดอร์ของฉัน" })).toBeVisible();
     await noSideScroll(page);
 
-    // อันดับ, ผลที่ส่ง, บทความ and sign out from "ฉัน"
-    await nav.getByRole("link", { name: "ฉัน" }).click();
+    // อันดับ, ผลที่ส่ง, บทความ and sign out from the profile, reached through the header account menu
+    await openAccountMenu(page);
+    await page.getByRole("banner").getByRole("link", { name: "โปรไฟล์", exact: true }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/profile");
     const more = page.getByRole("navigation", { name: "ทางลัดของฉัน" });
     await expect(more.getByRole("link", { name: /อันดับ/ })).toBeVisible();
@@ -241,5 +243,157 @@ test("on a tablet the weigh station keeps its full width (no sidebar squeezing i
     await expect(page.getByRole("link", { name: /รายงาน/ }).filter({ hasText: "ดาวน์โหลด CSV/PDF" })).toBeVisible();
   } finally {
     await deleteUsers([teacher]);
+  }
+});
+
+// DESIGN-3 3: one session-aware header (and the footer) on every page outside /staff/**.
+
+const MAIN_ITEMS = ["หน้าหลัก", "กิจกรรม", "ผลที่ส่ง", "รางวัล", "อันดับ", "บทความ"];
+
+test("anonymous header on /: เข้าสู่ระบบ goes to /login, no student nav", async ({ page }) => {
+  await page.goto("/");
+  const banner = page.getByRole("banner");
+  await expect(banner.getByRole("link", { name: "เข้าสู่ระบบ", exact: true })).toHaveAttribute("href", "/login");
+  await expect(banner.getByRole("link", { name: "สมัครสมาชิก" })).toHaveAttribute("href", "/register");
+  await expect(banner.getByRole("button", { name: "ธีม" })).toBeVisible();
+  await expect(page.locator('nav[aria-label="เมนูหลัก"]')).toHaveCount(0);
+  await expect(banner.getByRole("button", { name: "เมนูบัญชี" })).toHaveCount(0);
+});
+
+test("student on /articles sees the six centre items, no ฉัน", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === "mobile-chrome", "the centre nav is md+ only");
+  const suffix = uniqueSuffix(testInfo.project.name);
+  let student: TestUser | undefined;
+  try {
+    student = await createConfirmedUser("student", `student-centre-${suffix}`);
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await signIn(page, student, "/articles");
+    const nav = page.getByRole("banner").getByRole("navigation", { name: "เมนูหลัก" });
+    await expect(nav).toBeVisible();
+    const links = nav.getByRole("link");
+    await expect(links).toHaveCount(6);
+    for (let i = 0; i < MAIN_ITEMS.length; i++) await expect(links.nth(i)).toHaveAccessibleName(MAIN_ITEMS[i]);
+    await expect(nav.getByRole("link", { name: "บทความ" })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("link", { name: "ฉัน", exact: true })).toHaveCount(0);
+    // the student bell sits in the header from md up
+    await expect(page.getByRole("banner").getByRole("link", { name: /^แจ้งเตือน/ })).toBeVisible();
+  } finally {
+    await deleteUsers([student]);
+  }
+});
+
+test("student account menu: name, email, โปรไฟล์; Escape closes it; sign out gives the signed-out header", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  let student: TestUser | undefined;
+  try {
+    student = await createConfirmedUser("student", `student-menu-${suffix}`);
+    await signIn(page, student, "/articles");
+    const banner = page.getByRole("banner");
+    const button = banner.getByRole("button", { name: "เมนูบัญชี" });
+    await expect(button).toHaveAttribute("aria-expanded", "false");
+    await openAccountMenu(page);
+    const panel = page.locator(`[id="${await button.getAttribute("aria-controls")}"]`);
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText("ทดสอบ student");
+    await expect(panel).toContainText(student.email);
+    await expect(panel.getByRole("link", { name: "โปรไฟล์", exact: true })).toHaveAttribute("href", "/profile");
+    await expect(panel.getByRole("link", { name: "หน้าผู้ดูแล" })).toHaveCount(0);
+
+    await page.keyboard.press("Escape");
+    await expect(panel).toBeHidden();
+    await expect(button).toHaveAttribute("aria-expanded", "false");
+    await expect(button).toBeFocused();
+
+    // a click outside closes it too
+    await openAccountMenu(page);
+    await page.getByRole("contentinfo").click({ position: { x: 2, y: 2 } });
+    await expect(panel).toBeHidden();
+
+    await openAccountMenu(page);
+    await panel.getByRole("button", { name: "ออกจากระบบ" }).click();
+    await expect(page).toHaveURL((url) => url.pathname === "/login");
+    await expect(page.getByRole("banner").getByRole("link", { name: "เข้าสู่ระบบ", exact: true })).toBeVisible();
+    await expect(page.getByRole("banner").getByRole("button", { name: "เมนูบัญชี" })).toHaveCount(0);
+  } finally {
+    await deleteUsers([student]);
+  }
+});
+
+test("teacher on /: the staff account menu, no student nav and no bell", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  let teacher: TestUser | undefined;
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-pub-${suffix}`);
+    await signIn(page, teacher, "/staff");
+    await page.goto("/");
+    await openAccountMenu(page);
+    const banner = page.getByRole("banner");
+    await expect(banner.getByRole("link", { name: "หน้าผู้ดูแล" })).toHaveAttribute("href", "/staff");
+    await expect(banner.getByRole("link", { name: "โปรไฟล์", exact: true })).toHaveAttribute("href", "/staff/profile");
+    await expect(page.locator('nav[aria-label="เมนูหลัก"]')).toHaveCount(0);
+    await expect(banner.getByRole("link", { name: /^แจ้งเตือน/ })).toHaveCount(0);
+    await banner.getByRole("link", { name: "หน้าผู้ดูแล" }).click();
+    await expect(page).toHaveURL((url) => url.pathname === "/staff");
+  } finally {
+    await deleteUsers([teacher]);
+  }
+});
+
+test("student: the logo goes to /, and the header stays at the top after scrolling", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  let student: TestUser | undefined;
+  try {
+    student = await createConfirmedUser("student", `student-logo-${suffix}`);
+    await signIn(page, student, "/activities");
+    await page.getByRole("banner").getByRole("link", { name: "Green Campus" }).click();
+    await expect(page).toHaveURL((url) => url.pathname === "/");
+
+    for (const path of ["/dashboard", "/activities"]) {
+      await page.goto(path);
+      await page.waitForLoadState("networkidle");
+      // make the page tall enough to scroll, whatever data it has
+      await page.evaluate(() => {
+        const filler = document.createElement("div");
+        filler.style.height = "3000px";
+        document.querySelector("footer")!.before(filler);
+        window.scrollTo(0, 1500);
+      });
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(1000);
+      const box = await page.getByRole("banner").boundingBox();
+      expect(box, path).not.toBeNull();
+      expect(Math.abs(box!.y), path).toBeLessThanOrEqual(1);
+    }
+  } finally {
+    await deleteUsers([student]);
+  }
+});
+
+test("the footer is on every page outside /staff", async ({ page, browser }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  let student: TestUser | undefined;
+  let teacher: TestUser | undefined;
+  const anon = await browser.newContext();
+  try {
+    const anonPage = await anon.newPage();
+    for (const path of ["/", "/articles", "/login"]) {
+      await anonPage.goto(path);
+      await expect(anonPage.getByRole("contentinfo"), path).toBeVisible();
+    }
+    student = await createConfirmedUser("student", `student-foot-${suffix}`);
+    await signIn(page, student, "/dashboard");
+    for (const path of ["/dashboard", "/profile"]) {
+      await page.goto(path);
+      await expect(page.getByRole("contentinfo"), path).toBeVisible();
+    }
+    await page.context().clearCookies();
+    teacher = await createConfirmedUser("teacher", `teacher-foot-${suffix}`);
+    await signIn(page, teacher, "/staff");
+    await page.goto("/staff");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.locator("footer")).toHaveCount(0);
+    await expect(page.locator('nav[aria-label="เมนูหลัก"]')).toHaveCount(0);
+  } finally {
+    await anon.close();
+    await deleteUsers([student, teacher]);
   }
 });

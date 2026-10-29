@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui";
+import { LessSourceLink } from "../less-source-link";
 import { HOME_CONTAINER, HOME_SECTION, SectionHeading } from "./section-heading";
 
 /** 01: why sorting matters, with one taped figure card (and a coffee ring, because it is a notebook). */
@@ -23,7 +24,9 @@ export function ProblemSection() {
             3.5 <span className="font-sans text-lg font-normal text-muted">กก. CO2e</span>
           </p>
           <p className="relative mt-1.5 text-ink">ลดได้เมื่อรีไซเคิลกระดาษ 1 กก. แทนการผลิตใหม่</p>
-          <p className="relative mt-2.5 border-t border-dashed border-rule pt-2 text-xs text-muted">ที่มา: อบก. โครงการ LESS, LESS-WM-01 v06 (ค่า 3.5460)</p>
+          <p className="relative mt-2.5 border-t border-dashed border-rule pt-2 text-xs text-muted">
+            <LessSourceLink>ที่มา: อบก. โครงการ LESS, LESS-WM-01 v06 (ค่า 3.5460)</LessSourceLink>
+          </p>
         </Card>
       </div>
     </section>

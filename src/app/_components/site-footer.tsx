@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { LessSourceLink } from "./less-source-link";
 import { SocialIcon } from "./social-icons";
 import { visibleSocialLinks } from "./social-links";
 import { LeafMark } from "./leaf-mark";
 
 const FOOT_LINK = "inline-flex min-h-11 items-center text-sm text-ink underline-offset-4 hover:text-accent hover:underline";
 
+// Shown on every page except /staff/** (DESIGN-3 3.4). No session read, so it stays in the static shell.
 export function SiteFooter() {
   const social = visibleSocialLinks();
   return (
@@ -16,22 +18,28 @@ export function SiteFooter() {
             Green Campus
           </p>
           <p className="mt-2 text-sm text-ink">ระบบจัดการขยะในวิทยาลัย</p>
-          <p className="mt-1 text-sm text-muted">ค่า carbon อ้างอิง อบก. LESS-WM-01 v06</p>
+          <p className="mt-1 text-sm text-muted">
+            <LessSourceLink>ค่า carbon อ้างอิง อบก. LESS-WM-01 v06</LessSourceLink>
+          </p>
           {social.length > 0 ? (
             <ul className="mt-3 flex flex-wrap gap-1">
-              {social.map((l) => (
-                <li key={l.platform}>
-                  <a
-                    href={l.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={l.label}
-                    className="inline-flex size-11 items-center justify-center rounded-input text-ink hover:bg-accent-soft hover:text-accent"
-                  >
-                    <SocialIcon platform={l.platform} />
-                  </a>
-                </li>
-              ))}
+              {social.map((l) => {
+                // Placeholder "/" links stay in this tab; real account URLs open a new one.
+                const external = /^https?:\/\//.test(l.href);
+                return (
+                  <li key={l.platform}>
+                    <a
+                      href={l.href}
+                      target={external ? "_blank" : undefined}
+                      rel={external ? "noopener noreferrer" : undefined}
+                      aria-label={l.label}
+                      className="inline-flex size-11 items-center justify-center rounded-input text-ink hover:bg-accent-soft hover:text-accent"
+                    >
+                      <SocialIcon platform={l.platform} />
+                    </a>
+                  </li>
+                );
+              })}
             </ul>
           ) : null}
         </div>

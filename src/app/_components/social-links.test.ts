@@ -5,9 +5,11 @@ describe("visibleSocialLinks", () => {
   it("returns [] for an empty list", () => {
     expect(visibleSocialLinks([])).toEqual([]);
   });
-  it("hides every platform while the default hrefs are empty", () => {
+  it("shows all five platforms, each pointing at / until the owner sets the real URLs", () => {
     expect(SOCIAL_LINKS.length).toBe(5);
-    expect(visibleSocialLinks()).toEqual([]);
+    const out = visibleSocialLinks();
+    expect(out).toHaveLength(5);
+    expect(out.every((l) => l.href === "/")).toBe(true);
   });
   it("keeps only links with a non-blank href", () => {
     const out = visibleSocialLinks([

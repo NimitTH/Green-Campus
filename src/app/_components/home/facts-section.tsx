@@ -1,3 +1,4 @@
+import { LessSourceLink } from "../less-source-link";
 import { HOME_CONTAINER, HOME_SECTION, SectionHeading } from "./section-heading";
 
 // Rounded from docs/carbon-sources.md (TGO LESS-WM-01 v06, recycled instead of virgin material, net):
@@ -26,7 +27,9 @@ export function FactsSection() {
             </div>
           ))}
         </dl>
-        <p className="mt-3 text-xs text-muted">ค่าการลดก๊าซเรือนกระจกสุทธิเมื่อรีไซเคิลทดแทนวัตถุดิบใหม่ · อบก. LESS-WM-01 v06</p>
+        <p className="mt-3 text-xs text-muted">
+          ค่าการลดก๊าซเรือนกระจกสุทธิเมื่อรีไซเคิลทดแทนวัตถุดิบใหม่ · <LessSourceLink>อบก. LESS-WM-01 v06</LessSourceLink>
+        </p>
       </div>
     </section>
   );

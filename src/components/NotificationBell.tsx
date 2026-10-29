@@ -209,7 +209,7 @@ export function NotificationBell({ href = "/notifications" }: { href?: string })
       href={href}
       aria-label={bellLabel(count)}
       data-realtime={subscribed ? "subscribed" : "connecting"}
-      className="relative inline-flex size-11 items-center justify-center rounded-full text-ink hover:bg-accent-soft"
+      className="relative grid size-11 place-items-center rounded-full text-ink hover:bg-accent-soft hover:text-accent focus-visible:bg-accent-soft focus-visible:text-accent"
     >
       <BellIcon />
       <UnreadBadge count={count} />

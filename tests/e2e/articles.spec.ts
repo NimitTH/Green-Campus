@@ -145,7 +145,7 @@ test("the public home links to /articles, which needs no sign-in", async ({ brow
   try {
     const page = await anon.newPage();
     await page.goto("/");
-    // Redesign 2: header, hero and footer all link to /articles; use the hero's.
+    // Redesign 3: the hero and the footer link to /articles (the public header no longer does); use the hero's.
     await page.getByRole("main").getByRole("link", { name: "บทความ", exact: true }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/articles");
     await expect(page.getByRole("heading", { level: 1, name: "บทความความรู้" })).toBeVisible();

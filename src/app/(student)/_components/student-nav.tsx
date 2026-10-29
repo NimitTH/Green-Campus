@@ -5,11 +5,11 @@ import { usePathname } from "next/navigation";
 import { Suspense } from "react";
 import { BellIcon, UnreadBadge, bellLabel, useUnreadCount } from "@/components/NotificationBell";
 
-// Spec 9.2: student navigation. Mobile: fixed bottom nav with exactly 5 items. Desktop (md+): one header row.
-// Both are labelled "เมนูหลัก"; only one is displayed at a time (the other is display:none, so it is out of
-// the accessibility tree).
+// Spec 9.2 / DESIGN-3 3.1: the student bottom nav on phones (4 items; the profile is in the header account menu).
+// The header centre nav (src/app/_components/main-nav.tsx) carries the same "เมนูหลัก" label; only one is displayed
+// at a time (the other is display:none, so it is out of the accessibility tree).
 // Cache Components: usePathname() suspends while the static shell of a route with unknown dynamic params
-// (/activities/[id], /orders/[id], ...) is prerendered, so each nav reads it inside <Suspense>; the fallback
+// (/activities/[id], /orders/[id], ...) is prerendered, so the nav reads it inside <Suspense>; the fallback
 // is the same nav without the active highlight.
 
 function isUnder(pathname: string, prefix: string): boolean {
@@ -23,17 +23,6 @@ const BOTTOM: Item[] = [
   { href: "/activities", label: "กิจกรรม", match: ["/activities"] },
   { href: "/rewards", label: "รางวัล", match: ["/rewards", "/cart", "/orders"] },
   { href: "/notifications", label: "แจ้งเตือน", match: ["/notifications"] },
-  { href: "/profile", label: "ฉัน", match: ["/profile"] },
-];
-
-const TOP: Item[] = [
-  { href: "/dashboard", label: "หน้าหลัก", match: ["/dashboard"] },
-  { href: "/activities", label: "กิจกรรม", match: ["/activities"] },
-  { href: "/my-submissions", label: "ผลที่ส่ง", match: ["/my-submissions"] },
-  { href: "/rewards", label: "รางวัล", match: ["/rewards", "/cart", "/orders"] },
-  { href: "/leaderboard", label: "อันดับ", match: ["/leaderboard"] },
-  { href: "/articles", label: "บทความ", match: ["/articles"] },
-  { href: "/profile", label: "ฉัน", match: ["/profile"] },
 ];
 
 function active(pathname: string | null, item: Item): boolean {
@@ -52,31 +41,6 @@ function withPathname(render: (pathname: string | null) => React.ReactNode) {
   );
 }
 
-/** Desktop header row (hidden below md). Never wraps: short labels, nowrap, and secondary pages live on the hubs. */
-export function StudentTopNav() {
-  return withPathname((pathname) => <TopNavView pathname={pathname} />);
-}
-
-function TopNavView({ pathname }: { pathname: string | null }) {
-  return (
-    <nav aria-label="เมนูหลัก" className="hidden min-w-0 items-center gap-1 text-sm whitespace-nowrap md:flex">
-      {TOP.map((item) => {
-        const current = active(pathname, item);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-current={current ? "page" : undefined}
-            className={`flex min-h-11 items-center rounded-t-input border-b-2 px-2.5 hover:bg-accent-soft ${current ? "border-accent font-semibold text-accent" : "border-transparent text-ink"}`}
-          >
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-
 const ICONS: Record<string, React.ReactNode> = {
   "/dashboard": <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />,
   "/activities": (
@@ -91,15 +55,9 @@ const ICONS: Record<string, React.ReactNode> = {
       <path d="M12 8v13M5 12v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8M7.5 8a2.5 2.5 0 0 1 0-5C10 3 12 8 12 8s2-5 4.5-5a2.5 2.5 0 0 1 0 5" />
     </>
   ),
-  "/profile": (
-    <>
-      <circle cx="12" cy="8" r="4" />
-      <path d="M4 21a8 8 0 0 1 16 0" />
-    </>
-  ),
 };
 
-/** Mobile bottom nav (spec 9.2: หน้าหลัก / กิจกรรม / รางวัล / แจ้งเตือน / ฉัน), hidden from md up. */
+/** Mobile bottom nav (DESIGN-3 1.3: หน้าหลัก / กิจกรรม / รางวัล / แจ้งเตือน), hidden from md up. */
 export function BottomNav() {
   return withPathname((pathname) => <BottomNavView pathname={pathname} />);
 }
@@ -113,7 +71,7 @@ function BottomNavView({ pathname }: { pathname: string | null }) {
       data-bottom-nav=""
       className="fixed inset-x-0 bottom-0 z-40 border-t border-rule bg-surface pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] md:hidden"
     >
-      <ul className="grid grid-cols-5">
+      <ul className="grid grid-cols-4">
         {BOTTOM.map((item) => {
           const current = active(pathname, item);
           const isBell = item.href === "/notifications";

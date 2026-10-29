@@ -68,7 +68,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       onClick={() => {
         applyThemeChoice(nextThemeChoice(getSnapshot()), document.documentElement, safeLocalStorage());
       }}
-      className={`inline-flex size-11 shrink-0 items-center justify-center rounded-input border border-rule bg-surface text-ink shadow-[1px_1px_0_var(--rule),2px_2px_0_var(--rule)] transition-colors duration-(--dur-short) ease-(--ease-out) hover:bg-paper-2 ${className}`}
+      className={`grid size-11 shrink-0 place-items-center rounded-full text-ink transition-colors duration-(--dur-short) ease-(--ease-out) hover:bg-accent-soft hover:text-accent focus-visible:bg-accent-soft focus-visible:text-accent ${className}`}
     >
       <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5 dark:hidden" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="4" />

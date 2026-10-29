@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openAccountMenu } from "./helpers/account-menu";
 import { signIn } from "./helpers/auth";
 import { createConfirmedUser, deleteUsers, grantCarbon, setFullName, type TestUser } from "./helpers/supabase-admin";
 
@@ -35,12 +36,13 @@ test("student sees the month tab with their row highlighted, the all-time tab, a
     await expect(page.getByRole("link", { name: "ตลอดกาล", exact: true })).toHaveAttribute("aria-current", "page");
     await expect(page.getByTestId("lb-me")).toContainText("123,456.789");
 
-    // the leaderboard is in the desktop header nav; on a 360 px phone (R142 bottom nav has 5 fixed items) it is
-    // reached from the dashboard hub and "ฉัน", and the page stays inside 360 px
+    // the leaderboard is in the desktop header nav; on a 360 px phone (the bottom nav has 4 fixed items) it is
+    // reached from the dashboard hub and the profile shortcuts (header account menu), and the page stays inside 360 px
     await page.setViewportSize({ width: 1280, height: 800 });
     await expect(page.getByRole("navigation", { name: "เมนูหลัก" }).getByRole("link", { name: "อันดับ" })).toHaveAttribute("aria-current", "page");
     await page.setViewportSize({ width: 360, height: 800 });
-    await page.getByRole("navigation", { name: "เมนูหลัก" }).getByRole("link", { name: "ฉัน" }).click();
+    await openAccountMenu(page);
+    await page.getByRole("banner").getByRole("link", { name: "โปรไฟล์", exact: true }).click();
     await page.getByRole("navigation", { name: "ทางลัดของฉัน" }).getByRole("link", { name: /^อันดับ/ }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/leaderboard");
     await expect(page.getByTestId("lb-me")).toContainText("123,456.789");

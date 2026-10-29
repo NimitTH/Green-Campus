@@ -24,7 +24,9 @@ test("header fits 360px without side scroll and has the required links", async (
   await page.goto("/articles");
   const nav = page.getByRole("navigation", { name: "เมนูสาธารณะ" });
   await expect(nav.getByRole("link", { name: "สมัครสมาชิก" })).toHaveAttribute("href", "/register");
-  await expect(nav.getByRole("link", { name: "เข้าสู่ระบบ / หน้าของฉัน" })).toHaveAttribute("href", "/dashboard");
+  // Redesign 3: "เข้าสู่ระบบ" replaces the combined link, and the header has no บทความ link any more
+  await expect(nav.getByRole("link", { name: "เข้าสู่ระบบ", exact: true })).toHaveAttribute("href", "/login");
+  await expect(page.getByRole("banner").getByRole("link", { name: "บทความ", exact: true })).toHaveCount(0);
   const { sw, cw } = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
   expect(sw).toBeLessThanOrEqual(cw);
 });
@@ -121,4 +123,19 @@ test("no duplicate ids across / -> /articles -> /login -> / (client navigation)"
   await expect(page).toHaveURL((url) => url.pathname === "/");
   await expect(page.getByRole("heading", { level: 2, name: "กิจกรรมที่เปิดรับอยู่" })).toBeVisible();
   expect(await duplicateIds(page), "/ again").toEqual([]);
+});
+
+// Redesign 3 (DESIGN-3 3.4): the carbon figures link to the TGO LESS-WM-01 document; social links are placeholders.
+test("LESS-WM-01 source links and placeholder social links on /", async ({ page }) => {
+  await page.goto("/");
+  const less = page.locator('a[href^="https://ghgreduction.tgo.or.th"]');
+  expect(await less.count()).toBeGreaterThanOrEqual(2);
+  await expect(less.first()).toHaveAttribute("target", "_blank");
+  await expect(less.first()).toHaveAttribute("rel", "noopener noreferrer");
+  const footer = page.getByRole("contentinfo");
+  for (const name of ["Facebook", "YouTube", "Instagram", "X", "LINE"]) {
+    const link = footer.getByRole("link", { name, exact: true });
+    await expect(link).toHaveAttribute("href", "/");
+    await expect(link).not.toHaveAttribute("target", "_blank");
+  }
 });
