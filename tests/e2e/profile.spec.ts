@@ -302,6 +302,8 @@ test.describe("change email and password", () => {
       await page.goto("/profile?email=whatever");
       await expect(page.getByText("เปลี่ยนอีเมลแล้ว")).toHaveCount(0);
       // a bad link on the callback route lands on the failure notice
+      await page.goto("/auth/callback/email?message=Confirmation+link+accepted");
+      await expect(page).toHaveURL((url) => url.pathname === "/profile" && url.searchParams.get("email") === "pending");
       await page.goto("/auth/callback/email?code=bad");
       await expect(page).toHaveURL((url) => url.pathname === "/profile" && url.searchParams.get("email") === "link-error");
     } finally {

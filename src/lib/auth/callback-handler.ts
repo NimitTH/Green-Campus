@@ -13,6 +13,13 @@ export async function handleAuthCallback(
   const code = searchParams.get("code");
   const targets = CALLBACK_TARGETS[flow];
 
+  // Email change with two confirmations: a first link that arrives with a query message and no code
+  // is progress, not a failure. (Local GoTrue puts the message in the URL fragment instead; the profile
+  // page handles that case in the browser.)
+  if (flow === "email" && isEmailChangePending(searchParams)) {
+    return NextResponse.redirect(new URL(EMAIL_PENDING_TARGET, origin));
+  }
+
   if (code) {
     const supabase = await createServerClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
