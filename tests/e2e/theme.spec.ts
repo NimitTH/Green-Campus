@@ -222,22 +222,6 @@ test("home page has a theme control that applies dark", async ({ page }) => {
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 });
 
-test("student can switch theme on ฉัน", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "mobile-chrome", "mobile layout only");
-  let student: TestUser | undefined;
-  try {
-    student = await createConfirmedUser("student", `student-profile-theme-${Date.now()}`);
-    await signIn(page, student, "/profile");
-    await page.emulateMedia({ colorScheme: "light" });
-    const toggle = page.getByRole("button", { name: "ธีม" });
-    await expect(toggle).toBeVisible();
-    await toggle.click();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  } finally {
-    await deleteUsers([student]);
-  }
-});
-
 for (const scheme of ["light", "dark"] as const) {
   test(`staff orders fit 360 px in the ${scheme} theme`, async ({ page }) => {
     const stamp = `${scheme}-${Date.now()}`;

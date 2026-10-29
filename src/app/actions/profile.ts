@@ -1,7 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
+import { validateEmailChange, validatePasswordChange } from "@/lib/auth/account-validation";
 import { getCurrentUser } from "@/lib/auth/dal";
+import { emailRedirectUrl, resolveSiteOrigin } from "@/lib/auth/email-links";
+import { authErrorMessage } from "@/lib/auth/messages";
+import { verifyPassword } from "@/lib/auth/verify-password";
 import { GENERIC_ERROR_TH } from "@/lib/errors";
 import { AVATAR_BUCKET, isOwnAvatarPath } from "@/lib/profile/avatar";
 import { isProfileInputShape, validateProfile, type ProfileFieldErrors, type ProfileInput } from "@/lib/profile/validation";
@@ -94,4 +99,88 @@ export async function removeAvatar(): Promise<AvatarResult> {
   await removeObject(supabase, oldPath);
   revalidateAvatarPaths();
   return { ok: true };
+}
+
+export type AccountField = "newEmail" | "currentPassword" | "newPassword";
+export type AccountFieldErrors = Partial<Record<AccountField, string>>;
+export type AccountResult =
+  | { ok: true; message: string }
+  | { ok: false; error?: string; fieldErrors?: AccountFieldErrors };
+
+const EMAIL_CHANGE_SENT_TH = "ส่งลิงก์ยืนยันแล้ว กรุณากดยืนยันในอีเมลทั้งเก่าและใหม่ อีเมลจะเปลี่ยนเมื่อยืนยันครบ";
+const PASSWORD_CHANGED_TH = "เปลี่ยนรหัสผ่านแล้ว";
+const WRONG_PASSWORD_TH = "รหัสผ่านปัจจุบันไม่ถูกต้อง";
+
+/** A known Supabase auth error code gets its Thai text; anything unexpected gets the generic message. */
+function authFailureMessage(code: string | undefined): string {
+  const text = authErrorMessage(code);
+  return text === authErrorMessage(undefined) ? GENERIC_ERROR_TH : text;
+}
+
+async function siteOrigin(): Promise<string> {
+  const h = await headers();
+  return resolveSiteOrigin({
+    configured: process.env.NEXT_PUBLIC_SITE_URL,
+    origin: h.get("origin"),
+    forwardedHost: h.get("x-forwarded-host"),
+    host: h.get("host"),
+    forwardedProto: h.get("x-forwarded-proto"),
+  });
+}
+
+function isStringRecord(input: unknown, keys: string[]): input is Record<string, string> {
+  if (typeof input !== "object" || input === null) return false;
+  return keys.every((k) => typeof (input as Record<string, unknown>)[k] === "string");
+}
+
+export async function changeEmail(input: { newEmail: string; currentPassword: string }): Promise<AccountResult> {
+  if (!isStringRecord(input, ["newEmail", "currentPassword"])) return { ok: false, error: GENERIC_ERROR_TH };
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: SIGN_IN_FIRST };
+  if (!user.email) return { ok: false, error: GENERIC_ERROR_TH };
+
+  const newEmail = input.newEmail.trim().toLowerCase();
+  const fieldErrors = validateEmailChange({ newEmail, currentEmail: user.email, currentPassword: input.currentPassword });
+  if (Object.keys(fieldErrors).length > 0) return { ok: false, fieldErrors };
+
+  if (!(await verifyPassword(user.email, input.currentPassword))) {
+    return { ok: false, fieldErrors: { currentPassword: WRONG_PASSWORD_TH } };
+  }
+
+  const supabase = await createServerClient();
+  const { error } = await supabase.auth.updateUser(
+    { email: newEmail },
+    { emailRedirectTo: emailRedirectUrl(await siteOrigin(), "email") },
+  );
+  if (error) {
+    console.error("changeEmail failed", error.code);
+    if (error.code === "email_exists") return { ok: false, fieldErrors: { newEmail: authErrorMessage(error.code) } };
+    return { ok: false, error: authFailureMessage(error.code) };
+  }
+  return { ok: true, message: EMAIL_CHANGE_SENT_TH };
+}
+
+export async function changePassword(input: { currentPassword: string; newPassword: string }): Promise<AccountResult> {
+  if (!isStringRecord(input, ["currentPassword", "newPassword"])) return { ok: false, error: GENERIC_ERROR_TH };
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: SIGN_IN_FIRST };
+  if (!user.email) return { ok: false, error: GENERIC_ERROR_TH };
+
+  const fieldErrors = validatePasswordChange(input);
+  if (Object.keys(fieldErrors).length > 0) return { ok: false, fieldErrors };
+
+  if (!(await verifyPassword(user.email, input.currentPassword))) {
+    return { ok: false, fieldErrors: { currentPassword: WRONG_PASSWORD_TH } };
+  }
+
+  const supabase = await createServerClient();
+  const { error } = await supabase.auth.updateUser({ password: input.newPassword });
+  if (error) {
+    console.error("changePassword failed", error.code);
+    if (error.code === "weak_password" || error.code === "same_password") {
+      return { ok: false, fieldErrors: { newPassword: authErrorMessage(error.code) } };
+    }
+    return { ok: false, error: authFailureMessage(error.code) };
+  }
+  return { ok: true, message: PASSWORD_CHANGED_TH };
 }

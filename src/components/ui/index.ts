@@ -1,6 +1,7 @@
 export { Button, ButtonLink, buttonClass, type ButtonVariant, type ButtonSize } from "./button";
 export { Card } from "./card";
 export { Field, inputClass, inputClassLg } from "./field";
+export { PasswordInput } from "./password-input";
 export { Badge } from "./badge";
 export { Stat } from "./stat";
 export { PageHeader } from "./page-header";

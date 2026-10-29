@@ -145,3 +145,172 @@ test.describe("profile picture", () => {
     }
   });
 });
+
+test.describe("change email and password", () => {
+  const MAILPIT = "http://127.0.0.1:54324";
+  const WRONG = "รหัสผ่านปัจจุบันไม่ถูกต้อง";
+
+  async function mailCount(address: string): Promise<number> {
+    const res = await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:${address}`)}`);
+    if (!res.ok) return 0;
+    const body = (await res.json()) as { messages_count?: number; total?: number };
+    return body.messages_count ?? body.total ?? 0;
+  }
+
+  test("the profile page has no theme section and the sections run in order", async ({ page }, testInfo) => {
+    let student: TestUser | undefined;
+    try {
+      student = await createConfirmedUser("student", `student-order-${uniqueSuffix(testInfo.project.name)}`);
+      await signIn(page, student, "/profile");
+      await expect(page.getByRole("heading", { name: "รหัสผ่าน", exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "ธีม" })).toHaveCount(0);
+      const headings = await page.locator("main h2").allTextContents();
+      const order = ["รูปโปรไฟล์", "อีเมล", "รหัสผ่าน"].map((h) => headings.indexOf(h));
+      expect(order.every((i) => i >= 0)).toBe(true);
+      expect([...order].sort((a, b) => a - b)).toEqual(order);
+      await expect(page.getByText(`อีเมลปัจจุบัน: ${student.email}`)).toBeVisible();
+    } finally {
+      await deleteUsers([student]);
+    }
+  });
+
+  test("a wrong current password is rejected and the session stays signed in", async ({ page, context }, testInfo) => {
+    let student: TestUser | undefined;
+    try {
+      student = await createConfirmedUser("student", `student-wrongpw-${uniqueSuffix(testInfo.project.name)}`);
+      await signIn(page, student, "/profile");
+      const authCookies = async () =>
+        (await context.cookies()).filter((c) => c.name.startsWith("sb-")).map((c) => `${c.name}=${c.value}`).sort();
+      const before = await authCookies();
+      expect(before.length).toBeGreaterThan(0);
+
+      const pw = page.locator("section[aria-labelledby='profile-password']");
+      await pw.getByLabel("รหัสผ่านปัจจุบัน").fill("definitely-not-it");
+      await pw.getByLabel("รหัสผ่านใหม่").fill("Another-pass-123");
+      await pw.getByRole("button", { name: "เปลี่ยนรหัสผ่าน" }).click();
+      await expect(pw.getByText(WRONG)).toBeVisible();
+
+      const mail = page.locator("section[aria-labelledby='profile-email']");
+      await mail.getByLabel("อีเมลใหม่").fill(`other-${Date.now()}@example.test`);
+      await mail.getByLabel("รหัสผ่านปัจจุบัน").fill("definitely-not-it");
+      await mail.getByRole("button", { name: "เปลี่ยนอีเมล" }).click();
+      await expect(mail.getByText(WRONG)).toBeVisible();
+      await expect(mail.getByRole("status")).toHaveCount(0);
+
+      expect(await authCookies()).toEqual(before);
+      await page.goto("/dashboard");
+      await expect(page).toHaveURL((url) => url.pathname === "/dashboard");
+    } finally {
+      await deleteUsers([student]);
+    }
+  });
+
+  test("a correct current password changes the password; sign out and in with the new one", async ({ page }, testInfo) => {
+    let student: TestUser | undefined;
+    try {
+      student = await createConfirmedUser("student", `student-newpw-${uniqueSuffix(testInfo.project.name)}`);
+      await signIn(page, student, "/profile");
+      const pw = page.locator("section[aria-labelledby='profile-password']");
+
+      await pw.getByLabel("รหัสผ่านปัจจุบัน").fill(student.password);
+      await pw.getByLabel("รหัสผ่านใหม่").fill("short");
+      await pw.getByRole("button", { name: "เปลี่ยนรหัสผ่าน" }).click();
+      await expect(pw.getByText("รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร")).toBeVisible();
+
+      const next = `New-${Math.random().toString(36).slice(2, 10)}-pass`;
+      await pw.getByLabel("รหัสผ่านใหม่").fill(next);
+      await pw.getByRole("button", { name: "เปลี่ยนรหัสผ่าน" }).click();
+      await expect(pw.getByRole("status")).toHaveText("เปลี่ยนรหัสผ่านแล้ว");
+      await expect(pw.getByLabel("รหัสผ่านปัจจุบัน")).toHaveValue("");
+      await expect(pw.getByLabel("รหัสผ่านใหม่")).toHaveValue("");
+
+      await page.getByRole("button", { name: "ออกจากระบบ" }).click();
+      await expect(page).toHaveURL((url) => url.pathname === "/login");
+      student.password = next;
+      await signIn(page, student, "/dashboard");
+    } finally {
+      await deleteUsers([student]);
+    }
+  });
+
+  test("a correct password starts an email change and Mailpit gets a message", async ({ page }, testInfo) => {
+    let student: TestUser | undefined;
+    try {
+      student = await createConfirmedUser("student", `student-newmail-${uniqueSuffix(testInfo.project.name)}`);
+      const newEmail = `changed-${uniqueSuffix(testInfo.project.name)}@example.test`.toLowerCase();
+      await signIn(page, student, "/profile");
+      const mail = page.locator("section[aria-labelledby='profile-email']");
+
+      await mail.getByLabel("อีเมลใหม่").fill(student.email.toUpperCase());
+      await mail.getByLabel("รหัสผ่านปัจจุบัน").fill(student.password);
+      await mail.getByRole("button", { name: "เปลี่ยนอีเมล" }).click();
+      await expect(mail.getByText("อีเมลใหม่ต้องไม่ซ้ำกับอีเมลปัจจุบัน")).toBeVisible();
+
+      await mail.getByLabel("อีเมลใหม่").fill(newEmail);
+      await mail.getByRole("button", { name: "เปลี่ยนอีเมล" }).click();
+      await expect(mail.getByRole("status")).toHaveText(
+        "ส่งลิงก์ยืนยันแล้ว กรุณากดยืนยันในอีเมลทั้งเก่าและใหม่ อีเมลจะเปลี่ยนเมื่อยืนยันครบ",
+      );
+      await expect(mail.getByLabel("อีเมลใหม่")).toHaveValue("");
+      // double_confirm_changes: the message may go to the old address, the new one, or both
+      await expect
+        .poll(async () => (await mailCount(newEmail)) + (await mailCount(student!.email)), { timeout: 10_000 })
+        .toBeGreaterThan(0);
+    } finally {
+      await deleteUsers([student]);
+    }
+  });
+
+  test("the email-change callback notices show on /profile", async ({ page }, testInfo) => {
+    let student: TestUser | undefined;
+    try {
+      student = await createConfirmedUser("student", `student-notice-${uniqueSuffix(testInfo.project.name)}`);
+      await signIn(page, student, "/profile");
+      await page.goto("/profile?email=changed");
+      await expect(page.getByText("เปลี่ยนอีเมลแล้ว")).toBeVisible();
+      await page.goto("/profile?email=link-error");
+      await expect(page.getByText("ลิงก์ยืนยันใช้ไม่ได้หรือหมดอายุ ลองขอใหม่อีกครั้ง")).toBeVisible();
+      await page.goto("/profile?email=whatever");
+      await expect(page.getByText("เปลี่ยนอีเมลแล้ว")).toHaveCount(0);
+      // a bad link on the callback route lands on the failure notice
+      await page.goto("/auth/callback/email?code=bad");
+      await expect(page).toHaveURL((url) => url.pathname === "/profile" && url.searchParams.get("email") === "link-error");
+    } finally {
+      await deleteUsers([student]);
+    }
+  });
+
+  test("staff keep the email notice when /profile sends them to /staff/profile", async ({ page }, testInfo) => {
+    let teacher: TestUser | undefined;
+    try {
+      teacher = await createConfirmedUser("teacher", `teacher-notice-${uniqueSuffix(testInfo.project.name)}`);
+      await signIn(page, teacher, "/staff");
+      await page.goto("/profile?email=changed");
+      await expect(page).toHaveURL((url) => url.pathname === "/staff/profile" && url.searchParams.get("email") === "changed");
+      await expect(page.getByText("เปลี่ยนอีเมลแล้ว")).toBeVisible();
+    } finally {
+      await deleteUsers([teacher]);
+    }
+  });
+
+  test("the eye button toggles the password field between hidden and visible", async ({ page }, testInfo) => {
+    let student: TestUser | undefined;
+    try {
+      student = await createConfirmedUser("student", `student-eye-${uniqueSuffix(testInfo.project.name)}`);
+      await signIn(page, student, "/profile");
+      const pw = page.locator("section[aria-labelledby='profile-password']");
+      const input = pw.getByLabel("รหัสผ่านใหม่");
+      await expect(input).toHaveAttribute("type", "password");
+      const eye = pw.getByRole("button", { name: "แสดงรหัสผ่าน" }).last();
+      const box = await eye.boundingBox();
+      expect(box!.width).toBeGreaterThanOrEqual(44);
+      expect(box!.height).toBeGreaterThanOrEqual(44);
+      await eye.click();
+      await expect(input).toHaveAttribute("type", "text");
+      await pw.getByRole("button", { name: "ซ่อนรหัสผ่าน" }).click();
+      await expect(input).toHaveAttribute("type", "password");
+    } finally {
+      await deleteUsers([student]);
+    }
+  });
+});

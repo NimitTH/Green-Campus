@@ -2,16 +2,18 @@
 // Redirect URLs are query-free so they match the Auth redirect allow-list
 // (config.toml additional_redirect_urls / Cloud "Redirect URLs") without surprises.
 
-export type CallbackFlow = "signup" | "reset";
+export type CallbackFlow = "signup" | "reset" | "email";
 
 export const CALLBACK_PATHS: Record<CallbackFlow, string> = {
   signup: "/auth/callback",
   reset: "/auth/callback/reset",
+  email: "/auth/callback/email",
 };
 
 export const CALLBACK_TARGETS: Record<CallbackFlow, { success: string; failure: string }> = {
   signup: { success: "/dashboard", failure: "/login?error=link" },
   reset: { success: "/reset-password", failure: "/forgot-password?error=link" },
+  email: { success: "/profile?email=changed", failure: "/profile?email=link-error" },
 };
 
 const DEFAULT_ORIGIN = "http://localhost:3000";

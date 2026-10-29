@@ -12,11 +12,13 @@ describe("email redirect URLs", () => {
   it("are query-free callback URLs", () => {
     expect(emailRedirectUrl("http://localhost:3000", "signup")).toBe("http://localhost:3000/auth/callback");
     expect(emailRedirectUrl("http://localhost:3000", "reset")).toBe("http://localhost:3000/auth/callback/reset");
+    expect(emailRedirectUrl("http://localhost:3000", "email")).toBe("http://localhost:3000/auth/callback/email");
     for (const path of Object.values(CALLBACK_PATHS)) expect(path).not.toContain("?");
   });
   it("callback targets are fixed same-site paths", () => {
     expect(CALLBACK_TARGETS.signup).toEqual({ success: "/dashboard", failure: "/login?error=link" });
     expect(CALLBACK_TARGETS.reset).toEqual({ success: "/reset-password", failure: "/forgot-password?error=link" });
+    expect(CALLBACK_TARGETS.email).toEqual({ success: "/profile?email=changed", failure: "/profile?email=link-error" });
   });
 });
 
