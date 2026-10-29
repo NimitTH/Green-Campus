@@ -37,3 +37,11 @@ export function validatePasswordChange(input: {
     newPassword: newPasswordError,
   });
 }
+
+export type PasswordCheck = "ok" | "wrong" | "error";
+
+/** Only a real invalid-credentials answer means a wrong password; rate limits, timeouts and 5xx are "error". */
+export function classifySignInResult(error: { code?: string; status?: number } | null | undefined): PasswordCheck {
+  if (!error) return "ok";
+  return error.code === "invalid_credentials" ? "wrong" : "error";
+}

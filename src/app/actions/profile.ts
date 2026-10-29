@@ -143,9 +143,9 @@ export async function changeEmail(input: { newEmail: string; currentPassword: st
   const fieldErrors = validateEmailChange({ newEmail, currentEmail: user.email, currentPassword: input.currentPassword });
   if (Object.keys(fieldErrors).length > 0) return { ok: false, fieldErrors };
 
-  if (!(await verifyPassword(user.email, input.currentPassword))) {
-    return { ok: false, fieldErrors: { currentPassword: WRONG_PASSWORD_TH } };
-  }
+  const check = await verifyPassword(user.email, input.currentPassword);
+  if (check === "error") return { ok: false, error: GENERIC_ERROR_TH };
+  if (check === "wrong") return { ok: false, fieldErrors: { currentPassword: WRONG_PASSWORD_TH } };
 
   const supabase = await createServerClient();
   const { error } = await supabase.auth.updateUser(
@@ -169,9 +169,9 @@ export async function changePassword(input: { currentPassword: string; newPasswo
   const fieldErrors = validatePasswordChange(input);
   if (Object.keys(fieldErrors).length > 0) return { ok: false, fieldErrors };
 
-  if (!(await verifyPassword(user.email, input.currentPassword))) {
-    return { ok: false, fieldErrors: { currentPassword: WRONG_PASSWORD_TH } };
-  }
+  const check = await verifyPassword(user.email, input.currentPassword);
+  if (check === "error") return { ok: false, error: GENERIC_ERROR_TH };
+  if (check === "wrong") return { ok: false, fieldErrors: { currentPassword: WRONG_PASSWORD_TH } };
 
   const supabase = await createServerClient();
   const { error } = await supabase.auth.updateUser({ password: input.newPassword });

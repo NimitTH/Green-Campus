@@ -3,6 +3,7 @@ import {
   CALLBACK_PATHS,
   CALLBACK_TARGETS,
   emailRedirectUrl,
+  isEmailChangePending,
   isRecoveryAmr,
   resolveSiteOrigin,
   rootAuthRedirect,
@@ -82,5 +83,20 @@ describe("rootAuthRedirect", () => {
       expect(out).toMatch(/^\/(?!\/)/);
       expect(new URL(out!, "https://app.example").origin).toBe("https://app.example");
     }
+  });
+});
+
+describe("isEmailChangePending", () => {
+  const p = (q: string) => new URLSearchParams(q);
+  it("is true for the first double-confirm link: a message and no code", () => {
+    expect(isEmailChangePending(p("message=Confirmation+link+accepted.+Please+proceed+to+confirm+link+sent+to+the+other+email"))).toBe(true);
+  });
+  it("is false with a code, with an error, or with nothing", () => {
+    expect(isEmailChangePending(p("code=abc&message=x"))).toBe(false);
+    expect(isEmailChangePending(p("message=x&error=access_denied"))).toBe(false);
+    expect(isEmailChangePending(p("message=x&error_code=otp_expired"))).toBe(false);
+    expect(isEmailChangePending(p("message=x&error_description=bad"))).toBe(false);
+    expect(isEmailChangePending(p(""))).toBe(false);
+    expect(isEmailChangePending(p("message="))).toBe(false);
   });
 });

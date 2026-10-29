@@ -4,31 +4,13 @@ import type { CurrentUser } from "@/lib/auth/dal";
 import { createServerClient } from "@/lib/supabase/server";
 import { AvatarSection } from "./avatar-section";
 import { EmailForm } from "./email-form";
+import { EmailNotice } from "./email-notice";
 import { NotificationList, type NotificationRow } from "./notification-list";
 import { PasswordForm } from "./password-form";
 import { ProfileForm } from "./profile-form";
 
 // Shared bodies of /profile + /staff/profile and /notifications + /staff/notifications. Each route sits in
 // its own shell (student bottom nav or staff sidebar); the page decides the user and the chrome.
-
-/** The result of an email-change link (?email=changed | link-error). Anything else shows nothing. */
-function EmailNotice({ value }: { value?: string }) {
-  if (value === "changed") {
-    return (
-      <p role="status" className="mb-6 rounded-input border border-rule-strong bg-accent-soft p-3 text-sm">
-        เปลี่ยนอีเมลแล้ว
-      </p>
-    );
-  }
-  if (value === "link-error") {
-    return (
-      <p role="alert" className="mb-6 rounded-input border border-danger bg-surface p-3 text-sm text-danger">
-        ลิงก์ยืนยันใช้ไม่ได้หรือหมดอายุ ลองขอใหม่อีกครั้ง
-      </p>
-    );
-  }
-  return null;
-}
 
 export function ProfileDetails({ user, emailNotice }: { user: CurrentUser; emailNotice?: string }) {
   return (

@@ -1,7 +1,7 @@
 import "server-only";
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
-import { CALLBACK_TARGETS, isRecoveryAmr, type CallbackFlow } from "./email-links";
+import { CALLBACK_TARGETS, EMAIL_PENDING_TARGET, isEmailChangePending, isRecoveryAmr, type CallbackFlow } from "./email-links";
 
 // Email links (signup confirmation, password reset) land on /auth/callback[/reset] with
 // ?code=... (PKCE). Exchange the code for a session cookie, then go to a fixed page.

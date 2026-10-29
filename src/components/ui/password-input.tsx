@@ -27,7 +27,7 @@ export function PasswordInput({ className, id, ...rest }: Omit<InputHTMLAttribut
         aria-pressed={shown}
         aria-controls={inputId}
         aria-label={shown ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
-        className="absolute inset-y-0 right-0 inline-flex h-11 w-11 items-center justify-center rounded-input text-muted hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex h-11 w-11 items-center justify-center rounded-input text-muted hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         <Eye off={shown} />
       </button>

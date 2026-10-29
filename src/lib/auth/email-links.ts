@@ -92,3 +92,16 @@ export function rootAuthRedirect(pathname: string, params: URLSearchParams): str
   }
   return null;
 }
+
+/** Where the first of the two email-change links lands (double_confirm_changes): the other link is still pending. */
+export const EMAIL_PENDING_TARGET = "/profile?email=pending";
+
+/**
+ * GoTrue answers the first confirmation click of a double-confirmed email change with
+ * ?message=... and no code. That is progress, not a failure.
+ */
+export function isEmailChangePending(params: URLSearchParams): boolean {
+  if (params.get("code")) return false;
+  if (params.has("error") || params.has("error_code") || params.has("error_description")) return false;
+  return !!params.get("message");
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { authErrorMessage, validateEmail, validatePassword, MIN_PASSWORD_LENGTH } from "./messages";
-import { validateEmailChange, validatePasswordChange } from "./account-validation";
+import { classifySignInResult, validateEmailChange, validatePasswordChange } from "./account-validation";
 
 describe("validateEmailChange", () => {
   const ok = { newEmail: "new@example.com", currentEmail: "old@example.com", currentPassword: "secret-pass" };
@@ -37,5 +37,18 @@ describe("validatePasswordChange", () => {
     expect(validatePasswordChange({ currentPassword: "same-password", newPassword: "same-password" }).newPassword).toBe(
       authErrorMessage("same_password"),
     );
+  });
+});
+
+describe("classifySignInResult", () => {
+  it("maps no error to ok and invalid_credentials to wrong", () => {
+    expect(classifySignInResult(null)).toBe("ok");
+    expect(classifySignInResult({ code: "invalid_credentials", status: 400 })).toBe("wrong");
+  });
+  it("treats rate limits, timeouts and server errors as error, never as a wrong password", () => {
+    expect(classifySignInResult({ code: "over_request_rate_limit", status: 429 })).toBe("error");
+    expect(classifySignInResult({ status: 503 })).toBe("error");
+    expect(classifySignInResult({})).toBe("error");
+    expect(classifySignInResult({ code: "email_not_confirmed", status: 400 })).toBe("error");
   });
 });

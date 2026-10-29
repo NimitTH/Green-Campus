@@ -150,11 +150,21 @@ test.describe("change email and password", () => {
   const MAILPIT = "http://127.0.0.1:54324";
   const WRONG = "รหัสผ่านปัจจุบันไม่ถูกต้อง";
 
-  async function mailCount(address: string): Promise<number> {
-    const res = await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:${address}`)}`);
-    if (!res.ok) return 0;
-    const body = (await res.json()) as { messages_count?: number; total?: number };
-    return body.messages_count ?? body.total ?? 0;
+  /** The GoTrue confirmation URL in the newest Mailpit message to `address`, polled for up to 10 s. */
+  async function waitForLink(address: string): Promise<string> {
+    const deadline = Date.now() + 10_000;
+    while (Date.now() < deadline) {
+      const search = await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:${address}`)}`);
+      const messages = search.ok ? ((await search.json()) as { messages?: { ID: string }[] }).messages ?? [] : [];
+      if (messages.length > 0) {
+        const detail = await fetch(`${MAILPIT}/api/v1/message/${messages[0].ID}`);
+        const body = (await detail.json()) as { Text?: string; HTML?: string };
+        const match = `${body.Text ?? ""} ${body.HTML ?? ""}`.match(/https?:\/\/[^\s"'<>)]*\/auth\/v1\/verify[^\s"'<>)]*/);
+        if (match) return match[0].replace(/&amp;/g, "&");
+      }
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    throw new Error("no confirmation message in Mailpit for the address");
   }
 
   test("the profile page has no theme section and the sections run in order", async ({ page }, testInfo) => {
@@ -233,7 +243,7 @@ test.describe("change email and password", () => {
     }
   });
 
-  test("a correct password starts an email change and Mailpit gets a message", async ({ page }, testInfo) => {
+  test("an email change needs both links: first shows pending, second changes the email", async ({ page }, testInfo) => {
     let student: TestUser | undefined;
     try {
       student = await createConfirmedUser("student", `student-newmail-${uniqueSuffix(testInfo.project.name)}`);
@@ -252,10 +262,25 @@ test.describe("change email and password", () => {
         "ส่งลิงก์ยืนยันแล้ว กรุณากดยืนยันในอีเมลทั้งเก่าและใหม่ อีเมลจะเปลี่ยนเมื่อยืนยันครบ",
       );
       await expect(mail.getByLabel("อีเมลใหม่")).toHaveValue("");
-      // double_confirm_changes: the message may go to the old address, the new one, or both
-      await expect
-        .poll(async () => (await mailCount(newEmail)) + (await mailCount(student!.email)), { timeout: 10_000 })
-        .toBeGreaterThan(0);
+
+      // double_confirm_changes: one confirmation message to each address
+      const oldLink = await waitForLink(student.email);
+      const newLink = await waitForLink(newEmail);
+
+      await page.goto(oldLink);
+      // local GoTrue reports the first click in the URL fragment (#message=...), which the server cannot see
+      await expect(page).toHaveURL((url) => url.pathname === "/profile" && url.hash.includes("message="));
+      await expect(page.getByText("ยืนยันอีเมลหนึ่งฉบับแล้ว กรุณากดลิงก์ยืนยันในอีเมลอีกฉบับเพื่อเปลี่ยนอีเมลให้เสร็จ")).toBeVisible();
+      await expect(page.getByText("ลิงก์ยืนยันใช้ไม่ได้หรือหมดอายุ")).toHaveCount(0);
+
+      await page.goto(newLink);
+      await expect(page).toHaveURL((url) => url.pathname === "/profile" && url.searchParams.get("email") === "changed");
+      await expect(page.getByText("เปลี่ยนอีเมลแล้ว")).toBeVisible();
+
+      // the sign-in email is now the new one
+      await page.getByRole("button", { name: "ออกจากระบบ" }).click();
+      await expect(page).toHaveURL((url) => url.pathname === "/login");
+      await signIn(page, { ...student, email: newEmail }, "/dashboard");
     } finally {
       await deleteUsers([student]);
     }
@@ -269,6 +294,10 @@ test.describe("change email and password", () => {
       await page.goto("/profile?email=changed");
       await expect(page.getByText("เปลี่ยนอีเมลแล้ว")).toBeVisible();
       await page.goto("/profile?email=link-error");
+      await expect(page.getByText("ลิงก์ยืนยันใช้ไม่ได้หรือหมดอายุ ลองขอใหม่อีกครั้ง")).toBeVisible();
+      await page.goto("/profile?email=pending");
+      await expect(page.getByText("ยืนยันอีเมลหนึ่งฉบับแล้ว")).toBeVisible();
+      await page.goto("/profile?email=link-error#error=access_denied&error_code=otp_expired");
       await expect(page.getByText("ลิงก์ยืนยันใช้ไม่ได้หรือหมดอายุ ลองขอใหม่อีกครั้ง")).toBeVisible();
       await page.goto("/profile?email=whatever");
       await expect(page.getByText("เปลี่ยนอีเมลแล้ว")).toHaveCount(0);
