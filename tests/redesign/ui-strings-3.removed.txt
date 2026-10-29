@@ -1,0 +1,1 @@
+# Redesign 3: baseline UI strings (text:... / aria:...) allowed to DISAPPEAR from src/**/*.tsx. Later tasks append here.

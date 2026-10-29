@@ -12,11 +12,18 @@ const root = join(here, "..", "..");
 const baselineFile = join(here, "ui-strings.baseline.txt");
 const writeBaseline = process.argv.includes("--write-baseline");
 
-const FORBIDDEN_PREFIXES = ["supabase/migrations/", "supabase/tests/", "src/app/actions/", "src/lib/", "src/app/api/", "scripts/"];
+// Redesign 3 (DESIGN-3 1.2): src/lib/, src/app/actions/, src/app/auth/ and supabase/config.toml may change; supabase/migrations/
+// and supabase/tests/ accept NEW files only (a modified, deleted or renamed existing file is still forbidden, see below).
+const FORBIDDEN_PREFIXES = ["src/app/api/", "scripts/"];
+const NEW_ONLY_PREFIXES = ["supabase/migrations/", "supabase/tests/"];
 const FORBIDDEN_FILES = ["src/proxy.ts"];
-const ALLOWED_FILES = new Set(["supabase/migrations/0026_public_home_feed.sql", "supabase/tests/public_home_feed.test.sql", "src/lib/home/public-feed.ts", "src/lib/home/public-feed.test.ts"]);
 const ALLOWED_NEW = new Set(["text:ธีม", "text:สว่าง", "text:มืด", "text:ตามระบบ", "aria:ธีม"]);
-for (const l of readFileSync(join(here, "ui-strings-2.allow.txt"), "utf8").split(/\r?\n/)) if (/^(text|aria):/.test(l.trim())) ALLOWED_NEW.add(l.trim());
+const REMOVED_OK = new Set();
+for (const [file, set] of [["ui-strings-2.allow.txt", ALLOWED_NEW], ["ui-strings-3.allow.txt", ALLOWED_NEW], ["ui-strings-3.removed.txt", REMOVED_OK]]) {
+  let txt = "";
+  try { txt = readFileSync(join(here, file), "utf8"); } catch { /* optional file */ }
+  for (const l of txt.split(/\r?\n/)) if (/^(text|aria):/.test(l.trim())) set.add(l.trim());
+}
 
 function git(args) {
   return execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).split(/\r?\n/).filter(Boolean);
@@ -72,14 +79,23 @@ const problems = [];
 
 // 1. forbidden paths
 let changed = new Set();
+const touchedExisting = new Set(); // files that were modified (M), deleted (D), renamed or type-changed, i.e. not purely added
 try {
   changed = new Set([...git(["diff", "--name-only", "main...HEAD"]), ...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])]);
+  for (const range of ["main...HEAD", "HEAD"]) {
+    for (const line of git(["diff", "--name-status", range])) {
+      const [status, ...paths] = line.split("\t");
+      if (status !== "A") for (const p of paths) touchedExisting.add(p);
+    }
+  }
 } catch (e) {
   problems.push(`git diff failed: ${e.message}`);
 }
 for (const p of changed) {
-  if (ALLOWED_FILES.has(p)) continue;
   if (FORBIDDEN_FILES.includes(p) || FORBIDDEN_PREFIXES.some((pre) => p.startsWith(pre))) problems.push(`forbidden path changed: ${p}`);
+}
+for (const p of touchedExisting) {
+  if (NEW_ONLY_PREFIXES.some((pre) => p.startsWith(pre))) problems.push(`existing migration/test modified or deleted: ${p}`);
 }
 
 // 2. UI strings + 3. use cache
@@ -87,7 +103,7 @@ const baselineLines = readFileSync(baselineFile, "utf8").split(/\r?\n/).filter(B
 const baselineCount = baselineLines.find((l) => l.startsWith("use-cache-count:"));
 const baseline = new Set(baselineLines.filter((l) => !l.startsWith("use-cache-count:")));
 const current = new Set(strings);
-for (const s of baseline) if (!current.has(s)) problems.push(`missing from src: ${s}`);
+for (const s of baseline) if (!current.has(s) && !REMOVED_OK.has(s)) problems.push(`missing from src: ${s}`);
 for (const s of current) if (!baseline.has(s) && !ALLOWED_NEW.has(s)) problems.push(`new string not allowed: ${s}`);
 if (!baselineCount) problems.push("baseline has no use-cache-count line");
 else if (Number(baselineCount.split(":")[1]) !== useCache) problems.push(`'use cache' count ${useCache} != baseline ${baselineCount.split(":")[1]}`);
