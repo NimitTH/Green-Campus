@@ -31,6 +31,8 @@ export type ImageCodec = {
   decode(file: Blob): Promise<DecodedImage>;
   /** Draw `source` at width x height and encode it as image/jpeg. */
   encode(source: unknown, width: number, height: number, quality: number): Promise<Blob>;
+  /** Draw the square (sx, sy, size x size) of `source` at edge x edge and encode it as image/jpeg. */
+  encodeRegion?(source: unknown, sx: number, sy: number, size: number, edge: number, quality: number): Promise<Blob>;
 };
 
 export type ResizeOptions = { codec?: ImageCodec; timeoutMs?: number };
@@ -111,6 +113,52 @@ export async function resizeToJpeg(
   }
 }
 
+export const AVATAR_MAX_BYTES = 512 * 1024; // the `avatars` bucket file_size_limit
+const AVATAR_QUALITIES = [0.85, 0.7, 0.6, 0.5];
+
+/**
+ * Centre-crop a photo to a square JPEG of edge x edge (never upscaled), <= 512 KB.
+ * Rejects with ImageError like resizeToJpeg: `not_image` or `image_too_large`.
+ */
+export async function cropSquareToJpeg(file: File, edge = 384, options: ResizeOptions = {}): Promise<Blob> {
+  if (!looksLikeImage(file)) throw new ImageError("not_image");
+  const codec = options.codec ?? browserCodec;
+  const encodeRegion = codec.encodeRegion;
+  if (!encodeRegion) throw new ImageError("not_image");
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+
+  let image: DecodedImage;
+  try {
+    image = await withTimeout(codec.decode(file), timeoutMs);
+  } catch {
+    throw new ImageError("not_image");
+  }
+  if (!(image.width > 0 && image.height > 0)) {
+    image.close?.();
+    throw new ImageError("not_image");
+  }
+
+  try {
+    const size = Math.min(image.width, image.height);
+    const sx = Math.floor((image.width - size) / 2);
+    const sy = Math.floor((image.height - size) / 2);
+    const out = Math.max(1, Math.min(edge, size));
+    for (const quality of AVATAR_QUALITIES) {
+      let blob: Blob;
+      try {
+        blob = await withTimeout(encodeRegion.call(codec, image.source, sx, sy, size, out, quality), timeoutMs);
+      } catch {
+        throw new ImageError("not_image");
+      }
+      if (blob.type !== "image/jpeg") throw new ImageError("not_image");
+      if (blob.size <= AVATAR_MAX_BYTES) return blob;
+    }
+    throw new ImageError("image_too_large");
+  } finally {
+    image.close?.();
+  }
+}
+
 // Browser implementation -----------------------------------------------------------------
 
 async function decodeInBrowser(file: Blob): Promise<DecodedImage> {
@@ -152,4 +200,28 @@ function encodeInBrowser(source: unknown, width: number, height: number, quality
   });
 }
 
-const browserCodec: ImageCodec = { decode: decodeInBrowser, encode: encodeInBrowser };
+function encodeRegionInBrowser(
+  source: unknown,
+  sx: number,
+  sy: number,
+  size: number,
+  edge: number,
+  quality: number,
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = edge;
+    canvas.height = edge;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      reject(new Error("no 2d context"));
+      return;
+    }
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, edge, edge);
+    ctx.drawImage(source as CanvasImageSource, sx, sy, size, size, 0, 0, edge, edge);
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("encode failed"))), "image/jpeg", quality);
+  });
+}
+
+const browserCodec: ImageCodec = { decode: decodeInBrowser, encode: encodeInBrowser, encodeRegion: encodeRegionInBrowser };

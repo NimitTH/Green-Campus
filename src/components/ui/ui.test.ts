@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { Badge, Button, Card, Field, PageHeader, Stat, buttonClass, inputClass, inputClassLg } from "./index";
+import { Avatar, Badge, Button, Card, Field, PageHeader, Stat, buttonClass, inputClass, inputClassLg } from "./index";
 
 const html = (el: React.ReactElement) => renderToStaticMarkup(el);
 
@@ -139,5 +139,21 @@ describe("invalid inputs", () => {
   it("show a danger border in inputClass and inputClassLg", () => {
     expect(inputClass).toContain("aria-[invalid=true]:border-danger");
     expect(inputClassLg).toContain("aria-[invalid=true]:border-danger");
+  });
+});
+
+describe("Avatar", () => {
+  it("renders an <img> with empty alt when it has a url", () => {
+    const out = html(createElement(Avatar, { name: "มานี", url: "http://x/a.jpg", size: 72 }));
+    expect(out).toContain("<img");
+    expect(out).toContain('alt=""');
+    expect(out).toContain("object-cover");
+  });
+  it("renders the initial in an aria-hidden span without a url", () => {
+    const out = html(createElement(Avatar, { name: "เอก", url: null, size: 36 }));
+    expect(out).not.toContain("<img");
+    expect(out).toContain('aria-hidden="true"');
+    expect(out).toContain("อ");
+    expect(out).toContain("bg-accent");
   });
 });

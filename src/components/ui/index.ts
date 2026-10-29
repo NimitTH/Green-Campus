@@ -7,3 +7,4 @@ export { PageHeader } from "./page-header";
 export { EmptyState } from "./empty-state";
 export { ThemeToggle } from "./theme-toggle";
 export { Mono } from "./mono";
+export { Avatar } from "./avatar";

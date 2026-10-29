@@ -1,1 +1,4 @@
 # Redesign 3: UI strings (text:... / aria:...) allowed to be NEW in src/**/*.tsx. Later tasks append here.
+text:รูปโปรไฟล์
+text:อัปโหลดรูป
+text:ลบรูป

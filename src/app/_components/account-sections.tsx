@@ -2,6 +2,7 @@ import { Card } from "@/components/ui";
 import { ROLE_LABEL_TH } from "@/lib/admin/validation";
 import type { CurrentUser } from "@/lib/auth/dal";
 import { createServerClient } from "@/lib/supabase/server";
+import { AvatarSection } from "./avatar-section";
 import { NotificationList, type NotificationRow } from "./notification-list";
 import { ProfileForm } from "./profile-form";
 
@@ -11,6 +12,7 @@ import { ProfileForm } from "./profile-form";
 export function ProfileDetails({ user }: { user: CurrentUser }) {
   return (
     <>
+      <AvatarSection userId={user.id} name={user.displayName ?? user.fullName} url={user.avatarUrl} />
       <Card as="section" className="mb-6">
       <dl className="grid gap-3 text-sm sm:grid-cols-2">
         <div>

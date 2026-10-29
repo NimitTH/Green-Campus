@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GENERIC_ERROR_TH, errorMessageTh } from "./errors";
-import { ImageError, MAX_UPLOAD_BYTES, resizeToJpeg, type ImageCodec } from "./image";
+import { ImageError, MAX_UPLOAD_BYTES, cropSquareToJpeg, resizeToJpeg, type ImageCodec } from "./image";
 
 // Vitest runs in Node (no canvas): decode/encode are injected. The fake encoder makes a JPEG
 // whose size grows with the pixel count and the quality, like a real one.
@@ -152,5 +152,56 @@ describe("resizeToJpeg", () => {
     const out = await resizeToJpeg(bigFile("noisy.jpg", "image/jpeg"), undefined, undefined, { codec });
     expect(out.size).toBeLessThanOrEqual(MAX_UPLOAD_BYTES);
     expect(out.size).toBeGreaterThan(300 * 1024);
+  });
+});
+
+describe("cropSquareToJpeg", () => {
+  function regionCodec(bytes = 20_000) {
+    const calls: { sx: number; sy: number; size: number; edge: number; quality: number }[] = [];
+    const codec: ImageCodec = {
+      decode: vi.fn(async () => ({ width: 800, height: 600, source: {}, close: () => {} })),
+      encode: vi.fn(),
+      encodeRegion: vi.fn(async (_s, sx, sy, size, edge, quality) => {
+        calls.push({ sx, sy, size, edge, quality });
+        return new Blob([new Uint8Array(bytes)], { type: "image/jpeg" });
+      }),
+    };
+    return { codec, calls };
+  }
+
+  it("crops the centred square of an 800x600 photo to 384x384", async () => {
+    const { codec, calls } = regionCodec();
+    const out = await cropSquareToJpeg(bigFile("a.png", "image/png", 1000), 384, { codec });
+    expect(out.type).toBe("image/jpeg");
+    expect(calls[0]).toMatchObject({ sx: 100, sy: 0, size: 600, edge: 384 });
+  });
+
+  it("rejects an empty file with not_image", async () => {
+    const { codec } = regionCodec();
+    const err = await rejection(cropSquareToJpeg(new File([], "a.jpg", { type: "image/jpeg" }), 384, { codec }));
+    expect(err.code).toBe("not_image");
+  });
+
+  it("rejects a non-image with not_image without decoding", async () => {
+    const { codec } = regionCodec();
+    const err = await rejection(cropSquareToJpeg(new File(["hi"], "a.txt", { type: "text/plain" }), 384, { codec }));
+    expect(err.code).toBe("not_image");
+    expect(codec.decode).not.toHaveBeenCalled();
+  });
+
+  it("rejects with image_too_large when every attempt is over 512 KB", async () => {
+    const { codec } = regionCodec(524_289);
+    const err = await rejection(cropSquareToJpeg(bigFile("a.png", "image/png", 1000), 384, { codec }));
+    expect(err.code).toBe("image_too_large");
+  });
+
+  it("lowers the quality until the result is <= 512 KB", async () => {
+    const codec: ImageCodec = {
+      decode: vi.fn(async () => ({ width: 800, height: 600, source: {} })),
+      encode: vi.fn(),
+      encodeRegion: vi.fn(async (_s, _x, _y, _z, _e, q) => new Blob([new Uint8Array(q >= 0.8 ? 600_000 : 400_000)], { type: "image/jpeg" })),
+    };
+    const out = await cropSquareToJpeg(bigFile("a.png", "image/png", 1000), 384, { codec });
+    expect(out.size).toBe(400_000);
   });
 });

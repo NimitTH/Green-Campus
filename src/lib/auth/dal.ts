@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
+import { avatarPublicUrl } from "@/lib/profile/avatar";
 import { createServerClient } from "@/lib/supabase/server";
 import { isAdminRole, isStaffRole, loginPathFor, toRole, type Role } from "./routes";
 
@@ -14,9 +15,10 @@ export type CurrentUser = {
   role: Role;
   fullName: string;
   displayName: string | null;
+  avatarUrl: string | null;
 };
 
-type ProfileRow = { role: string; full_name: string; display_name: string | null };
+type ProfileRow = { role: string; full_name: string; display_name: string | null; avatar_path: string | null };
 
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   // Supabase reads the clock (token expiry) after cookies are available. With
@@ -29,7 +31,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, full_name, display_name")
+    .select("role, full_name, display_name, avatar_path")
     .eq("id", data.user.id)
     .maybeSingle();
   const row = profile as ProfileRow | null;
@@ -42,6 +44,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     role,
     fullName: row.full_name,
     displayName: row.display_name,
+    avatarUrl: avatarPublicUrl(row.avatar_path),
   };
 });
 

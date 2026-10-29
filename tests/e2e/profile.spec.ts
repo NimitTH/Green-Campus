@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { signIn } from "./helpers/auth";
+import { PNG_1X1 } from "./helpers/images";
 import { openStaffMenu } from "./helpers/staff-menu";
 import { createConfirmedUser, deleteUsers, profileNames, type TestUser } from "./helpers/supabase-admin";
 
@@ -112,4 +113,35 @@ test("anonymous visitors of /profile are sent to sign in", async ({ browser }) =
   } finally {
     await anon.close();
   }
+});
+
+test.describe("profile picture", () => {
+  test("a student uploads, keeps it on a bad file, and removes it", async ({ page }, testInfo) => {
+    const suffix = uniqueSuffix(testInfo.project.name);
+    let student: TestUser | undefined;
+    try {
+      student = await createConfirmedUser("student", `student-avatar-${suffix}`);
+      await signIn(page, student, "/profile");
+      const section = page.locator("section[aria-labelledby='profile-avatar']");
+      await expect(section.locator("img")).toHaveCount(0);
+      await expect(section.getByRole("button", { name: "ลบรูป" })).toHaveCount(0);
+
+      await section.locator("input[type=file]").setInputFiles({ name: "me.png", mimeType: "image/png", buffer: PNG_1X1 });
+      const img = section.locator("img");
+      await expect(img).toHaveCount(1);
+      await expect(img).toHaveAttribute("src", /\/avatars\//);
+      const before = await img.getAttribute("src");
+
+      // a non-image: Thai error, the picture stays
+      await section.locator("input[type=file]").setInputFiles({ name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("hello") });
+      await expect(section.getByRole("alert")).toContainText("ไฟล์นี้ไม่ใช่รูปภาพ");
+      await expect(img).toHaveAttribute("src", before!);
+
+      await section.getByRole("button", { name: "ลบรูป" }).click();
+      await expect(section.locator("img")).toHaveCount(0);
+      await expect(section.locator("span[aria-hidden='true']")).toHaveText("ท");
+    } finally {
+      await deleteUsers([student]);
+    }
+  });
 });
