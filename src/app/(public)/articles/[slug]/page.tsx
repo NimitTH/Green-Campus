@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CopyLinkButton } from "@/components/ui";
 import { excerpt, splitParagraphs } from "@/lib/articles/format";
 import { getPublishedArticle } from "@/lib/articles/public";
 import { formatBangkok } from "@/lib/datetime";
@@ -36,12 +37,17 @@ export default async function ArticlePage({ params }: { params: Params }) {
         <Link href="/articles" className="inline-flex min-h-11 items-center text-sm text-accent underline underline-offset-4">
           ← บทความทั้งหมด
         </Link>
-        <h1 className="mt-3 font-display text-3xl leading-tight font-semibold break-words text-ink">{article.title}</h1>
-        <p className="mt-2 text-sm text-muted">{formatBangkok(article.createdAt)}</p>
         {article.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- public Supabase Storage URL, already resized in the browser
-          <img src={article.coverUrl} alt="" className="mt-6 max-h-80 w-full rounded-card object-cover" />
+          <img src={article.coverUrl} alt="" className="mt-4 max-h-80 w-full rounded-card object-cover" />
         ) : null}
+        <h1 className="mt-6 font-display text-3xl leading-tight font-semibold break-words text-ink">{article.title}</h1>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <p className="text-sm text-muted">
+            โดย {article.authorName ?? "-"} · {formatBangkok(article.createdAt)}
+          </p>
+          <CopyLinkButton />
+        </div>
         <div data-testid="article-body" className="mt-6 space-y-4 text-lg leading-relaxed text-ink">
           {splitParagraphs(article.body).map((p, i) => (
             <p key={i} className="break-words whitespace-pre-line">

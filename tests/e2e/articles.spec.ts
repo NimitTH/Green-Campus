@@ -3,9 +3,13 @@ import { signIn } from "./helpers/auth";
 import { PNG_1X1 } from "./helpers/images";
 import {
   createConfirmedUser,
+  deleteArticlesById,
   deleteArticlesByTitle,
   deleteUsers,
   findArticle,
+  seedPublishedArticles,
+  setDisplayName,
+  type SeededArticle,
   storageObjectExists,
   type TestUser,
 } from "./helpers/supabase-admin";
@@ -152,4 +156,113 @@ test("the public home links to /articles, which needs no sign-in", async ({ brow
   } finally {
     await anon.close();
   }
+});
+
+// Redesign 3 Task 7 (DESIGN-3 5.1/5.2): search, sort, card/list view, 12 per page, bylines and the share link.
+// 13 published articles under a unique prefix, created in 2001 so they never displace anyone else's page 1.
+test.describe("article list: search, sort, view, pagination", () => {
+  let prefix = "";
+  let seeded: SeededArticle[] = [];
+  let author: TestUser | undefined;
+
+  test.beforeAll(async () => {
+    const suffix = uniqueSuffix(test.info().project.name).replace(/[^a-z0-9]/g, "");
+    prefix = `e2elist${suffix}`;
+    author = await createConfirmedUser("teacher", `teacher-list-${suffix}`);
+    await setDisplayName(author.id, "ครูทดสอบ");
+    seeded = await seedPublishedArticles(prefix, prefix, 13, { authorId: author.id, cover: true });
+  });
+
+  test.afterAll(async () => {
+    await deleteArticlesById(seeded.map((a) => a.id));
+    await deleteUsers([author]);
+  });
+
+  const titles = (page: Page) => page.getByRole("main").getByRole("heading", { level: 2 });
+
+  test("search through the toolbar, 12 per page, page 2 has the 13th", async ({ page }) => {
+    await page.goto("/articles");
+    await page.getByRole("searchbox", { name: "ค้นหาบทความ" }).fill(prefix);
+    await page.getByRole("searchbox", { name: "ค้นหาบทความ" }).press("Enter");
+    await expect(page).toHaveURL((url) => url.searchParams.get("q") === prefix && !url.searchParams.has("page"));
+    await expect(titles(page)).toHaveCount(12);
+    await expect(titles(page).first()).toHaveText(`${prefix} 12`);
+    const pager = page.getByRole("navigation", { name: "แบ่งหน้า" });
+    await expect(pager.getByRole("link", { name: "หน้า 1" })).toHaveAttribute("aria-current", "page");
+    await pager.getByRole("link", { name: "หน้าถัดไป" }).click();
+    await expect(page).toHaveURL((url) => url.searchParams.get("page") === "2");
+    await expect(titles(page)).toHaveCount(1);
+    await expect(titles(page).first()).toHaveText(`${prefix} 00`);
+    await expect(pager.getByRole("link", { name: "หน้า 2" })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByText("โดย ครูทดสอบ")).toBeVisible();
+  });
+
+  test("sort old → new puts the oldest first and goes back to page 1", async ({ page }) => {
+    await page.goto(`/articles?q=${prefix}&page=2`);
+    await page.getByLabel("เรียง").selectOption("old");
+    await expect(page).toHaveURL((url) => url.searchParams.get("sort") === "old" && !url.searchParams.has("page"));
+    await expect(titles(page)).toHaveCount(12);
+    await expect(titles(page).first()).toHaveText(`${prefix} 00`);
+  });
+
+  test("the list view keeps the results and marks the toggle", async ({ page }) => {
+    await page.goto(`/articles?q=${prefix}`);
+    await expect(page.getByRole("link", { name: "การ์ด", exact: true })).toHaveAttribute("aria-current", "true");
+    await page.getByRole("link", { name: "รายการ", exact: true }).click();
+    await expect(page).toHaveURL((url) => url.searchParams.get("view") === "list" && url.searchParams.get("q") === prefix);
+    await expect(page.getByRole("link", { name: "รายการ", exact: true })).toHaveAttribute("aria-current", "true");
+    await expect(titles(page)).toHaveCount(12);
+    // rows: every title shares one column (same left edge), unlike the card grid
+    const lefts = await titles(page).evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().left)));
+    expect(new Set(lefts).size).toBe(1);
+  });
+
+  test("PostgREST metacharacters are searched literally: empty state, no error", async ({ page }) => {
+    const res = await page.goto(`/articles?q=${encodeURIComponent('a,b"(%')}`);
+    expect(res?.status()).toBe(200);
+    await expect(page.getByText("ไม่พบบทความที่ตรงกับคำค้น")).toBeVisible();
+    await expect(page.getByRole("link", { name: "ล้างการค้นหา" })).toHaveAttribute("href", "/articles");
+    await expect(page.getByRole("searchbox", { name: "ค้นหาบทความ" })).toHaveValue('a,b"(%');
+    // and a literal % / _ in the prefix search still finds only exact text
+    await page.goto(`/articles?q=${encodeURIComponent(`${prefix}%`)}`);
+    await expect(page.getByText("ไม่พบบทความที่ตรงกับคำค้น")).toBeVisible();
+  });
+
+  test("page past the end shows the last page; junk params fall back to the defaults", async ({ page }) => {
+    const res = await page.goto(`/articles?q=${prefix}&page=999`);
+    expect(res?.status()).toBe(200);
+    await expect(titles(page)).toHaveCount(1);
+    await expect(titles(page).first()).toHaveText(`${prefix} 00`);
+    await page.goto(`/articles?q=${prefix}&page=abc&sort=xyz&view=grid`);
+    await expect(titles(page)).toHaveCount(12);
+    await expect(titles(page).first()).toHaveText(`${prefix} 12`);
+    await expect(page.getByRole("link", { name: "การ์ด", exact: true })).toHaveAttribute("aria-current", "true");
+    await page.goto(`/articles?q=${prefix}&page=-3`);
+    await expect(titles(page)).toHaveCount(12);
+  });
+
+  test("detail: cover above the title, byline with the author or -", async ({ page }) => {
+    await page.goto(`/articles/${seeded[0].slug}`);
+    const h1 = page.getByRole("heading", { level: 1, name: seeded[0].title });
+    await expect(h1).toBeVisible();
+    const coverFirst = await page.evaluate(() => {
+      const img = document.querySelector("article img");
+      const h = document.querySelector("article h1");
+      return !!img && !!h && Boolean(img.compareDocumentPosition(h) & Node.DOCUMENT_POSITION_FOLLOWING);
+    });
+    expect(coverFirst).toBe(true);
+    await expect(page.getByText(/^โดย ครูทดสอบ · /)).toBeVisible();
+    await page.goto(`/articles/${seeded[1].slug}`);
+    await expect(page.getByText(/^โดย - · /)).toBeVisible();
+  });
+
+  test("copy link puts the page URL on the clipboard", async ({ page, context, browserName }, testInfo) => {
+    test.skip(testInfo.project.name !== "chromium" || browserName !== "chromium", "clipboard permissions: desktop chromium only");
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.goto(`/articles/${seeded[1].slug}`);
+    await page.getByRole("button", { name: "คัดลอกลิงก์" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "คัดลอกแล้ว" })).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(page.url());
+    await expect(page.getByRole("status").filter({ hasText: "คัดลอกแล้ว" })).toHaveCount(0, { timeout: 4000 });
+  });
 });
