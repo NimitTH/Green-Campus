@@ -163,3 +163,21 @@ test("staff on /dashboard get a link to /staff instead of student stats", async 
     await deleteUsers([teacher]);
   }
 });
+
+// Redesign 3 Task 6. The dashboard is rendered on the server (requireUser reads cookies, then new Date()),
+// so page.clock only moves the browser clock and cannot select a greeting here. The four time bands are
+// covered by src/lib/greeting.test.ts; this test asserts one of the four greetings followed by the name.
+test("dashboard greets by time of day with the name, full name and email", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  let student: TestUser | undefined;
+  try {
+    student = await createConfirmedUser("student", `student-greet-${suffix}`);
+    await signIn(page, student, "/dashboard");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^สวัสดีตอน(เช้า|เที่ยง|บ่าย|เย็น) ทดสอบ student$/);
+    const main = page.getByRole("main");
+    await expect(main.getByText("ทดสอบ student", { exact: true })).toBeVisible();
+    await expect(main.getByText(student.email, { exact: true })).toBeVisible();
+  } finally {
+    await deleteUsers([student]);
+  }
+});

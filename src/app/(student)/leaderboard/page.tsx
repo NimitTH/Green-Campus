@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { EmptyState, PageHeader } from "@/components/ui";
+import { Avatar, EmptyState, PageHeader } from "@/components/ui";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { requireUser } from "@/lib/auth/dal";
 import { formatKg } from "@/lib/leaderboard/format";
@@ -83,6 +83,7 @@ function Row({ row }: { row: LeaderboardRow }) {
       <span data-testid="lb-rank" className="w-8 shrink-0 text-center font-mono font-semibold">
         {row.rank ?? "-"}
       </span>
+      <Avatar name={row.displayName} url={row.avatarUrl} size={28} />
       <span className="min-w-0 flex-1 break-words">
         {row.displayName}
         {row.isMe ? <span className="ml-2 text-xs text-accent">(คุณ)</span> : null}

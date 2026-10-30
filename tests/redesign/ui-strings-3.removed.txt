@@ -7,3 +7,4 @@ text:ฉัน
 # the public header's "บทความ" link is gone too, but the string stays (centre nav, footer), so no entry is needed for it
 text:ใช้อีเมลและรหัสผ่านที่สมัครไว้
 text:กรอกชื่อจริงเพื่อให้ครูตรวจผลงานได้ถูกคน
+text:สวัสดี

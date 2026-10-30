@@ -169,7 +169,7 @@ export async function seedSubmission(
 ): Promise<string> {
   const c = await signedInClient(student);
   const path = `${student.id}/${randomUUID()}/evidence.png`;
-  const { error: uploadError } = await c.storage.from("evidence").upload(path, image, { contentType: "image/png" });
+  const { error: uploadError } = await c.storage.from("evidence").upload(path, image, { contentType: "image/jpeg" });
   if (uploadError) throw new Error(`e2e: evidence upload failed: ${uploadError.message}`);
   const { data, error } = await c.rpc("submit_result", {
     p_activity_id: activityId,
@@ -515,4 +515,14 @@ export async function confirmSignedUpUser(email: string, password: string): Prom
     if (data.users.length < 200) break;
   }
   throw new Error("e2e: signed-up user not found");
+}
+
+/** Upload a picture to the avatars bucket as `<id>/<uuid>.jpg` and point the profile at it (service role). */
+export async function setAvatar(userId: string, bytes: Buffer): Promise<string> {
+  const path = `${userId}/${randomUUID()}.jpg`;
+  const { error } = await admin().storage.from("avatars").upload(path, bytes, { contentType: "image/jpeg" });
+  if (error) throw new Error(`e2e: avatar upload failed: ${error.message}`);
+  const { error: updateError } = await admin().from("profiles").update({ avatar_path: path }).eq("id", userId);
+  if (updateError) throw new Error(`e2e: avatar set failed: ${updateError.message}`);
+  return path;
 }

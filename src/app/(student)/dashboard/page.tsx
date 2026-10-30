@@ -3,8 +3,8 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { requireUser } from "@/lib/auth/dal";
 import { isStaffRole } from "@/lib/auth/routes";
-import { previewDisplayName } from "@/lib/profile/validation";
-import { buttonClass } from "@/components/ui";
+import { greetingFor, greetingName } from "@/lib/greeting";
+import { Avatar, buttonClass } from "@/components/ui";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { RankCard } from "./_components/rank-card";
 import { StudentStats } from "./_components/student-stats";
@@ -41,8 +41,16 @@ async function DashboardContent() {
   return (
     <>
       <div className="mb-6">
-        <p className="text-sm text-muted">สวัสดี</p>
-        <h1 className="font-display text-[clamp(1.75rem,2vw+1rem,2.25rem)] font-semibold leading-tight tracking-[-0.01em] text-ink">{previewDisplayName(user.displayName, user.fullName)}</h1>
+        <h1 className="font-display text-[clamp(1.75rem,2vw+1rem,2.25rem)] font-semibold leading-tight tracking-[-0.01em] text-ink">
+          {`${greetingFor(new Date())} ${greetingName(user)}`}
+        </h1>
+        <div className="mt-3 flex items-center gap-3">
+          <Avatar name={greetingName(user)} url={user.avatarUrl} size={72} />
+          <div className="min-w-0">
+            <p className="font-semibold break-words text-ink">{user.fullName}</p>
+            <p className="text-sm break-all text-muted">{user.email}</p>
+          </div>
+        </div>
       </div>
       <nav aria-label="เมนูนักเรียน" className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {HUB.map((m) => (

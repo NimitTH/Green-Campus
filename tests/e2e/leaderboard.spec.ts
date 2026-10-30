@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { openAccountMenu } from "./helpers/account-menu";
 import { signIn } from "./helpers/auth";
-import { createConfirmedUser, deleteUsers, grantCarbon, setFullName, type TestUser } from "./helpers/supabase-admin";
+import { PNG_1X1 } from "./helpers/images";
+import { createConfirmedUser, deleteUsers, grantCarbon, setAvatar, setFullName, type TestUser } from "./helpers/supabase-admin";
 
 // Plan Task 15 (R95-R98): leaderboard, dashboard rank card, public totals on the home page.
 
@@ -108,5 +109,30 @@ test("signed out, / shows the three totals and no names", async ({ page }, testI
     await expect(page.locator("body")).not.toContainText(/ทดสอบ (student|teacher|admin)/);
   } finally {
     await deleteUsers([student]);
+  }
+});
+
+test("a student with a profile picture shows it in their leaderboard row; others show initials", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  let withPic: TestUser | undefined;
+  let plain: TestUser | undefined;
+  try {
+    withPic = await createConfirmedUser("student", `student-lbpic-${suffix}`);
+    plain = await createConfirmedUser("student", `student-lbnopic-${suffix}`);
+    await setFullName(withPic.id, `รูปภาพ${suffix.replace(/[^a-z0-9]/gi, "")}`);
+    await setFullName(plain.id, `ไม่มีรูป${suffix.replace(/[^a-z0-9]/gi, "")}`);
+    await grantCarbon(withPic.id, 900001);
+    await grantCarbon(plain.id, 900000);
+    await setAvatar(withPic.id, PNG_1X1);
+
+    await signIn(page, withPic, "/leaderboard");
+    const me = page.getByTestId("lb-me");
+    await expect(me.locator("img")).toHaveCount(1);
+    await expect(me.locator("img")).toHaveAttribute("src", /\/avatars\//);
+    const other = page.getByTestId("lb-row").filter({ hasText: "ไม่มีรูป" });
+    await expect(other).toHaveCount(1);
+    await expect(other.locator("img")).toHaveCount(0);
+  } finally {
+    await deleteUsers([withPic, plain]);
   }
 });
