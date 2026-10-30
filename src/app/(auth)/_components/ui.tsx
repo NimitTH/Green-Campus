@@ -1,5 +1,5 @@
 import { useId, type ReactNode } from "react";
-import { buttonClass, inputClass } from "@/components/ui";
+import { PasswordInput, buttonClass, inputClass } from "@/components/ui";
 
 export function FormTitle({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
@@ -20,6 +20,7 @@ export function Field({
   defaultValue,
   error,
   hint,
+  labelAction,
 }: {
   label: string;
   name: string;
@@ -28,25 +29,41 @@ export function Field({
   defaultValue?: string;
   error?: string;
   hint?: string;
+  /** Shown at the right of the label row (e.g. the forgot-password link). */
+  labelAction?: ReactNode;
 }) {
   // useId, not `name`: login and register stay mounted together (<Activity>), so a fixed id would collide.
   const id = useId();
   const errorId = `${id}-error`;
   return (
     <div className="mb-4">
-      <label htmlFor={id} className="mb-1 block text-sm font-medium text-ink">
-        {label}
-      </label>
-      <input
-        id={id}
-        name={name}
-        type={type}
-        autoComplete={autoComplete}
-        defaultValue={defaultValue}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={error ? errorId : undefined}
-        className={inputClass}
-      />
+      <div className="mb-1 flex items-center justify-between gap-3">
+        <label htmlFor={id} className="block text-sm font-medium text-ink">
+          {label}
+        </label>
+        {labelAction}
+      </div>
+      {type === "password" ? (
+        <PasswordInput
+          id={id}
+          name={name}
+          autoComplete={autoComplete}
+          defaultValue={defaultValue}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
+        />
+      ) : (
+        <input
+          id={id}
+          name={name}
+          type={type}
+          autoComplete={autoComplete}
+          defaultValue={defaultValue}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
+          className={inputClass}
+        />
+      )}
       {hint && !error ? <p className="mt-1 text-sm text-muted">{hint}</p> : null}
       {error ? (
         <p id={errorId} className="mt-1 text-sm text-danger">
@@ -88,6 +105,16 @@ export function FormSkeleton() {
       <div className="h-12 rounded bg-paper-2" />
       <div className="h-12 rounded bg-paper-2" />
       <div className="h-12 rounded bg-paper-2" />
+    </div>
+  );
+}
+
+export function OrDivider() {
+  return (
+    <div className="my-4 flex items-center gap-3 text-sm text-muted">
+      <span className="h-px flex-1 bg-rule-strong" aria-hidden="true" />
+      <span>หรือ</span>
+      <span className="h-px flex-1 bg-rule-strong" aria-hidden="true" />
     </div>
   );
 }

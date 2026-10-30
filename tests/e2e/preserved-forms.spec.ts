@@ -119,12 +119,12 @@ test("login after a failed attempt and a sign-out shows no stale error and an em
     await page.goto("/login?next=%2Fstaff");
     await visibleLabel(page, "อีเมล").fill(teacher.email);
     await visibleLabel(page, "รหัสผ่าน").fill("wrong-password-1");
-    await page.getByRole("button", { name: "เข้าสู่ระบบ" }).filter({ visible: true }).click();
+    await page.getByRole("button", { name: "เข้าสู่ระบบ", exact: true }).filter({ visible: true }).click();
     // (Next also renders a route announcer with role alert; match the error by its text)
     await expect(page.getByRole("alert").filter({ visible: true }).filter({ hasText: "ลืมรหัสผ่าน" })).toBeVisible();
 
     await visibleLabel(page, "รหัสผ่าน").fill(teacher.password);
-    await page.getByRole("button", { name: "เข้าสู่ระบบ" }).filter({ visible: true }).click();
+    await page.getByRole("button", { name: "เข้าสู่ระบบ", exact: true }).filter({ visible: true }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/staff");
 
     // R142: sign out is in the staff menu (sidebar on desktop, drawer on phones)

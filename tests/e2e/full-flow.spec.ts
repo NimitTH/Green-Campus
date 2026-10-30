@@ -51,7 +51,7 @@ test("demo script: register, join, weigh code, submit, approve (live bell), rede
     await page.getByLabel("อีเมล", { exact: true }).fill(email);
     await page.getByLabel("รหัสผ่าน", { exact: true }).fill(password);
     await page.getByLabel("ยืนยันรหัสผ่าน", { exact: true }).fill(password);
-    await page.getByRole("button", { name: "สมัครสมาชิก" }).click();
+    await page.getByRole("button", { name: "สมัครสมาชิก", exact: true }).click();
     await expect(page.getByText("ตรวจอีเมลของคุณ")).toBeVisible();
     student = await confirmSignedUpUser(email, password);
 

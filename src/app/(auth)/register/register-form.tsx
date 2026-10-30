@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { signUp, type AuthFormState } from "@/lib/auth/actions";
 import { MIN_PASSWORD_LENGTH } from "@/lib/auth/messages";
-import { Alert, Field, FormTitle, SubmitButton } from "../_components/ui";
+import { GoogleButton } from "../_components/google-button";
+import { Alert, Field, FormTitle, OrDivider, SubmitButton } from "../_components/ui";
 
 export function RegisterForm() {
   const [state, action, pending] = useActionState<AuthFormState, FormData>(signUp, undefined);
@@ -26,7 +27,7 @@ export function RegisterForm() {
 
   return (
     <form action={action} noValidate>
-      <FormTitle title="สมัครสมาชิก" subtitle="กรอกชื่อจริงเพื่อให้ครูตรวจผลงานได้ถูกคน" />
+      <FormTitle title="สมัครสมาชิก" subtitle="สมัครสมาชิกเพื่อเริ่มสะสมแต้มจากกิจกรรมรักษ์โลก" />
       {state?.error ? <Alert kind="error">{state.error}</Alert> : null}
       <Field
         label="ชื่อ-นามสกุลจริง"
@@ -59,6 +60,8 @@ export function RegisterForm() {
         error={state?.fieldErrors?.confirmPassword}
       />
       <SubmitButton pending={pending}>สมัครสมาชิก</SubmitButton>
+      <OrDivider />
+      <GoogleButton label="สมัครสมาชิกด้วย Google" />
       <p className="mt-4 text-center text-sm">
         มีบัญชีแล้ว?{" "}
         <Link href="/login" className="inline-flex min-h-11 items-center text-accent underline underline-offset-4">

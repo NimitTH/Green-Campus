@@ -6,6 +6,6 @@ export async function signIn(page: Page, user: TestUser, next: string): Promise<
   await page.goto(`/login?next=${encodeURIComponent(next)}`);
   await page.getByLabel("อีเมล", { exact: true }).fill(user.email);
   await page.getByLabel("รหัสผ่าน", { exact: true }).fill(user.password);
-  await page.getByRole("button", { name: "เข้าสู่ระบบ" }).click();
+  await page.getByRole("button", { name: "เข้าสู่ระบบ", exact: true }).click();
   await expect(page).toHaveURL((url) => url.pathname === next);
 }

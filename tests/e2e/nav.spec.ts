@@ -397,3 +397,46 @@ test("the footer is on every page outside /staff", async ({ page, browser }, tes
     await deleteUsers([student, teacher]);
   }
 });
+
+test("login page: description, forgot link on the password label row, eye toggle, Google placeholder, link to register", async ({ page }) => {
+  await page.goto("/login");
+  await expect(page.getByText("เข้าสู่ระบบเพื่อร่วมกิจกรรม ส่งผล และสะสมแต้มแลกรางวัล").filter({ visible: true })).toBeVisible();
+
+  const label = page.locator("label", { hasText: /^รหัสผ่าน$/ }).filter({ visible: true });
+  const forgot = page.getByRole("link", { name: "ลืมรหัสผ่าน?" }).filter({ visible: true });
+  const labelBox = await label.boundingBox();
+  const forgotBox = await forgot.boundingBox();
+  expect(labelBox && forgotBox).toBeTruthy();
+  const mid = (b: { y: number; height: number }) => b.y + b.height / 2;
+  expect(Math.abs(mid(labelBox!) - mid(forgotBox!))).toBeLessThanOrEqual(4);
+
+  const pw = page.getByLabel("รหัสผ่าน", { exact: true }).filter({ visible: true });
+  await expect(pw).toHaveAttribute("type", "password");
+  await page.getByRole("button", { name: "แสดงรหัสผ่าน" }).filter({ visible: true }).click();
+  await expect(pw).toHaveAttribute("type", "text");
+  await page.getByRole("button", { name: "ซ่อนรหัสผ่าน" }).filter({ visible: true }).click();
+  await expect(pw).toHaveAttribute("type", "password");
+
+  await expect(page.getByText("หรือ", { exact: true }).filter({ visible: true })).toBeVisible();
+  await page.getByRole("button", { name: "เข้าสู่ระบบด้วย Google" }).filter({ visible: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "ยังไม่เปิดให้ใช้งาน" })).toBeVisible();
+  await expect(page).toHaveURL(/\/login$/);
+
+  await expect(page.getByText("ยังไม่มีบัญชี?").filter({ visible: true })).toBeVisible();
+  await page.getByRole("link", { name: "สมัครสมาชิก", exact: true }).filter({ visible: true }).last().click();
+  await expect(page).toHaveURL(/\/register$/);
+});
+
+test("register page: description, two eye toggles, Google placeholder, link back to login", async ({ page }) => {
+  await page.goto("/register");
+  await expect(page.getByText("สมัครสมาชิกเพื่อเริ่มสะสมแต้มจากกิจกรรมรักษ์โลก").filter({ visible: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "แสดงรหัสผ่าน" }).filter({ visible: true })).toHaveCount(2);
+  await expect(page.getByText("หรือ", { exact: true }).filter({ visible: true })).toBeVisible();
+  await page.getByRole("button", { name: "สมัครสมาชิกด้วย Google" }).filter({ visible: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "ยังไม่เปิดให้ใช้งาน" })).toBeVisible();
+  await expect(page).toHaveURL(/\/register$/);
+
+  await expect(page.getByText("มีบัญชีแล้ว?").filter({ visible: true })).toBeVisible();
+  await page.locator("main").getByRole("link", { name: "เข้าสู่ระบบ", exact: true }).filter({ visible: true }).click();
+  await expect(page).toHaveURL(/\/login$/);
+});

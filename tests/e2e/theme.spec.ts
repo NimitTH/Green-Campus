@@ -343,7 +343,7 @@ test("reduced motion: primary button does not lift or press", async ({ page }, t
   test.skip(testInfo.project.name !== "chromium", "hover needs a pointer");
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/login");
-  const submit = page.getByRole("button", { name: "เข้าสู่ระบบ" });
+  const submit = page.getByRole("button", { name: "เข้าสู่ระบบ", exact: true });
   await expect(submit).toBeVisible();
   const before = (await submit.boundingBox())!;
   await submit.hover();
