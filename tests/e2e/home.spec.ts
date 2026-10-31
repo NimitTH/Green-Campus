@@ -1,5 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
-import { createActivityRow, deleteActivitiesByPrefix, setActivityCover, withLongTitleOpenActivity } from "./helpers/supabase-admin";
+import { signIn } from "./helpers/auth";
+import {
+  createActivityRow,
+  createConfirmedUser,
+  deleteActivitiesByPrefix,
+  deleteUsers,
+  setActivityCover,
+  withLongTitleOpenActivity,
+  type TestUser,
+} from "./helpers/supabase-admin";
 
 // Redesign 2 Task 3: shared SiteHeader / SiteFooter on the public and auth shells.
 
@@ -117,6 +126,34 @@ test("anon home shows the cover on a seeded activity's card", async ({ page }, t
     await expect(img).toHaveAttribute("src", new RegExp(`/activity-images/${id}/`));
   } finally {
     await deleteActivitiesByPrefix(title);
+  }
+});
+
+// Review fix I1 (DESIGN-3 6.1): a staff save goes through saveActivity, which expires the home feed tag, so "/" shows
+// the saved change at once instead of after cacheLife("minutes"). The cache is primed first, then the save, then a
+// single load of "/" must already show the new title and the cover (no polling).
+test("a staff save shows on the cached home page at once", async ({ page }, testInfo) => {
+  const stamp = `${testInfo.project.name}-${Date.now()}`;
+  const before = `กิจกรรมแคชก่อนบันทึก ${stamp}`;
+  const after = `กิจกรรมแคชหลังบันทึก ${stamp}`;
+  let teacher: TestUser | undefined;
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-homecache-${stamp}`);
+    // ends soonest of all open activities, so it is in the home feed's three cards
+    const id = await createActivityRow(before, { ends_at: new Date(Date.now() + 20 * 60_000).toISOString() });
+    await setActivityCover(id);
+    await page.goto("/"); // primes the cached feed (it may or may not hold the activity yet)
+    await signIn(page, teacher, `/staff/activities/${id}/edit`);
+    await page.getByLabel("ชื่อกิจกรรม", { exact: true }).fill(after);
+    await page.getByRole("button", { name: "บันทึกกิจกรรม" }).click();
+    await expect(page).toHaveURL((url) => url.pathname === "/staff/activities");
+    await page.goto("/");
+    const card = page.getByRole("link", { name: after });
+    await expect(card).toHaveCount(1, { timeout: 10_000 });
+    await expect(card.locator("img")).toHaveAttribute("src", new RegExp(`/activity-images/${id}/`));
+  } finally {
+    await deleteActivitiesByPrefix("กิจกรรมแคช");
+    await deleteUsers([teacher]);
   }
 });
 

@@ -1,11 +1,12 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { headers } from "next/headers";
 import { validateEmailChange, validatePasswordChange } from "@/lib/auth/account-validation";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { emailRedirectUrl, resolveSiteOrigin } from "@/lib/auth/email-links";
 import { authErrorMessage } from "@/lib/auth/messages";
+import { ARTICLES_TAG } from "@/lib/articles/public";
 import { verifyPassword } from "@/lib/auth/verify-password";
 import { GENERIC_ERROR_TH } from "@/lib/errors";
 import { AVATAR_BUCKET, isOwnAvatarPath } from "@/lib/profile/avatar";
@@ -42,6 +43,7 @@ export async function updateProfile(input: ProfileInput): Promise<ProfileResult>
   revalidatePath("/staff");
   revalidatePath("/leaderboard");
   revalidatePath("/dashboard");
+  updateTag(ARTICLES_TAG); // a renamed staff member keeps the old name on cached article bylines
   return { ok: true };
 }
 

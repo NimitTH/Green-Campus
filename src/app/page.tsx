@@ -1,4 +1,4 @@
-import { cacheLife } from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 import { Suspense } from "react";
 import { ActivitiesSection } from "@/app/_components/home/activities-section";
 import { ArticlesSection } from "@/app/_components/home/articles-section";
@@ -12,7 +12,7 @@ import { RewardsSection } from "@/app/_components/home/rewards-section";
 import { SiteFooter } from "@/app/_components/site-footer";
 import { SiteHeader } from "@/app/_components/site-header";
 import { listPublishedArticles, type PublicArticleSummary } from "@/lib/articles/public";
-import { getActiveRewards, getOpenActivities, type PublicActivity, type PublicReward } from "@/lib/home/public-feed";
+import { HOME_ACTIVITIES_TAG, getActiveRewards, getOpenActivities, type PublicActivity, type PublicReward } from "@/lib/home/public-feed";
 import { formatCount, formatKg, formatKgFromGrams, type PublicStats } from "@/lib/leaderboard/format";
 import { getPublicStats } from "@/lib/leaderboard/public-stats";
 
@@ -94,6 +94,7 @@ async function PublicTotals() {
 // minutes, or seconds after a failed load so the fallback does not stick.
 async function OpenActivities() {
   "use cache";
+  cacheTag(HOME_ACTIVITIES_TAG); // also set by getOpenActivities; repeated so the page entry is expired with the feed
   let activities: PublicActivity[] | null;
   try {
     activities = await getOpenActivities();

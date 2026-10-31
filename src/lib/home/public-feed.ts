@@ -1,4 +1,4 @@
-import { cacheLife } from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 import { ACTIVITY_BUCKET } from "@/lib/activities/cover";
 import { createAnonClient } from "@/lib/supabase/anon";
 
@@ -6,6 +6,9 @@ export type PublicActivity = { id: string; title: string; type: string; startsAt
 export type PublicReward = { id: string; name: string; pointsCost: number; stock: number; imageUrl: string | null };
 
 const REWARD_BUCKET = "reward-images";
+
+/** Cache tag of the home activity feed; saveActivity / deleteActivity expire it (DESIGN-3 6.1: covers are deleted on replace). */
+export const HOME_ACTIVITIES_TAG = "home-activities";
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
 
@@ -41,11 +44,12 @@ export function parseActiveRewards(data: unknown, toUrl: (path: string) => strin
 
 /**
  * Open, not-yet-ended activities with their covers for the anonymous home page (home_open_activities(), 0030).
- * Cached for a few minutes with no cache tag (an activity edit shows here within cacheLife("minutes")); null on
+ * Cached for a few minutes and tagged HOME_ACTIVITIES_TAG (an activity write expires it at once); null on
  * failure (cached only seconds), never a throw inside a cache scope (see public-stats.ts).
  */
 export async function getOpenActivities(): Promise<PublicActivity[] | null> {
   "use cache";
+  cacheTag(HOME_ACTIVITIES_TAG);
   const supabase = createAnonClient();
   const { data, error } = await supabase.rpc("home_open_activities", { p_limit: 3 });
   const rows = error

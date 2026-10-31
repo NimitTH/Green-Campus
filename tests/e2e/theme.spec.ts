@@ -30,8 +30,19 @@ async function noSideScroll(page: Page): Promise<void> {
   expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
 }
 
+// The toggle lives in the streamed header, so it can be on screen before React has hydrated it, and a click then does
+// nothing (flaky on mobile-chrome). Wait for hydration (React props on the node), then click until data-theme changes.
 async function flipTheme(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "ธีม" }).click();
+  const button = page.getByRole("button", { name: "ธีม" });
+  const html = page.locator("html");
+  await expect
+    .poll(() => button.evaluate((el) => Object.keys(el).some((k) => k.startsWith("__reactProps$"))))
+    .toBe(true);
+  const before = await html.getAttribute("data-theme");
+  await expect(async () => {
+    if ((await html.getAttribute("data-theme")) === before) await button.click();
+    expect(await html.getAttribute("data-theme")).not.toBe(before);
+  }).toPass({ timeout: 15_000, intervals: [250, 500, 1_000] });
 }
 
 async function bodyBackground(page: Page): Promise<string> {

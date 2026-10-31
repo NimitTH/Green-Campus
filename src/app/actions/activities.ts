@@ -1,10 +1,11 @@
 "use server";
 
-import { refresh, revalidatePath } from "next/cache";
+import { refresh, revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { ACTIVITY_BUCKET, isActivityCoverPath } from "@/lib/activities/cover";
 import { getCurrentUser, requireStaff } from "@/lib/auth/dal";
 import { isStaffRole } from "@/lib/auth/routes";
+import { HOME_ACTIVITIES_TAG } from "@/lib/home/public-feed";
 import {
   activityInputFromForm,
   isActivityInputShape,
@@ -30,8 +31,10 @@ async function removeCover(supabase: Supabase, path: string | null | undefined) 
   if (path) await supabase.storage.from(ACTIVITY_BUCKET).remove([path]).catch(() => undefined);
 }
 
-// The home feed (lib/home/public-feed.ts) has no cache tag: it shows activity changes within cacheLife("minutes").
+// The home feed (lib/home/public-feed.ts) is cached with HOME_ACTIVITIES_TAG: expire it so "/" never serves a
+// deleted cover URL or a stale card until cacheLife("minutes") runs out.
 function revalidateActivities(id?: string) {
+  updateTag(HOME_ACTIVITIES_TAG);
   revalidatePath("/staff/activities");
   revalidatePath("/activities");
   if (id) revalidatePath(`/activities/${id}`);
