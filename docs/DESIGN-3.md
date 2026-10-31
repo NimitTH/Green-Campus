@@ -1,6 +1,6 @@
 # Green Campus: รอบปรับที่สาม (บัญชี, navbar ทุกหน้า, ค้นหา/แบ่งหน้า บทความและกิจกรรม)
 
-> สถานะ: spec รอเจ้าของตรวจ · branch `redesign-3` (แตกจาก `redesign-2` ที่ 6c632d5) · brainstorming 29 ต.ค. 2026
+> สถานะ: ใช้งานแล้ว บน branch redesign-3 · branch `redesign-3` (แตกจาก `redesign-2` ที่ 6c632d5) · brainstorming 29 ต.ค. 2026
 > ต่อยอดจาก `docs/DESIGN-2.md` (token, component, หน้าแรก) ทุกอย่างที่ไม่ได้เขียนในไฟล์นี้ให้ยึด DESIGN-2
 > mockup ที่เจ้าของผ่านแล้ว: `.superpowers/brainstorm/476-1793207552/content/shell-and-lists-v3.html` (A–H, gitignored)
 
@@ -35,9 +35,9 @@
 | หน้าสมัครสมาชิก | คำอธิบาย "สมัครสมาชิกเพื่อเริ่มสะสมแต้มจากกิจกรรมรักษ์โลก" · "หรือ" · "สมัครสมาชิกด้วย Google" · "มีบัญชีแล้ว?" + "เข้าสู่ระบบ" |
 | ปุ่ม Google (ทั้งสองหน้า) | ข้อความหลังกด "ยังไม่เปิดให้ใช้งาน" |
 | ช่องรหัสผ่าน | aria ปุ่มลูกตา "แสดงรหัสผ่าน" / "ซ่อนรหัสผ่าน" |
-| โปรไฟล์ | หัวข้อ "รูปโปรไฟล์", "อีเมล", "รหัสผ่าน" · ปุ่ม "อัปโหลดรูป", "ลบรูป", "เปลี่ยนอีเมล", "เปลี่ยนรหัสผ่าน" · ป้าย "อีเมลปัจจุบัน", "อีเมลใหม่", "รหัสผ่านปัจจุบัน", "รหัสผ่านใหม่" · ลิงก์ "ลืมรหัสผ่าน?" (เดิม) · ข้อความ §4.3/§4.4 · section ธีมเอาออก |
+| โปรไฟล์ | หัวข้อ "รูปโปรไฟล์", "อีเมล", "รหัสผ่าน" · ปุ่ม "อัปโหลดรูป", "ลบรูป", "เปลี่ยนอีเมล", "เปลี่ยนรหัสผ่าน" · ป้าย "อีเมลปัจจุบัน", "อีเมลใหม่", "รหัสผ่านปัจจุบัน", "รหัสผ่านใหม่" · ลิงก์ "ลืมรหัสผ่าน?" (เดิม) · ข้อความ §4.3/§4.4 · ข้อความแจ้งหลังขอเปลี่ยนอีเมล (`?email=pending`, Ruling T3a) "ยืนยันอีเมลหนึ่งฉบับแล้ว กรุณากดลิงก์ยืนยันในอีเมลอีกฉบับเพื่อเปลี่ยนอีเมลให้เสร็จ" · "เปลี่ยนอีเมลแล้ว" / "ลิงก์ยืนยันใช้ไม่ได้หรือหมดอายุ ลองขอใหม่อีกครั้ง" (`?email=changed` / `?email=link-error`) · section ธีมเอาออก |
 | dashboard | คำทักทาย §4.5 |
-| รายการ | placeholder "ค้นหากิจกรรม" / "ค้นหาบทความ" · ป้าย "เรียง", ตัวเลือก "ใหม่ → เก่า", "เก่า → ใหม่" · aria "การ์ด", "รายการ", "หน้าก่อน", "หน้าถัดไป", "หน้า N" · "ไม่พบกิจกรรมที่ตรงกับคำค้น" / "ไม่พบบทความที่ตรงกับคำค้น" · "ล้างการค้นหา" · ป้าย "เข้าร่วมแล้ว" |
+| รายการ | placeholder "ค้นหากิจกรรม" / "ค้นหาบทความ" · ป้าย "เรียง", ตัวเลือก "ใหม่ → เก่า", "เก่า → ใหม่" · aria "การ์ด", "รายการ", "แบ่งหน้า" (aria-label ของ nav pagination), "หน้าก่อน", "หน้าถัดไป", "หน้า N" · "ไม่พบกิจกรรมที่ตรงกับคำค้น" / "ไม่พบบทความที่ตรงกับคำค้น" · "ล้างการค้นหา" · ป้าย "เข้าร่วมแล้ว" |
 | รายละเอียด | "โดย {ชื่อ}" (ไม่มีชื่อ → "โดย -") · ปุ่ม "คัดลอกลิงก์" → "คัดลอกแล้ว" · ← "กิจกรรมทั้งหมด" |
 | ฟอร์ม staff กิจกรรม | ป้าย "ภาพปก", "รายละเอียดกิจกรรม" (ใช้คำปุ่มอัปโหลด/ลบภาพเดียวกับฟอร์มบทความ) |
 
@@ -49,6 +49,7 @@
 
 - **A** navbar ยังไม่เข้าสู่ระบบ: ใบไม้ + "Green Campus" (ลิงก์ `/`) · ช่องว่าง · ไอคอนธีม · ลิงก์ข้อความ "เข้าสู่ระบบ" · ปุ่ม "สมัครสมาชิก" ขวาสุด
 - **B** navbar เข้าสู่ระบบแล้ว: โลโก้ · เมนูกลาง (รายการปัจจุบันพื้น `--soft` ตัวอักษร accent) · กระดิ่ง · ไอคอนธีม · รูปโปรไฟล์ 36px → dropdown กว้าง 260px: รูป 48px + ชื่อ + อีเมล, เส้นประ, "โปรไฟล์", "ออกจากระบบ" (สีแดงเดิมของปุ่มออกจากระบบ)
+  - **หมายเหตุตอนปิดงาน (Ruling T4a):** คำว่า "สีแดง" ใน §2 B ผิด `SignOutButton` ใช้ซ้ำโดยไม่แก้ และ token `bg-soft` / `--soft` ไม่มีอยู่จริง จึงใช้ `accent-soft` แทนทั้งที่เมนูกลาง, ไอคอน ghost และ dropdown (ดู §3.5 ด้วย)
 - ไอคอนธีมและกระดิ่ง: ไม่มีกรอบ ไม่มีเงา วงกลม 44×44 hover/focus-visible พื้น `--soft` ไอคอนสี accent
 - **C/C2** หน้ารายการ: หัวข้อ · แถบเครื่องมือ (ช่องค้นหายืดเต็ม, select เรียง, ปุ่มสลับ การ์ด/รายการ) · การ์ด 3 คอลัมน์ (md+) 2 (sm) 1 (มือถือ) มีภาพปก, ป้ายประเภท, หัวข้อ, รายละเอียดสั้น 2 บรรทัด (`line-clamp-2`, ไม่มีก็ไม่แสดง), "โดย ชื่อ · ..." · รายการ: ภาพย่อ 96×64 + ข้อความเดียวกัน · pagination ทั้งสองมุมมอง
 - **D** หน้ารายละเอียด: ลิงก์กลับ · ภาพปก (สูงสุด 320px, `object-cover`, มุมโค้ง) · หัวข้อ · แถว "โดย ชื่อ · วันที่" ซ้าย / "คัดลอกลิงก์" ขวา (มือถือขึ้นบรรทัดใหม่ได้) · ข้อมูล · เนื้อหา
@@ -96,7 +97,7 @@
 
 ### 3.5 ไอคอนแบบ ghost
 
-- `ThemeToggle` และ `NotificationBell` (ไอคอน) ได้ class แบบ ghost: `rounded-full size-11 grid place-items-center hover:bg-soft hover:text-accent focus-visible:bg-soft` ไม่มี border/shadow · `aria-label="ธีม"` และ `aria-pressed` ของปุ่มธีมคงเดิม
+- `ThemeToggle` และ `NotificationBell` (ไอคอน) ได้ class แบบ ghost: `rounded-full size-11 grid place-items-center hover:bg-soft hover:text-accent focus-visible:bg-soft` ไม่มี border/shadow (ใช้ `hover:bg-accent-soft` แทน `hover:bg-soft` เพราะไม่มี token `bg-soft`, Ruling T4a) · `aria-label="ธีม"` และ `aria-pressed` ของปุ่มธีมคงเดิม
 - `/staff` ใช้ `ThemeToggle` ตัวเดียวกัน จึงได้แบบ ghost ด้วย (ยอมรับได้ ไม่ใช่การเปลี่ยนโครง)
 
 ---
@@ -126,6 +127,7 @@
   4. สำเร็จ → "ส่งลิงก์ยืนยันแล้ว กรุณากดยืนยันในอีเมลทั้งเก่าและใหม่ อีเมลจะเปลี่ยนเมื่อยืนยันครบ"
 - `email-links.ts`: เพิ่ม flow `email` → path `/auth/callback/email`, success `/profile?email=changed`, failure `/profile?email=link-error` · route ใหม่ `src/app/auth/callback/email/route.ts` ใช้ `handleAuthCallback` · ครู/admin ที่ไป `/profile` ถูกส่งต่อ `/staff/profile` อยู่แล้ว ต้องส่ง query ต่อไปด้วย
 - หน้าโปรไฟล์อ่าน `?email=` แล้วแสดงข้อความ "เปลี่ยนอีเมลแล้ว" / "ลิงก์ยืนยันใช้ไม่ได้หรือหมดอายุ ลองขอใหม่อีกครั้ง"
+- **หมายเหตุตอนปิดงาน:** GoTrue ในเครื่องส่งลิงก์ยืนยันแรกของการเปลี่ยนอีเมลสองฝั่งกลับมาพร้อม `#message=` ใน URL fragment · `EmailNotice` อ่าน fragment ฝั่ง client แล้วแสดงข้อความ pending · ส่วนรูป query `?message=` จะ redirect ฝั่ง server ไป `?email=pending`
 - `supabase/config.toml` เพิ่ม `/auth/callback/email` ใน `additional_redirect_urls`
 
 ### 4.4 เปลี่ยนรหัสผ่าน
@@ -161,6 +163,7 @@
 - query params: `q` (≤ 100 ตัว, trim), `sort` = `new`|`old` (default `new`), `view` = `card`|`list` (default `card`), `page` ≥ 1 (default 1) · `parseListParams(searchParams)` คืนค่าที่ถูกต้องเสมอ ค่าผิดรูป → default
 - `listPublishedArticlesPage({ q, sort, page })` (`'use cache'`, `cacheTag(ARTICLES_TAG)`, anon client): `.eq("published", true)`, ค้นหา `title` หรือ `body` ilike `%q%` (escape `\ % _` และใส่ค่าใน `"..."` ของ `.or()` โดย escape `"` และ `\`), order `created_at` + `id` ตาม sort, `.range()` 12 ต่อหน้า, `count: "exact"` · คืน `{ items, total }` หรือ `null` (cacheLife "seconds") · ถ้า `page` เกินหน้าสุดท้าย หน้า (นอก cache) เรียกซ้ำด้วยหน้าสุดท้าย · total = 0 → สถานะว่าง
 - หน้า: หัวข้ออยู่ใน static shell · `ListToolbar` เป็น client ที่อ่านค่าเริ่มด้วย `useSearchParams()` อยู่ใน `<Suspense>` ของตัวเอง (fallback = toolbar ค่าว่าง ขนาดเท่าเดิม) · รายการ + pagination อยู่ใน `<Suspense>` อีกอันที่ await `searchParams`
+- **หมายเหตุตอนปิดงาน (Ruling T7a):** อักขระ `*` ในคำค้นจับแบบตรงตัวไม่ได้ PostgREST แปลง `*` เป็น `%` ในค่า like และไม่มีทาง escape จึงแปลง `*` เป็น `_` (wildcard หนึ่งตัวอักษร) · ไม่ทำให้ error
 - การ์ด/แถว: ภาพปก (ไม่มี → พื้นผิวกระดาษ kraft + ใบไม้) · หัวข้อ · excerpt เดิม · "โดย ชื่อ · วันที่"
 - ชื่อผู้เขียน: เก็บ `author_id` ของหน้า แล้ว `staff_names()` ครั้งเดียวต่อหน้า (ใน cache เดียวกัน) · ไม่พบ → "-"
 - section บทความในหน้าแรกไม่เปลี่ยน
@@ -231,6 +234,7 @@
 
 ### 7.4 `0030_home_feed_cover.sql`
 
+- **หมายเหตุตอนปิดงาน (Ruling T1a):** ฟังก์ชันของ 0026 จริงๆ ชื่อ `public_open_activities` และ test เดิมตรึงคอลัมน์ไว้ 0030 จึงเพิ่มฟังก์ชันใหม่ `home_open_activities(p_limit)` ที่มี `cover_path` ส่วนฟังก์ชันเดิมไม่แตะ (ข้อความข้างล่างอ่านตามนี้)
 - `home_open_activities(p_limit)`: drop + create คืนคอลัมน์เดิม + `cover_path text` ท้ายสุด · เงื่อนไข/clamp/grant เดิม (DESIGN-2 §7.1)
 
 ### 7.5 pgTAP (ไฟล์ใหม่)
@@ -274,7 +278,32 @@
 
 ## 10. ผลตรวจ build ปิดงาน
 
-(กรอกตอนจบงาน)
+ปิดงาน 31 ต.ค. 2026 (Task 9) · gate เต็มหลัง `npx supabase db reset` (e2e รันหลัง reset อีกรอบทันที)
+
+| ขั้น | ผล |
+|---|---|
+| `npx supabase test db` (pgTAP) | 1080 ผ่าน (27 ไฟล์) |
+| `npm test` (vitest) | 757 ผ่าน (58 ไฟล์) |
+| `npm run test:e2e` | 264 ผ่าน, ข้าม 14, ไม่ผ่าน 0 |
+| `npm run test:seed` | 12 ผ่าน |
+| `npm run test:e2e:prod` | 39 ผ่าน, ข้าม 1 |
+| `npm run lint` | 0 error (111 warning เดิม) |
+| `npx tsc -p scripts/tsconfig.json`, `npm run build` | ผ่าน |
+| `node tests/redesign/check-scope.mjs` | `scope OK` |
+
+บรรทัด build (เปลี่ยนจาก ○ เป็น ◐ ตาม §1.2):
+
+```
+┌ ◐ /                                      1m      1h
+├ ◐ /activities
+├ ◐ /articles
+```
+
+`use-cache-count` สุดท้าย = **9** (ฐานเดิมของ redesign-2 คือ 8): เพิ่มหนึ่งตัวที่ `listPublishedArticlesPage` (รายการบทความที่แบ่งหน้า/ค้นหาได้, §5.1) · baseline ใน check-scope บันทึกเป็น 9
+
+**ปัญหาที่ทราบ (known issues):** `tests/e2e/theme.spec.ts` "toggle still flips when localStorage throws" ไม่นิ่งบน mobile-chrome และไม่นิ่งอยู่ก่อนแล้วบน base commit (Ruling T8b) · ใน e2e รอบเต็มของ Task 9 ผ่าน ไม่เจอความล้มเหลว แต่ยังถือว่าเป็นปัญหาที่ทราบ ไม่ได้แก้
+
+**Impeccable audit/polish (Task 9):** ตรวจ `/`, `/articles`, `/articles/[slug]`, `/login`, `/register`, `/dashboard`, `/activities`, `/activities/[id]`, `/leaderboard`, `/profile`, `/staff/activities/new` · contrast ทั้งสองธีมผ่าน AA (muted 5.4–8.6:1, accent 5.7–9.9:1, on-accent 6.8–9.9:1) · focus ring ใช้ `:focus-visible` กลางของ globals.css · reduced motion มี override กลาง · id ไม่ซ้ำ (toolbar ใช้ `useId`) · เป้ากดทุกตัวใน spec ≥ 44px ยกเว้นลิงก์โลโก้ "Green Campus" เหนือการ์ดของหน้า auth ซึ่งแก้เป็น `min-h-11` (`src/app/(auth)/layout.tsx`)
 
 ## 11. สิ่งที่เจ้าของต้องทำบน Supabase Cloud
 
