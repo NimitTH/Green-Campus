@@ -16,6 +16,7 @@ export const LIMITS = {
   unitCarbonKgMax: 10_000,
   wasteMaxKg: 1000,
   treesMax: 10_000,
+  detailsMax: 20_000,
 } as const;
 
 export type ActivityInput = {
@@ -33,6 +34,8 @@ export type ActivityInput = {
   unitCarbonKg: string;
   /** waste: kg per submission; trees: trees per submission; fixed: ignored. */
   maxPerSubmission: string;
+  /** Long-form details (DESIGN-3 6.1): plain text, a blank line starts a new paragraph. */
+  details: string;
 };
 
 /** Columns written to public.activities. */
@@ -49,6 +52,7 @@ export type ActivityRecord = {
   unit_points: number;
   unit_carbon_kg: number | null;
   max_per_submission: number | null;
+  details: string | null;
 };
 
 export type ActivityFieldErrors = Partial<Record<keyof ActivityInput, string>>;
@@ -80,14 +84,18 @@ const STRING_FIELDS = [
   "unitPoints",
   "unitCarbonKg",
   "maxPerSubmission",
+  "details",
 ] as const;
 
 /**
  * Runtime shape check for saveActivity input (Server Actions can be POSTed directly with
  * any payload): a plain object, string fields are strings, isOffsite is a boolean,
- * requiresCode is boolean/null/undefined, id is string/undefined.
+ * requiresCode is boolean/null/undefined, id is string/undefined, coverPath is string/null/undefined and
+ * removeCover is boolean/undefined.
  */
-export function isActivityInputShape(value: unknown): value is ActivityInput & { id?: string } {
+export function isActivityInputShape(
+  value: unknown,
+): value is ActivityInput & { id?: string; coverPath?: string | null; removeCover?: boolean } {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   const proto = Object.getPrototypeOf(value);
   if (proto !== Object.prototype && proto !== null) return false;
@@ -96,6 +104,8 @@ export function isActivityInputShape(value: unknown): value is ActivityInput & {
   if (typeof v.isOffsite !== "boolean") return false;
   if (v.requiresCode !== undefined && v.requiresCode !== null && typeof v.requiresCode !== "boolean") return false;
   if (v.id !== undefined && typeof v.id !== "string") return false;
+  if (v.coverPath !== undefined && v.coverPath !== null && typeof v.coverPath !== "string") return false;
+  if (v.removeCover !== undefined && typeof v.removeCover !== "boolean") return false;
   return true;
 }
 
@@ -130,6 +140,11 @@ export function validateActivity(input: ActivityInput): ActivityValidation {
   const location = optionalText(input.location);
   if (location && location.length > LIMITS.locationMax) {
     errors.location = `สถานที่ยาวได้ไม่เกิน ${LIMITS.locationMax} ตัวอักษร`;
+  }
+
+  const details = optionalText(input.details);
+  if (details && details.length > LIMITS.detailsMax) {
+    errors.details = `รายละเอียดกิจกรรมยาวได้ไม่เกิน ${LIMITS.detailsMax.toLocaleString("th-TH")} ตัวอักษร`;
   }
 
   const startsAt = bangkokLocalToUtcIso(input.startsAt.trim());
@@ -203,6 +218,7 @@ export function validateActivity(input: ActivityInput): ActivityValidation {
       unit_points: unitPoints,
       unit_carbon_kg: unitCarbonKg,
       max_per_submission: maxPerSubmission,
+      details,
     },
   };
 }
@@ -221,6 +237,7 @@ export function activityToInput(row: {
   unit_points: number;
   unit_carbon_kg: number | string | null;
   max_per_submission: number | null;
+  details: string | null;
 }): ActivityInput {
   const max = row.max_per_submission;
   return {
@@ -236,5 +253,30 @@ export function activityToInput(row: {
     unitPoints: String(row.unit_points),
     unitCarbonKg: row.unit_carbon_kg === null ? "" : String(Number(row.unit_carbon_kg)),
     maxPerSubmission: max === null ? "" : row.type === "waste" ? String(max / 1000) : String(max),
+    details: row.details ?? "",
+  };
+}
+
+function formText(formData: FormData, key: string): string {
+  const value = formData.get(key);
+  return typeof value === "string" ? value : "";
+}
+
+/** The staff form's FormData -> ActivityInput (shared by the server action and the form's cover flow). */
+export function activityInputFromForm(formData: FormData): ActivityInput {
+  return {
+    title: formText(formData, "title"),
+    description: formText(formData, "description"),
+    location: formText(formData, "location"),
+    isOffsite: formData.get("isOffsite") === "on",
+    startsAt: formText(formData, "startsAt"),
+    endsAt: formText(formData, "endsAt"),
+    status: formText(formData, "status"),
+    type: formText(formData, "type"),
+    requiresCode: formData.get("requiresCode") === "on",
+    unitPoints: formText(formData, "unitPoints"),
+    unitCarbonKg: formText(formData, "unitCarbonKg"),
+    maxPerSubmission: formText(formData, "maxPerSubmission"),
+    details: formText(formData, "details"),
   };
 }

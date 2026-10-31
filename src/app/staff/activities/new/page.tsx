@@ -21,6 +21,7 @@ const EMPTY: ActivityInput = {
   unitPoints: "",
   unitCarbonKg: "",
   maxPerSubmission: "",
+  details: "",
 };
 
 export default function NewActivityPage() {

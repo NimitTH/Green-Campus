@@ -3,13 +3,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Badge } from "@/app/_components/activity-ui";
-import { ButtonLink, Card } from "@/components/ui";
+import { ButtonLink, Card, CopyLinkButton } from "@/components/ui";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { requireUser } from "@/lib/auth/dal";
+import { splitParagraphs } from "@/lib/articles/format";
+import { activityCoverUrl } from "@/lib/activities/cover";
 import { typeLabelTh } from "@/lib/activities/labels";
 import { getActivity, hasActiveSubmission, hasJoined, type ActivityRow } from "@/lib/activities/queries";
 import { inSubmitWindow, joinState, type JoinState } from "@/lib/activities/status";
 import { formatBangkok } from "@/lib/datetime";
+import { getStaffNames } from "@/lib/staff-names";
 import { isUuid } from "@/lib/uuid";
 import { JoinButton } from "./join-button";
 
@@ -59,11 +62,26 @@ async function ActivityDetail({ params }: { params: Promise<{ id: string }> }) {
     inSubmitWindow({ status: activity.status, startsAt: activity.starts_at, endsAt: activity.ends_at });
   const alreadySubmitted =
     canSubmit && activity.type === "fixed" && (await hasActiveSubmission(activity.id, user.id));
+  const names = activity.created_by ? await getStaffNames([activity.created_by]) : new Map<string, string>();
+  const creatorName = (activity.created_by && names.get(activity.created_by)) || null;
+  const coverUrl = activityCoverUrl(activity.cover_path);
+  const details = activity.details ? splitParagraphs(activity.details) : [];
 
+  // DESIGN-3 2 D / 6.3: cover, title, "โดย ชื่อ · วันที่สร้าง" with the copy-link button, the facts, then the details.
   return (
     <article>
+      {coverUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- public Supabase Storage URL, already resized in the browser
+        <img src={coverUrl} alt="" className="mb-6 max-h-80 w-full rounded-card object-cover" />
+      ) : null}
       <h1 className="font-display text-[clamp(1.75rem,2vw+1rem,2.25rem)] font-semibold leading-tight tracking-[-0.01em] text-ink break-words">{activity.title}</h1>
-      <div className="mt-2 flex flex-wrap gap-2">
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <p className="text-sm text-muted">
+          โดย {creatorName ?? "-"} · {formatBangkok(activity.created_at)}
+        </p>
+        <CopyLinkButton />
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
         <Badge>{typeLabelTh(activity.type)}</Badge>
         <Badge>{activity.is_offsite ? "นอกโรงเรียน" : "ในโรงเรียน"}</Badge>
         {activity.requires_code ? <Badge>ใช้รหัสจากจุดชั่งตอนส่งผล</Badge> : null}
@@ -94,6 +112,16 @@ async function ActivityDetail({ params }: { params: Promise<{ id: string }> }) {
 
       {activity.description ? (
         <p className="mt-4 whitespace-pre-line text-ink">{activity.description}</p>
+      ) : null}
+
+      {details.length > 0 ? (
+        <div className="mt-6 space-y-4 leading-relaxed text-ink">
+          {details.map((p, i) => (
+            <p key={i} className="break-words whitespace-pre-line">
+              {p}
+            </p>
+          ))}
+        </div>
       ) : null}
 
       <div className="mt-6">

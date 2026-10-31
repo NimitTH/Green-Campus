@@ -7,7 +7,7 @@ import { activityProgress } from "./activity-progress";
 import { LockLine } from "./lock-line";
 import { HOME_CONTAINER, HOME_SECTION, SectionHeading } from "./section-heading";
 
-/** 05: open activities pinned on a kraft board. Presentational; page.tsx fetches and passes `now`. */
+/** 05: open activities pinned on a kraft board, with their covers when set. Presentational; page.tsx fetches and passes `now`. */
 export function ActivitiesSection({ activities, now }: { activities: PublicActivity[] | null; now: Date }) {
   return (
     <section aria-labelledby="home-activities" className={`paper-kraft paper-torn [--torn-bg:var(--kraft-2)] ${HOME_SECTION}`}>
@@ -44,6 +44,10 @@ function ActivityCard({ activity: a, now }: { activity: PublicActivity; now: Dat
         aria-labelledby={titleId}
         className="flex h-full flex-col rounded-card p-5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
+        {a.coverUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- public Supabase Storage URL, already resized in the browser
+          <img src={a.coverUrl} alt="" loading="lazy" className="mb-3.5 aspect-[16/9] w-full rounded-input object-cover" />
+        ) : null}
         <span className="self-start rounded-full bg-accent-soft px-2.5 py-1 text-xs font-semibold text-ink">{typeLabelTh(a.type)}</span>
         <h3 id={titleId} className="mt-2.5 line-clamp-3 font-display text-lg leading-[1.4] font-semibold break-words text-ink">{a.title}</h3>
         <p className="mt-1.5 text-sm text-muted">

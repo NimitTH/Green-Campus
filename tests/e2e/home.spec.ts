@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { withLongTitleOpenActivity } from "./helpers/supabase-admin";
+import { createActivityRow, deleteActivitiesByPrefix, setActivityCover, withLongTitleOpenActivity } from "./helpers/supabase-admin";
 
 // Redesign 2 Task 3: shared SiteHeader / SiteFooter on the public and auth shells.
 
@@ -89,6 +89,36 @@ for (const scheme of ["light", "dark"] as const) {
     });
   });
 }
+
+// Redesign 3 Task 8 (DESIGN-3 6.4): the home activity cards show the cover. The feed is cached with
+// cacheLife("minutes") and no tag, so the seeded activity (ending soonest, so it sorts first) appears once the cached
+// entry is revalidated: reload until it does.
+test("anon home shows the cover on a seeded activity's card", async ({ page }, testInfo) => {
+  test.setTimeout(240_000);
+  const title = `กิจกรรมหน้าแรกมีปก ${testInfo.project.name}-${Date.now()}`;
+  const now = Date.now();
+  const id = await createActivityRow(title, { ends_at: new Date(now + 30 * 60_000).toISOString() });
+  try {
+    await setActivityCover(id);
+    const card = page.getByRole("link", { name: title });
+    await expect
+      .poll(
+        async () => {
+          await page.goto("/");
+          await expect(page.getByRole("heading", { level: 2, name: "กิจกรรมที่เปิดรับอยู่" })).toBeVisible();
+          return card.count();
+        },
+        { timeout: 200_000, intervals: [2_000, 5_000, 10_000] },
+      )
+      .toBe(1);
+    const img = card.locator("img");
+    await expect(img).toHaveCount(1);
+    await expect(img).toHaveAttribute("alt", "");
+    await expect(img).toHaveAttribute("src", new RegExp(`/activity-images/${id}/`));
+  } finally {
+    await deleteActivitiesByPrefix(title);
+  }
+});
 
 test("reduced motion stops decorations", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });

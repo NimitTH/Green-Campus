@@ -1,90 +1,80 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { ActivityDates, Badge } from "@/app/_components/activity-ui";
-import { Card, EmptyState, PageHeader } from "@/components/ui";
+import { ListToolbar, ListToolbarSkeleton } from "@/app/_components/list/list-toolbar";
+import { PAGE_SIZE, parseListParams } from "@/app/_components/list/list-params";
+import { Pagination } from "@/app/_components/list/pagination";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { EmptyState, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/dal";
-import { statusLabelTh, typeLabelTh } from "@/lib/activities/labels";
-import { listActivitiesForStudent, type ActivityRow } from "@/lib/activities/queries";
-import { isEnded } from "@/lib/activities/status";
+import { listActivitiesForStudentPage } from "@/lib/activities/queries";
+import { ActivityCard, ActivityRow } from "./_components/activity-card";
 
 export const metadata: Metadata = { title: "กิจกรรม | Green Campus" };
 
-export default function ActivitiesPage() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+// One list of the open activities plus the ones the student joined (DESIGN-3 6.2): search, sort, card/list view,
+// 12 per page. The heading is in the static shell; the toolbar (useSearchParams) and the results (the session and
+// searchParams) each stream in their own <Suspense>, as on /articles.
+export default function ActivitiesPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
+    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 md:px-6">
       <div className="mb-5">
         <PageHeader title="กิจกรรม" />
       </div>
+      <Suspense fallback={<ListToolbarSkeleton />}>
+        <ListToolbar base="/activities" placeholder="ค้นหากิจกรรม" />
+      </Suspense>
       <Suspense fallback={<PageSkeleton />}>
-        <ActivityLists />
+        <ActivityResults searchParams={searchParams} />
       </Suspense>
     </main>
   );
 }
 
-async function ActivityLists() {
+async function ActivityResults({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireUser("/activities");
-  const { open, joined } = await listActivitiesForStudent(user.id);
-
-  if (open.length === 0 && joined.length === 0) {
-    return (
-      <EmptyState>ยังไม่มีกิจกรรมที่เปิดรับ ลองกลับมาดูใหม่ภายหลัง</EmptyState>
-    );
+  let params = parseListParams(await searchParams);
+  let result = await listActivitiesForStudentPage(user.id, params);
+  if (result.total > 0) {
+    // past the end (e.g. ?page=999 or the list shrank): show the last page instead
+    const lastPage = Math.ceil(result.total / PAGE_SIZE);
+    if (params.page > lastPage) {
+      params = { ...params, page: lastPage };
+      result = await listActivitiesForStudentPage(user.id, params);
+    }
   }
-
+  if (result.total === 0 || result.items.length === 0) {
+    if (params.q) {
+      return (
+        <EmptyState>
+          <p>ไม่พบกิจกรรมที่ตรงกับคำค้น</p>
+          <Link href="/activities" className="mt-2 inline-flex min-h-11 items-center font-medium text-accent underline underline-offset-4">
+            ล้างการค้นหา
+          </Link>
+        </EmptyState>
+      );
+    }
+    return <EmptyState>ยังไม่มีกิจกรรมที่เปิดรับ ลองกลับมาดูใหม่ภายหลัง</EmptyState>;
+  }
+  const now = new Date();
   return (
-    <div className="space-y-8">
-      <section aria-labelledby="open-heading">
-        <h2 id="open-heading" className="mb-3 font-display text-xl font-semibold">
-          เปิดรับสมัคร
-        </h2>
-        {open.length === 0 ? (
-          <p className="text-sm text-muted">ตอนนี้ไม่มีกิจกรรมใหม่ที่เปิดรับ</p>
-        ) : (
-          <ActivityItems items={open} />
-        )}
-      </section>
-      <section aria-labelledby="joined-heading">
-        <h2 id="joined-heading" className="mb-3 font-display text-xl font-semibold">
-          กิจกรรมที่เข้าร่วมแล้ว
-        </h2>
-        {joined.length === 0 ? (
-          <p className="text-sm text-muted">ยังไม่ได้เข้าร่วมกิจกรรมใด</p>
-        ) : (
-          <ActivityItems items={joined} />
-        )}
-      </section>
-    </div>
-  );
-}
-
-function ActivityItems({ items }: { items: ActivityRow[] }) {
-  return (
-    <ul className="space-y-3">
-      {items.map((a) => {
-        const ended = isEnded(a.ends_at);
-        return (
-          <Card as="li" key={a.id} flush className="transition-colors hover:border-accent">
-            <Link href={`/activities/${a.id}`} className="block rounded-card p-4 md:p-5">
-              <span className="block font-semibold break-words">{a.title}</span>
-              <span className="mt-1 flex flex-wrap gap-2">
-                <Badge>{typeLabelTh(a.type)}</Badge>
-                {a.status !== "open" ? <Badge tone="amber">{statusLabelTh(a.status)}</Badge> : null}
-                {a.status === "open" && ended ? <Badge tone="amber">สิ้นสุดแล้ว</Badge> : null}
-                <Badge>{a.is_offsite ? "นอกโรงเรียน" : "ในโรงเรียน"}</Badge>
-              </span>
-              <span className="mt-2 block text-sm text-muted">
-                <ActivityDates startsAt={a.starts_at} endsAt={a.ends_at} />
-              </span>
-              {a.location ? (
-                <span className="mt-1 block text-sm text-muted">{a.location}</span>
-              ) : null}
-            </Link>
-          </Card>
-        );
-      })}
-    </ul>
+    <>
+      {params.view === "list" ? (
+        <ul className="divide-y divide-rule rounded-card border border-rule bg-surface shadow-sheet">
+          {result.items.map((a) => (
+            <ActivityRow key={a.id} activity={a} now={now} />
+          ))}
+        </ul>
+      ) : (
+        <ul className="grid gap-6 pt-2 sm:grid-cols-2 md:grid-cols-3">
+          {result.items.map((a) => (
+            <ActivityCard key={a.id} activity={a} now={now} />
+          ))}
+        </ul>
+      )}
+      <Pagination base="/activities" params={params} total={result.total} />
+    </>
   );
 }

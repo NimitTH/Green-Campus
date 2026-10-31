@@ -11,12 +11,13 @@ const html = (el: React.ReactElement) => renderToStaticMarkup(el);
 const NOW = new Date("2026-11-06T00:00+07:00");
 const LONG = "ก".repeat(200);
 
-const activity = (id: string, type: string, title = `กิจกรรม ${id}`): PublicActivity => ({
+const activity = (id: string, type: string, title = `กิจกรรม ${id}`, coverUrl: string | null = null): PublicActivity => ({
   id,
   title,
   type,
   startsAt: "2026-11-01T00:00+07:00",
   endsAt: "2026-11-11T00:00+07:00",
+  coverUrl,
 });
 const reward = (id: string, name = `รางวัล ${id}`): PublicReward => ({ id, name, pointsCost: 120, stock: 8, imageUrl: null });
 const article = (n: number, title = `บทความ ${n}`): PublicArticleSummary => ({
@@ -43,6 +44,16 @@ describe("ActivitiesSection", () => {
     expect(out).toContain('aria-labelledby="home-activity-x1-title"');
     expect(out).toContain('id="home-activity-x1-title"');
     expect(out).toContain('aria-valuenow="50"');
+  });
+  it("shows the cover (decorative, object-cover) only on cards that have one (DESIGN-3 6.4)", () => {
+    const out = html(
+      createElement(ActivitiesSection, {
+        activities: [activity("x1", "waste", "มีปก", "https://cdn.test/x1/c.jpg"), activity("x2", "trees")],
+        now: NOW,
+      }),
+    );
+    expect(out).toMatch(/<img src="https:\/\/cdn\.test\/x1\/c\.jpg" alt=""[^>]*class="[^"]*object-cover/);
+    expect(out.match(/<img /g)).toHaveLength(1);
   });
   it("empty list keeps the heading and says so", () => {
     const out = html(createElement(ActivitiesSection, { activities: [], now: NOW }));

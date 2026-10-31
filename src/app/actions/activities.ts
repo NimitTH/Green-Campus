@@ -2,9 +2,11 @@
 
 import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { ACTIVITY_BUCKET, isActivityCoverPath } from "@/lib/activities/cover";
 import { getCurrentUser, requireStaff } from "@/lib/auth/dal";
 import { isStaffRole } from "@/lib/auth/routes";
 import {
+  activityInputFromForm,
   isActivityInputShape,
   validateActivity,
   type ActivityFieldErrors,
@@ -19,13 +21,40 @@ import { isUuid } from "@/lib/uuid";
 
 const STAFF_ONLY = "เฉพาะครูและผู้ดูแลเท่านั้นที่จัดการกิจกรรมได้";
 const NOT_FOUND = "ไม่พบกิจกรรมนี้ อาจถูกลบไปแล้ว";
+const BAD_IMAGE = "รูปปกไม่ถูกต้อง กรุณาเลือกรูปใหม่แล้วบันทึกอีกครั้ง";
+
+type Supabase = Awaited<ReturnType<typeof createServerClient>>;
+
+async function removeCover(supabase: Supabase, path: string | null | undefined) {
+  // Best effort, as for article covers: a leftover object only costs storage.
+  if (path) await supabase.storage.from(ACTIVITY_BUCKET).remove([path]).catch(() => undefined);
+}
+
+// The home feed (lib/home/public-feed.ts) has no cache tag: it shows activity changes within cacheLife("minutes").
+function revalidateActivities(id?: string) {
+  revalidatePath("/staff/activities");
+  revalidatePath("/activities");
+  if (id) revalidatePath(`/activities/${id}`);
+}
+
+export type SaveActivityInput = ActivityInput & {
+  id?: string;
+  /** Update only: a new cover already uploaded to activity-images as {id}/{uuid}.jpg. */
+  coverPath?: string | null;
+  /** Update only: drop the current cover (ignored when coverPath is set). */
+  removeCover?: boolean;
+};
 
 export type SaveActivityResult =
   | { id: string; error?: undefined; fieldErrors?: undefined }
   | { id?: undefined; error?: string; fieldErrors?: ActivityFieldErrors };
 
-/** Create (no id) or update (id) an activity. Staff only. */
-export async function saveActivity(input: ActivityInput & { id?: string }): Promise<SaveActivityResult> {
+/**
+ * Create (no id) or update (id) an activity. Staff only. A cover needs the id, so a new activity with a cover is
+ * inserted first; the browser then uploads the cover under that id and saves again with coverPath (DESIGN-3 6.1).
+ * Replacing or removing a cover deletes the old object.
+ */
+export async function saveActivity(input: SaveActivityInput): Promise<SaveActivityResult> {
   // Reachable by direct POST with any payload: check the shape before touching it.
   if (!isActivityInputShape(input)) return { error: GENERIC_ERROR_TH };
   const user = await getCurrentUser();
@@ -34,12 +63,23 @@ export async function saveActivity(input: ActivityInput & { id?: string }): Prom
   const result = validateActivity(input);
   if (!result.ok) return { fieldErrors: result.fieldErrors };
 
+  const coverPath = input.coverPath ?? null;
+  if (coverPath !== null && (input.id === undefined || !isActivityCoverPath(coverPath, input.id))) {
+    return { error: BAD_IMAGE };
+  }
+
   const supabase = await createServerClient();
   if (input.id !== undefined) {
     if (!isUuid(input.id)) return { error: NOT_FOUND };
+    const cover = coverPath ? { cover_path: coverPath } : input.removeCover ? { cover_path: null } : {};
+    let previousCover: string | null = null;
+    if ("cover_path" in cover) {
+      const { data: before } = await supabase.from("activities").select("cover_path").eq("id", input.id).maybeSingle();
+      previousCover = (before as { cover_path: string | null } | null)?.cover_path ?? null;
+    }
     const { data, error } = await supabase
       .from("activities")
-      .update(result.value)
+      .update({ ...result.value, ...cover })
       .eq("id", input.id)
       .select("id")
       .maybeSingle();
@@ -50,8 +90,8 @@ export async function saveActivity(input: ActivityInput & { id?: string }): Prom
       return { error: errorMessageTh(code) };
     }
     if (!data) return { error: NOT_FOUND };
-    revalidatePath("/staff/activities");
-    revalidatePath("/activities");
+    if (previousCover && previousCover !== coverPath) await removeCover(supabase, previousCover);
+    revalidateActivities(input.id);
     return { id: (data as { id: string }).id };
   }
 
@@ -64,9 +104,9 @@ export async function saveActivity(input: ActivityInput & { id?: string }): Prom
     console.error("saveActivity insert failed", error?.code, error?.message);
     return { error: GENERIC_ERROR_TH };
   }
-  revalidatePath("/staff/activities");
-  revalidatePath("/activities");
-  return { id: (data as { id: string }).id };
+  const newId = (data as { id: string }).id;
+  revalidateActivities(newId);
+  return { id: newId };
 }
 
 export type ActivityFormState =
@@ -84,22 +124,10 @@ export async function saveActivityForm(
   formData: FormData,
 ): Promise<ActivityFormState> {
   const id = text(formData, "id").trim();
-  const values: ActivityInput = {
-    title: text(formData, "title"),
-    description: text(formData, "description"),
-    location: text(formData, "location"),
-    isOffsite: formData.get("isOffsite") === "on",
-    startsAt: text(formData, "startsAt"),
-    endsAt: text(formData, "endsAt"),
-    status: text(formData, "status"),
-    type: text(formData, "type"),
-    requiresCode: formData.get("requiresCode") === "on",
-    unitPoints: text(formData, "unitPoints"),
-    unitCarbonKg: text(formData, "unitCarbonKg"),
-    maxPerSubmission: text(formData, "maxPerSubmission"),
-  };
+  const values = activityInputFromForm(formData);
+  const removeCover = formData.get("removeCover") === "on";
 
-  const result = await saveActivity(id ? { ...values, id } : values);
+  const result = await saveActivity(id ? { ...values, id, removeCover } : values);
   if (result.id === undefined) {
     return { error: result.error, fieldErrors: result.fieldErrors, values };
   }
@@ -149,16 +177,16 @@ export async function deleteActivity(activityId: string): Promise<DeleteActivity
   if (!isUuid(activityId)) return { ok: false, error: NOT_FOUND };
 
   const supabase = await createServerClient();
-  const { data, error } = await supabase.from("activities").delete().eq("id", activityId).select("id");
+  const { data, error } = await supabase.from("activities").delete().eq("id", activityId).select("id, cover_path");
   if (error) {
     const code = errorCodeFromDb(error);
     if (!code) console.error("deleteActivity failed", error.code, error.message);
     return { ok: false, error: errorMessageTh(code) };
   }
   if (!data || data.length === 0) return { ok: false, error: NOT_FOUND };
+  await removeCover(supabase, (data[0] as { cover_path: string | null }).cover_path);
 
-  revalidatePath("/staff/activities");
-  revalidatePath("/activities");
+  revalidateActivities(activityId);
   return { ok: true };
 }
 

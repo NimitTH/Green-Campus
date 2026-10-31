@@ -1,16 +1,26 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useId, useState } from "react";
-import { saveActivityForm, type ActivityFormState } from "@/app/actions/activities";
+import { startTransition, useActionState, useId, useRef, useState } from "react";
+import { saveActivity, saveActivityForm, type ActivityFormState } from "@/app/actions/activities";
 import { Button, ButtonLink, Field, inputClass } from "@/components/ui";
+import { ACTIVITY_BUCKET } from "@/lib/activities/cover";
 import { typeLabelTh } from "@/lib/activities/labels";
 import {
   ACTIVITY_TYPES,
+  activityInputFromForm,
   defaultRequiresCode,
+  LIMITS,
   type ActivityFieldErrors,
   type ActivityInput,
 } from "@/lib/activities/validation";
+import { errorMessageTh, uploadErrorCode } from "@/lib/errors";
+import { ImageError, resizeToJpeg } from "@/lib/image";
+import { createBrowserClient } from "@/lib/supabase/browser";
+import { TimeoutError, withTimeout } from "@/lib/timeout";
+import { uniqueId } from "@/lib/unique-id";
+
+const REQUEST_TIMEOUT_MS = 60_000;
 
 function FieldError({ id, message }: { id: string; message?: string }) {
   return message ? (
@@ -57,7 +67,7 @@ function TextField({
   );
 }
 
-type ActivityFormProps = { initial: ActivityInput; id?: string; hasParticipants?: boolean };
+type ActivityFormProps = { initial: ActivityInput; id?: string; hasParticipants?: boolean; coverUrl?: string | null };
 
 /**
  * Create / edit form. Cache Components keep a visited route alive in a hidden <Activity>, and this form's
@@ -65,26 +75,100 @@ type ActivityFormProps = { initial: ActivityInput; id?: string; hasParticipants?
  * handler: a successful save ends in a server-side redirect, with no client callback. So the form is keyed
  * on useRouter().bfcacheId, which changes on every fresh push/replace visit (a new form each time) and
  * stays the same for back/forward (the draft comes back), per the Next docs (use-router, bfcacheId).
+ *
+ * Cover (DESIGN-3 6.1): the picture is shrunk in the browser and uploaded to activity-images as {id}/{uuid}.jpg,
+ * as in the article form. A new activity is inserted first (saveActivity) to get its id, then the cover is
+ * uploaded and saved as cover_path; when the upload fails, a retry updates that same activity instead of creating
+ * another. Without a new picture the form goes through saveActivityForm as before (server-side redirect).
  */
 export function ActivityForm(props: ActivityFormProps) {
   const { bfcacheId } = useRouter();
   return <ActivityFormFields key={bfcacheId} {...props} />;
 }
 
-function ActivityFormFields({
-  initial,
-  id,
-  hasParticipants = false,
-}: {
-  initial: ActivityInput;
-  id?: string;
-  hasParticipants?: boolean;
-}) {
+function ActivityFormFields({ initial, id, hasParticipants = false, coverUrl = null }: ActivityFormProps) {
+  const router = useRouter();
   const uid = useId();
   const f = (name: string) => `${uid}-${name}`;
   // Once students joined, a non-draft activity cannot go back to draft (activity_status_locked).
   const draftLocked = hasParticipants && initial.status !== "draft";
-  const [state, action, pending] = useActionState<ActivityFormState, FormData>(saveActivityForm, undefined);
+  // A new activity already inserted by a cover save whose upload then failed: later saves update it.
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const savedIdRef = useRef<string | null>(null);
+  // The cover already uploaded for this file and activity: a retry after a failed save reuses it.
+  const uploaded = useRef<{ file: File; path: string } | null>(null);
+  const [stage, setStage] = useState<string | null>(null);
+  const [detailsLength, setDetailsLength] = useState(initial.details.length);
+  const [removeCover, setRemoveCover] = useState(false);
+
+  async function upload(photo: File, activityId: string): Promise<string> {
+    if (uploaded.current?.file === photo && uploaded.current.path.startsWith(`${activityId}/`)) return uploaded.current.path;
+    setStage("กำลังย่อรูป...");
+    const jpeg = await resizeToJpeg(photo);
+    setStage("กำลังอัปโหลดรูป...");
+    const path = `${activityId}/${uniqueId()}.jpg`;
+    let failure: string | null;
+    try {
+      const { error: uploadError } = await withTimeout(
+        createBrowserClient().storage.from(ACTIVITY_BUCKET).upload(path, jpeg, { contentType: "image/jpeg", upsert: false }),
+        REQUEST_TIMEOUT_MS,
+      );
+      failure = uploadError ? uploadErrorCode(uploadError as { status?: number; statusCode?: string; message?: string }) : null;
+    } catch (e) {
+      failure = e instanceof TimeoutError ? e.code : "upload_failed";
+    }
+    if (failure) throw new Error(failure);
+    uploaded.current = { file: photo, path };
+    return path;
+  }
+
+  async function submit(prev: ActivityFormState, formData: FormData): Promise<ActivityFormState> {
+    const file = formData.get("cover");
+    formData.delete("cover");
+    const photo = file instanceof File && file.size > 0 ? file : null;
+    const targetId = id ?? savedIdRef.current;
+    if (targetId) formData.set("id", targetId);
+    // No new picture: the plain server action (it redirects to the list on success).
+    if (!photo) return saveActivityForm(prev, formData);
+
+    const values = activityInputFromForm(formData);
+    try {
+      // A file that is not a picture fails here, before anything is written.
+      setStage("กำลังย่อรูป...");
+      await resizeToJpeg(photo);
+      let activityId = targetId;
+      if (!activityId) {
+        setStage("กำลังบันทึก...");
+        const created = await withTimeout(saveActivity(values), REQUEST_TIMEOUT_MS);
+        if (created.id === undefined) return { error: created.error, fieldErrors: created.fieldErrors, values };
+        activityId = created.id;
+        savedIdRef.current = activityId;
+        setSavedId(activityId);
+      }
+      const coverPath = await upload(photo, activityId);
+      setStage("กำลังบันทึก...");
+      const saved = await withTimeout(saveActivity({ ...values, id: activityId, coverPath }), REQUEST_TIMEOUT_MS);
+      if (saved.id === undefined) return { error: saved.error, fieldErrors: saved.fieldErrors, values };
+      router.push("/staff/activities");
+      router.refresh();
+      return undefined;
+    } catch (e) {
+      const code = e instanceof ImageError || e instanceof TimeoutError ? e.code : e instanceof Error ? e.message : null;
+      return { error: errorMessageTh(code), values };
+    } finally {
+      setStage(null);
+    }
+  }
+
+  const [state, action, pending] = useActionState<ActivityFormState, FormData>(submit, undefined);
+
+  // Dispatched by hand (not <form action>) so React does not reset the form: a chosen picture survives an error.
+  function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (pending) return;
+    const formData = new FormData(event.currentTarget);
+    startTransition(() => action(formData));
+  }
   const values = state?.values ?? initial;
   const errors = state?.fieldErrors;
   const [type, setType] = useState(initial.type);
@@ -97,8 +181,8 @@ function ActivityFormFields({
   }
 
   return (
-    <form action={action} noValidate>
-      {id ? <input type="hidden" name="id" value={id} /> : null}
+    <form onSubmit={onSubmit} noValidate>
+      {id || savedId ? <input type="hidden" name="id" value={id ?? savedId ?? ""} /> : null}
       {state?.error ? (
         <div role="alert" className="mb-4 rounded-input border border-danger bg-surface p-3 text-sm text-danger">
           {state.error}
@@ -123,6 +207,54 @@ function ActivityFormFields({
           className={inputClass}
         />
         <FieldError id={f("description-error")} message={errors?.description} />
+      </Field>
+
+      <Field id={f("details")} label="รายละเอียดกิจกรรม" className="mb-4">
+        <textarea
+          id={f("details")}
+          name="details"
+          rows={8}
+          maxLength={LIMITS.detailsMax}
+          defaultValue={values.details}
+          onChange={(e) => setDetailsLength(e.target.value.length)}
+          aria-invalid={errors?.details ? true : undefined}
+          aria-describedby={errors?.details ? `${f("details-error")} ${f("details-count")}` : f("details-count")}
+          className={inputClass}
+        />
+        <p id={f("details-count")} className="text-right font-mono text-sm text-muted">
+          {detailsLength.toLocaleString("th-TH")} / {LIMITS.detailsMax.toLocaleString("th-TH")}
+        </p>
+        <FieldError id={f("details-error")} message={errors?.details} />
+      </Field>
+
+      <Field id={f("cover")} label="ภาพปก" className="mb-4">
+        {coverUrl && !removeCover ? (
+          // eslint-disable-next-line @next/next/no-img-element -- public Supabase Storage URL
+          <img src={coverUrl} alt="รูปปกปัจจุบัน" className="mb-2 h-24 w-40 rounded-input object-cover" />
+        ) : null}
+        <input
+          id={f("cover")}
+          name="cover"
+          type="file"
+          accept="image/*"
+          className="block w-full text-sm text-ink file:mr-3 file:min-h-11 file:rounded-input file:border file:border-rule-strong file:bg-surface file:px-3 file:text-ink"
+        />
+        <p className="text-sm text-muted">{id && coverUrl ? "เลือกรูปใหม่เพื่อเปลี่ยนรูปปก " : ""}ระบบจะย่อรูปให้อัตโนมัติ</p>
+        {id && coverUrl ? (
+          <div className="flex min-h-11 items-center gap-2">
+            <input
+              id={f("removeCover")}
+              name="removeCover"
+              type="checkbox"
+              checked={removeCover}
+              onChange={(e) => setRemoveCover(e.target.checked)}
+              className="h-5 w-5 accent-accent"
+            />
+            <label htmlFor={f("removeCover")} className="text-sm">
+              ลบรูปปก
+            </label>
+          </div>
+        ) : null}
       </Field>
 
       <TextField label="สถานที่ (ไม่บังคับ)" name="location" defaultValue={values.location} errors={errors} />
@@ -268,7 +400,7 @@ function ActivityFormFields({
 
       <div className="flex flex-col gap-3 sm:flex-row-reverse">
         <Button type="submit" variant="primary" disabled={pending} className="w-full sm:w-auto">
-          {pending ? "กำลังบันทึก..." : "บันทึกกิจกรรม"}
+          {pending ? (stage ?? "กำลังบันทึก...") : "บันทึกกิจกรรม"}
         </Button>
         <ButtonLink href="/staff/activities" variant="card" className="w-full sm:w-auto">
           ยกเลิก

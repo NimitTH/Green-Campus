@@ -1,23 +1,25 @@
 import { cacheLife } from "next/cache";
+import { ACTIVITY_BUCKET } from "@/lib/activities/cover";
 import { createAnonClient } from "@/lib/supabase/anon";
 
-export type PublicActivity = { id: string; title: string; type: string; startsAt: string; endsAt: string };
+export type PublicActivity = { id: string; title: string; type: string; startsAt: string; endsAt: string; coverUrl: string | null };
 export type PublicReward = { id: string; name: string; pointsCost: number; stock: number; imageUrl: string | null };
 
 const REWARD_BUCKET = "reward-images";
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
 
-/** public_open_activities() rows -> PublicActivity[]; null when the shape is unexpected. */
-export function parseOpenActivities(data: unknown): PublicActivity[] | null {
+/** home_open_activities() rows -> PublicActivity[]; null when the shape is unexpected. toUrl runs only for rows with a cover_path. */
+export function parseOpenActivities(data: unknown, toUrl: (path: string) => string): PublicActivity[] | null {
   if (!Array.isArray(data)) return null;
   const out: PublicActivity[] = [];
   for (const row of data) {
     if (!isObj(row)) return null;
-    const { id, title, type, starts_at, ends_at } = row;
+    const { id, title, type, starts_at, ends_at, cover_path } = row;
     if (typeof id !== "string" || typeof title !== "string" || typeof type !== "string") return null;
     if (typeof starts_at !== "string" || typeof ends_at !== "string") return null;
-    out.push({ id, title, type, startsAt: starts_at, endsAt: ends_at });
+    if (cover_path !== null && cover_path !== undefined && typeof cover_path !== "string") return null;
+    out.push({ id, title, type, startsAt: starts_at, endsAt: ends_at, coverUrl: cover_path ? toUrl(cover_path) : null });
   }
   return out;
 }
@@ -38,15 +40,19 @@ export function parseActiveRewards(data: unknown, toUrl: (path: string) => strin
 }
 
 /**
- * Open, not-yet-ended activities for the anonymous home page (public_open_activities()). Cached for a few
- * minutes; null on failure (cached only seconds), never a throw inside a cache scope (see public-stats.ts).
+ * Open, not-yet-ended activities with their covers for the anonymous home page (home_open_activities(), 0030).
+ * Cached for a few minutes with no cache tag (an activity edit shows here within cacheLife("minutes")); null on
+ * failure (cached only seconds), never a throw inside a cache scope (see public-stats.ts).
  */
 export async function getOpenActivities(): Promise<PublicActivity[] | null> {
   "use cache";
-  const { data, error } = await createAnonClient().rpc("public_open_activities", { p_limit: 3 });
-  const rows = error ? null : parseOpenActivities(data);
+  const supabase = createAnonClient();
+  const { data, error } = await supabase.rpc("home_open_activities", { p_limit: 3 });
+  const rows = error
+    ? null
+    : parseOpenActivities(data, (path) => supabase.storage.from(ACTIVITY_BUCKET).getPublicUrl(path).data.publicUrl);
   if (!rows) {
-    console.error(error ? "public_open_activities failed" : "public_open_activities: unexpected result");
+    console.error(error ? "home_open_activities failed" : "home_open_activities: unexpected result");
     cacheLife("seconds");
     return null;
   }

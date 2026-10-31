@@ -583,3 +583,70 @@ export async function setDisplayName(userId: string, displayName: string | null)
   const { error } = await admin().from("profiles").update({ display_name: displayName }).eq("id", userId);
   if (error) throw new Error(`e2e: set display name failed: ${error.message}`);
 }
+
+// Activity lists and covers (Redesign 3 Task 8) ---------------------------------------------------------
+
+/** Upload PNG_1X1 as an activity's cover (`<id>/<uuid>.jpg` in activity-images) and point the row at it. */
+export async function setActivityCover(activityId: string): Promise<string> {
+  const path = `${activityId}/${randomUUID()}.jpg`;
+  const up = await admin().storage.from("activity-images").upload(path, PNG_1X1, { contentType: "image/jpeg" });
+  if (up.error) throw new Error(`e2e: activity cover upload failed: ${up.error.message}`);
+  const { error } = await admin().from("activities").update({ cover_path: path }).eq("id", activityId);
+  if (error) throw new Error(`e2e: activity cover set failed: ${error.message}`);
+  return path;
+}
+
+/**
+ * Open activities titled `<prefix> NN` (NN = 00, 01, …), created one minute apart from 2001-01-01 (older than any
+ * real activity, so they never push others off page 1). Returns their ids in order.
+ */
+export async function seedActivities(prefix: string, count: number, fields: Record<string, unknown> = {}): Promise<string[]> {
+  const now = Date.now();
+  const rows = Array.from({ length: count }, (_, i) => ({
+    id: randomUUID(),
+    title: `${prefix} ${String(i).padStart(2, "0")}`,
+    type: "fixed",
+    unit_points: 10,
+    status: "open",
+    starts_at: new Date(now - 2 * 60 * 60_000).toISOString(),
+    ends_at: new Date(now + 24 * 60 * 60_000).toISOString(),
+    created_at: new Date(Date.UTC(2001, 0, 1, 0, i)).toISOString(),
+    ...fields,
+  }));
+  const { error } = await admin().from("activities").insert(rows);
+  if (error) throw new Error(`e2e: seed activities failed: ${error.message}`);
+  return rows.map((r) => r.id);
+}
+
+/** Make the student a participant of the activity (service role). */
+export async function joinAs(studentId: string, activityId: string): Promise<void> {
+  const { error } = await admin().from("participations").insert({ activity_id: activityId, student_id: studentId });
+  if (error) throw new Error(`e2e: join failed: ${error.message}`);
+}
+
+/** Update columns of an activity (service role), e.g. close it after a student joined. */
+export async function updateActivity(activityId: string, fields: Record<string, unknown>): Promise<void> {
+  const { error } = await admin().from("activities").update(fields).eq("id", activityId);
+  if (error) throw new Error(`e2e: update activity failed: ${error.message}`);
+}
+
+export type ActivityCoverRow ={ id: string; cover_path: string | null; details: string | null };
+
+/** An activity by exact title (service role), or null. */
+export async function findActivity(title: string): Promise<ActivityCoverRow | null> {
+  const { data, error } = await admin().from("activities").select("id, cover_path, details").eq("title", title).maybeSingle();
+  if (error) throw new Error(`e2e: find activity failed: ${error.message}`);
+  return data as ActivityCoverRow | null;
+}
+
+/** Remove every activity whose title starts with `prefix`, with its participations and cover folder (service role). */
+export async function deleteActivitiesByPrefix(prefix: string): Promise<void> {
+  const { data } = await admin().from("activities").select("id, title").like("title", `${prefix}%`);
+  for (const row of (data ?? []) as { id: string; title: string }[]) {
+    const { data: objects } = await admin().storage.from("activity-images").list(row.id);
+    const paths = (objects ?? []).map((o) => `${row.id}/${o.name}`);
+    if (paths.length > 0) await admin().storage.from("activity-images").remove(paths);
+    await admin().from("participations").delete().eq("activity_id", row.id);
+    await deleteActivitiesByTitle(row.title);
+  }
+}

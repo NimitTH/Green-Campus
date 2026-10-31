@@ -3,6 +3,7 @@ import {
   activityToInput,
   defaultRequiresCode,
   isActivityInputShape,
+  LIMITS,
   validateActivity,
   type ActivityInput,
 } from "./validation";
@@ -21,6 +22,7 @@ function input(overrides: Partial<ActivityInput> = {}): ActivityInput {
     unitPoints: "20",
     unitCarbonKg: "",
     maxPerSubmission: "",
+    details: "",
     ...overrides,
   };
 }
@@ -164,6 +166,7 @@ describe("activityToInput", () => {
       unit_points: 0,
       unit_carbon_kg: null,
       max_per_submission: 2500,
+      details: "บรรทัดแรก\n\nย่อหน้าสอง",
     });
     expect(i).toEqual({
       title: "ชั่งขยะ",
@@ -178,6 +181,7 @@ describe("activityToInput", () => {
       unitPoints: "0",
       unitCarbonKg: "",
       maxPerSubmission: "2.5",
+      details: "บรรทัดแรก\n\nย่อหน้าสอง",
     });
     expect(validateActivity(i).ok).toBe(true);
   });
@@ -190,6 +194,8 @@ describe("isActivityInputShape", () => {
     const { requiresCode: _drop, ...noCode } = input();
     void _drop;
     expect(isActivityInputShape(noCode)).toBe(true);
+    expect(isActivityInputShape({ ...input(), coverPath: null, removeCover: true })).toBe(true);
+    expect(isActivityInputShape({ ...input(), coverPath: "a/b.jpg" })).toBe(true);
   });
   it.each([null, undefined, "x", 5, [], new Date()])("rejects non-plain-object %j", (value) => {
     expect(isActivityInputShape(value)).toBe(false);
@@ -200,8 +206,26 @@ describe("isActivityInputShape", () => {
     expect(isActivityInputShape({ ...input(), isOffsite: "on" })).toBe(false);
     expect(isActivityInputShape({ ...input(), requiresCode: "yes" })).toBe(false);
     expect(isActivityInputShape({ ...input(), id: 1 })).toBe(false);
+    expect(isActivityInputShape({ ...input(), details: 5 })).toBe(false);
+    expect(isActivityInputShape({ ...input(), coverPath: 5 })).toBe(false);
+    expect(isActivityInputShape({ ...input(), removeCover: "on" })).toBe(false);
     const { title: _t, ...missing } = input();
     void _t;
     expect(isActivityInputShape(missing)).toBe(false);
+  });
+});
+
+describe("details (DESIGN-3 6.1)", () => {
+  it("is optional: empty or blank -> null", () => {
+    expect(valueOf(input({ details: "" })).details).toBeNull();
+    expect(valueOf(input({ details: "  \n " })).details).toBeNull();
+  });
+  it("accepts up to LIMITS.detailsMax (20000) characters and keeps line breaks", () => {
+    expect(LIMITS.detailsMax).toBe(20000);
+    expect(valueOf(input({ details: "ก".repeat(20000) })).details).toHaveLength(20000);
+    expect(valueOf(input({ details: " บรรทัดแรก\n\nย่อหน้าสอง " })).details).toBe("บรรทัดแรก\n\nย่อหน้าสอง");
+  });
+  it("rejects 20001 characters with a field error", () => {
+    expect(errorsOf(input({ details: "ก".repeat(20001) })).details).toBeTruthy();
   });
 });

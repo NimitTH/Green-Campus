@@ -8,3 +8,8 @@ text:ฉัน
 text:ใช้อีเมลและรหัสผ่านที่สมัครไว้
 text:กรอกชื่อจริงเพื่อให้ครูตรวจผลงานได้ถูกคน
 text:สวัสดี
+# Task 8: /activities is one list now (DESIGN-3 6.2), so its two section headings and their empty notes go
+text:เปิดรับสมัคร
+text:ตอนนี้ไม่มีกิจกรรมใหม่ที่เปิดรับ
+text:กิจกรรมที่เข้าร่วมแล้ว
+text:ยังไม่ได้เข้าร่วมกิจกรรมใด

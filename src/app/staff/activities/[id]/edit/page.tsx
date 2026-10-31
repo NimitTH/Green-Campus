@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { PageHeader } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/dal";
+import { activityCoverUrl } from "@/lib/activities/cover";
 import { getActivity } from "@/lib/activities/queries";
 import { activityToInput } from "@/lib/activities/validation";
 import { isUuid } from "@/lib/uuid";
@@ -43,7 +44,12 @@ async function EditActivity({ params }: { params: Promise<{ id: string }> }) {
     .eq("activity_id", id);
   return (
     <>
-      <ActivityForm initial={activityToInput(activity)} id={activity.id} hasParticipants={(participants ?? 0) > 0} />
+      <ActivityForm
+        initial={activityToInput(activity)}
+        id={activity.id}
+        hasParticipants={(participants ?? 0) > 0}
+        coverUrl={activityCoverUrl(activity.cover_path)}
+      />
       <section aria-labelledby={deleteHeadingId} className="mt-10 border-t border-rule pt-6">
         <h2 id={deleteHeadingId} className="mb-2 font-display text-lg font-semibold">
           ลบกิจกรรม
