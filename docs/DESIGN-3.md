@@ -237,6 +237,10 @@
 - **หมายเหตุตอนปิดงาน (Ruling T1a):** ฟังก์ชันของ 0026 จริงๆ ชื่อ `public_open_activities` และ test เดิมตรึงคอลัมน์ไว้ 0030 จึงเพิ่มฟังก์ชันใหม่ `home_open_activities(p_limit)` ที่มี `cover_path` ส่วนฟังก์ชันเดิมไม่แตะ (ข้อความข้างล่างอ่านตามนี้)
 - `home_open_activities(p_limit)`: drop + create คืนคอลัมน์เดิม + `cover_path text` ท้ายสุด · เงื่อนไข/clamp/grant เดิม (DESIGN-2 §7.1)
 
+### 7.4a `0031_avatars_select_own.sql` (แก้ตามผลรีวิวปิดงาน)
+
+- `avatars_select` ของ 0027 ให้ผู้ใช้ทุกคนที่ล็อกอิน list path ของ avatar ทุกคน (มี user id) · 0031 drop แล้วสร้าง `avatars_select_own` ที่จำกัด `(storage.foldername(name))[1] = (select auth.uid())::text` · อ่านรูปผ่าน public URL ไม่ต้องใช้ select policy · เจ้าของยังลบของตัวเองได้ · pgTAP: `avatars_select_own.test.sql`
+
 ### 7.5 pgTAP (ไฟล์ใหม่)
 
 - `avatars.test.sql`: format check (path ของคนอื่น, ไม่ใช่ .jpg → fail) · update ได้เฉพาะแถวตัวเอง · anon update ไม่ได้ · policy storage (insert โฟลเดอร์ตัวเองได้, ของคนอื่นไม่ได้) · `leaderboard` คืน `avatar_path` และผลเดิม (rank, is_me) ไม่เปลี่ยน
@@ -266,7 +270,7 @@
 
 ## 9. ลำดับงาน (รายละเอียดในแผน)
 
-1. migration 0027–0030 + pgTAP + check-scope (§1.2/§1.3)
+1. migration 0027–0031 + pgTAP + check-scope (§1.2/§1.3)
 2. `Avatar` + `getCurrentUser().avatarUrl` + อัปโหลด/ลบรูปในโปรไฟล์
 3. เปลี่ยนอีเมล/รหัสผ่าน + callback อีเมล + เอา section ธีมออก
 4. `SiteHeader`/`SiteFooter` ทุกหน้า + `AccountMenu` + แถบล่าง 4 ปุ่ม + ไอคอน ghost + ลิงก์ อบก. + social `/`
@@ -278,13 +282,13 @@
 
 ## 10. ผลตรวจ build ปิดงาน
 
-ปิดงาน 31 ต.ค. 2026 (Task 9) · gate เต็มหลัง `npx supabase db reset` (e2e รันหลัง reset อีกรอบทันที)
+ปิดงาน 31 ต.ค. 2026 (Task 9) · ตัวเลขอัปเดตหลัง fix-wave รีวิวปิดงาน (I1, I2, M1, M3, M6) · gate เต็มหลัง `npx supabase db reset` (e2e รันหลัง reset อีกรอบทันที)
 
 | ขั้น | ผล |
 |---|---|
-| `npx supabase test db` (pgTAP) | 1080 ผ่าน (27 ไฟล์) |
+| `npx supabase test db` (pgTAP) | 1085 ผ่าน (28 ไฟล์) |
 | `npm test` (vitest) | 757 ผ่าน (58 ไฟล์) |
-| `npm run test:e2e` | 264 ผ่าน, ข้าม 14, ไม่ผ่าน 0 |
+| `npm run test:e2e` | 265 ผ่าน, ข้าม 14, ไม่ผ่าน 1 (dashboard.spec "waste chart bars" บน mobile-chrome ไม่นิ่งเป็นครั้งคราว ไม่เกี่ยวกับงานนี้: รันซ้ำเดี่ยว 10/10 ผ่าน, ไม่ผ่าน 1 ใน 8 ครั้งหนึ่ง) |
 | `npm run test:seed` | 12 ผ่าน |
 | `npm run test:e2e:prod` | 39 ผ่าน, ข้าม 1 |
 | `npm run lint` | 0 error (111 warning เดิม) |
@@ -301,13 +305,15 @@
 
 `use-cache-count` สุดท้าย = **9** (ฐานเดิมของ redesign-2 คือ 8): เพิ่มหนึ่งตัวที่ `listPublishedArticlesPage` (รายการบทความที่แบ่งหน้า/ค้นหาได้, §5.1) · baseline ใน check-scope บันทึกเป็น 9
 
-**ปัญหาที่ทราบ (known issues):** `tests/e2e/theme.spec.ts` "toggle still flips when localStorage throws" ไม่นิ่งบน mobile-chrome และไม่นิ่งอยู่ก่อนแล้วบน base commit (Ruling T8b) · ใน e2e รอบเต็มของ Task 9 ผ่าน ไม่เจอความล้มเหลว แต่ยังถือว่าเป็นปัญหาที่ทราบ ไม่ได้แก้
+**ปัญหาที่ทราบ (known issues):** `tests/e2e/theme.spec.ts` "toggle still flips when localStorage throws" เคยไม่นิ่งบน mobile-chrome · (แก้ Ruling T8b) วัดอาการได้บน commit ใน branch เอง (b3a6156) ไม่ใช่ base commit และน่าจะแย่ลงเพราะ Task 4 ย้าย ThemeToggle เข้า HeaderAccount ที่ stream ใน Suspense (คลิกก่อน hydrate ไม่มีผล) · ตอนนี้ `flipTheme` รอ hydrate แล้วคลิกซ้ำใน `toPass()` จนกว่า `data-theme` เปลี่ยน (แก้ที่ตัวเทสต์ ไม่แตะพฤติกรรมแอป) · พิสูจน์ด้วย `--project=mobile-chrome --repeat-each=8` ผ่านทั้งหมด
 
 **Impeccable audit/polish (Task 9):** ตรวจ `/`, `/articles`, `/articles/[slug]`, `/login`, `/register`, `/dashboard`, `/activities`, `/activities/[id]`, `/leaderboard`, `/profile`, `/staff/activities/new` · contrast ทั้งสองธีมผ่าน AA (muted 5.4–8.6:1, accent 5.7–9.9:1, on-accent 6.8–9.9:1) · focus ring ใช้ `:focus-visible` กลางของ globals.css · reduced motion มี override กลาง · id ไม่ซ้ำ (toolbar ใช้ `useId`) · เป้ากดทุกตัวใน spec ≥ 44px ยกเว้นลิงก์โลโก้ "Green Campus" เหนือการ์ดของหน้า auth ซึ่งแก้เป็น `min-h-11` (`src/app/(auth)/layout.tsx`)
 
 ## 11. สิ่งที่เจ้าของต้องทำบน Supabase Cloud
 
-1. รัน migration 0027–0030 (`npx supabase db push` หรือวางใน SQL editor ตามลำดับ)
+1. รัน migration 0027–0031 (`npx supabase db push` หรือวางใน SQL editor ตามลำดับ)
 2. Authentication → URL Configuration → Redirect URLs เพิ่ม `https://<โดเมน>/auth/callback/email`
 3. ตรวจ Authentication → Email → "Secure email change" เปิดอยู่ (ยืนยันทั้งอีเมลเก่าและใหม่)
 4. ใส่ URL โซเชียลจริงใน `src/app/_components/social-links.ts` เมื่อพร้อม
+5. ปิด Authentication → Email → "Secure password change" (`secure_password_change`) ไว้บน Supabase Cloud ถ้าเปิด `updateUser({ password })` จะตอบ `reauthentication_needed` และผู้ใช้เห็นข้อความผิดพลาดทั่วไป
+6. ลิงก์ยืนยันอีเมลใหม่ (ลิงก์ที่สอง ของการเปลี่ยนอีเมลแบบยืนยันสองฝั่ง) ต้องเปิดในเบราว์เซอร์เดียวกับที่กดขอเปลี่ยน (PKCE verifier เก็บในเบราว์เซอร์นั้น) ถ้าเปิดที่อื่นจะเห็นข้อความลิงก์ผิดพลาดทั้งที่การเปลี่ยนอีเมลสำเร็จแล้ว
