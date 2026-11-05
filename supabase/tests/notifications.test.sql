@@ -40,8 +40,8 @@ select throws_ok($$update public.notifications set user_id = '00000000-0000-0000
   '42501', null, 's1 cannot update user_id');
 select throws_ok($$insert into public.notifications (user_id, type, title) values ('00000000-0000-0000-0000-000000005101', 't', 'x')$$,
   '42501', null, 's1 cannot insert');
-select throws_ok($$delete from public.notifications where id = '00000000-0000-0000-0000-000000005601'$$,
-  '42501', null, 's1 cannot delete');
+with d as (delete from public.notifications where id = '00000000-0000-0000-0000-000000005602' returning 1)
+select is((select count(*)::int from d), 0, 's1 deleting another user''s row affects 0 rows');
 select throws_ok($$select public.notify('00000000-0000-0000-0000-000000005101', 't', 'x')$$,
   '42501', null, 's1 cannot call notify');
 reset role;

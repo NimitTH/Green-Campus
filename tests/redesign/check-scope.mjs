@@ -17,9 +17,20 @@ const writeBaseline = process.argv.includes("--write-baseline");
 const FORBIDDEN_PREFIXES = ["src/app/api/", "scripts/"];
 const NEW_ONLY_PREFIXES = ["supabase/migrations/", "supabase/tests/"];
 const FORBIDDEN_FILES = ["src/proxy.ts"];
+// Redesign 4 (controller ruling): DESIGN-4 3.1/7.1 reverses "students cannot delete notifications", so this ONE existing test
+// file may be modified. Every other existing migration/test still fails when modified or deleted.
+const MODIFIED_TEST_ALLOWLIST = new Set(["supabase/tests/notifications.test.sql"]);
+// Redesign 4: new files under src/app/auth/signout/ and src/app/(auth)/change-password/ are allowed (not forbidden prefixes).
+// Only these files may import @/lib/supabase/admin.
+const ADMIN_IMPORT_OK = new Set([
+  "src/app/actions/accounts.ts",
+  "src/app/api/cron/cleanup-orphans/route.ts",
+  "src/app/api/cron/cleanup-orphans/route.test.ts",
+  "src/lib/supabase/server.test.ts",
+]);
 const ALLOWED_NEW = new Set(["text:ธีม", "text:สว่าง", "text:มืด", "text:ตามระบบ", "aria:ธีม"]);
 const REMOVED_OK = new Set();
-for (const [file, set] of [["ui-strings-2.allow.txt", ALLOWED_NEW], ["ui-strings-3.allow.txt", ALLOWED_NEW], ["ui-strings-3.removed.txt", REMOVED_OK]]) {
+for (const [file, set] of [["ui-strings-2.allow.txt", ALLOWED_NEW], ["ui-strings-3.allow.txt", ALLOWED_NEW], ["ui-strings-3.removed.txt", REMOVED_OK], ["ui-strings-4.allow.txt", ALLOWED_NEW], ["ui-strings-4.removed.txt", REMOVED_OK]]) {
   let txt = "";
   try { txt = readFileSync(join(here, file), "utf8"); } catch { /* optional file */ }
   for (const l of txt.split(/\r?\n/)) if (/^(text|aria):/.test(l.trim())) set.add(l.trim());
@@ -95,7 +106,14 @@ for (const p of changed) {
   if (FORBIDDEN_FILES.includes(p) || FORBIDDEN_PREFIXES.some((pre) => p.startsWith(pre))) problems.push(`forbidden path changed: ${p}`);
 }
 for (const p of touchedExisting) {
-  if (NEW_ONLY_PREFIXES.some((pre) => p.startsWith(pre))) problems.push(`existing migration/test modified or deleted: ${p}`);
+  if (NEW_ONLY_PREFIXES.some((pre) => p.startsWith(pre)) && !MODIFIED_TEST_ALLOWLIST.has(p)) problems.push(`existing migration/test modified or deleted: ${p}`);
+}
+
+// 1b. admin client imports
+for (const file of walk(join(root, "src"))) {
+  const rel = file.slice(root.length + 1).split("\\").join("/");
+  if (ADMIN_IMPORT_OK.has(rel) || !/\.(ts|tsx|mts|js|mjs)$/.test(rel)) continue;
+  if (/(?:from|import\(|vi\.mock\()\s*["']@\/lib\/supabase\/admin["']/.test(readFileSync(file, "utf8"))) problems.push(`forbidden import of @/lib/supabase/admin: ${rel}`);
 }
 
 // 2. UI strings + 3. use cache
