@@ -1,5 +1,5 @@
 import { pageSizeOf, type ListConfig, type ListState } from "@/app/_components/list/list-params";
-import { quoteOrValue, toIlikePattern } from "@/app/_components/list/search-escape";
+import { toIlikePattern } from "@/app/_components/list/search-escape";
 import type { NotificationRow } from "@/app/_components/notification-list";
 import { createServerClient } from "@/lib/supabase/server";
 import { NOTIFICATION_SORT_COLUMN, typePrefix } from "./list-config";
@@ -15,11 +15,11 @@ export async function listNotificationsPage(
 ): Promise<{ items: NotificationRow[]; total: number }> {
   const supabase = await createServerClient();
   const size = pageSizeOf(config);
-  const pattern = state.q ? quoteOrValue(toIlikePattern(state.q)) : null;
+  const pattern = state.q ? toIlikePattern(state.q) : null;
   const prefix = typePrefix(state.filters.type);
-  const filtered = <T extends { or(filter: string): T; like(column: string, pattern: string): T }>(query: T): T => {
+  const filtered = <T extends { ilike(column: string, pattern: string): T; like(column: string, pattern: string): T }>(query: T): T => {
     let out = query;
-    if (pattern) out = out.or(`title.ilike.${pattern},body.ilike.${pattern}`);
+    if (pattern) out = out.ilike("title", pattern);
     if (prefix) out = out.like("type", prefix);
     return out;
   };

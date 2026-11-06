@@ -183,7 +183,7 @@ test("student list: 12 per page, search, type filter, sort by name", async ({ pa
     await seedNotifications(student.id, [
       ...Array.from({ length: 11 }, (_, i) => ({ title: `ผลงาน ${String(i).padStart(2, "0")}`, type: "submission_new" })),
       { title: "ออเดอร์ของรางวัล", type: "order_new" },
-      { title: "กิจกรรมใหม่ทดสอบ", type: "activity_opened" },
+      { title: "กิจกรรมใหม่ทดสอบ", type: "activity_opened", body: "เนื้อหาเฉพาะตัวบอดี้" },
     ]);
     await signIn(page, student, "/notifications");
     await expect(item(page)).toHaveCount(12);
@@ -195,6 +195,8 @@ test("student list: 12 per page, search, type filter, sort by name", async ({ pa
 
     await page.goto("/notifications?q=" + encodeURIComponent("ออเดอร์"));
     await expect(item(page)).toHaveCount(1);
+    await page.goto("/notifications?q=" + encodeURIComponent("เฉพาะตัวบอดี้"));
+    await expect(page.getByText("ไม่พบรายการที่ตรงกับคำค้น")).toBeVisible();
     await page.goto("/notifications?q=zzzz");
     await expect(page.getByText("ไม่พบรายการที่ตรงกับคำค้น")).toBeVisible();
     await page.getByRole("link", { name: "ล้างการค้นหา" }).click();
