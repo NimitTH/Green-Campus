@@ -277,7 +277,7 @@ export async function setRewardStock(id: string, stock: number): Promise<void> {
 }
 
 /** An order with one line for a reward, so the reward can no longer be deleted (order_items RESTRICT). */
-export async function createOrderFor(studentId: string, rewardId: string, qty: number, unitCost: number): Promise<void> {
+export async function createOrderFor(studentId: string, rewardId: string, qty: number, unitCost: number, rewardName = "e2e"): Promise<void> {
   const { data, error } = await admin()
     .from("orders")
     .insert({ student_id: studentId, total_points: qty * unitCost })
@@ -286,7 +286,7 @@ export async function createOrderFor(studentId: string, rewardId: string, qty: n
   if (error || !data) throw new Error(`e2e: create order failed: ${error?.message}`);
   const { error: itemError } = await admin()
     .from("order_items")
-    .insert({ order_id: (data as { id: string }).id, reward_id: rewardId, qty, unit_cost: unitCost, reward_name: "e2e" });
+    .insert({ order_id: (data as { id: string }).id, reward_id: rewardId, qty, unit_cost: unitCost, reward_name: rewardName });
   if (itemError) throw new Error(`e2e: create order item failed: ${itemError.message}`);
 }
 

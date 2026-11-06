@@ -1,5 +1,8 @@
 import "server-only";
+import { pageSizeOf, type ListState } from "@/app/_components/list/list-params";
+import { toIlikePattern } from "@/app/_components/list/search-escape";
 import { createServerClient } from "@/lib/supabase/server";
+import { REWARD_CONFIG, REWARD_SORT_COLUMN } from "./list-config";
 
 // Read helpers for reward and cart pages. They run as the signed-in user, so RLS decides what
 // is visible (students: active rewards and their own cart; staff: every reward). Callers check
@@ -47,6 +50,36 @@ export async function listActiveRewards(): Promise<Reward[]> {
     .order("name", { ascending: true });
   if (error) throw new Error(`listActiveRewards: ${error.message}`);
   return withImageUrls((data ?? []) as RewardRow[]);
+}
+
+/**
+ * One page of the active rewards for /rewards: optional name search (matched literally), sorted by REWARD_CONFIG
+ * (date, price, stock or name, then id, nulls last). A page past the end returns no items with the real total, so
+ * the page can ask again for the last page. Throws on failure.
+ */
+export async function listActiveRewardsPage(
+  state: Pick<ListState, "q" | "sort" | "dir" | "page">,
+): Promise<{ items: Reward[]; total: number }> {
+  const supabase = await createServerClient();
+  const size = pageSizeOf(REWARD_CONFIG);
+  const pattern = state.q ? toIlikePattern(state.q) : null;
+  const filtered = <T extends { ilike(column: string, pattern: string): T }>(query: T): T => (pattern ? query.ilike("name", pattern) : query);
+  const column = Object.hasOwn(REWARD_SORT_COLUMN, state.sort) ? REWARD_SORT_COLUMN[state.sort as keyof typeof REWARD_SORT_COLUMN] : "created_at";
+  const ascending = state.dir === "asc";
+  const page = Math.max(1, Math.trunc(state.page) || 1);
+  const { data, error, count } = await filtered(supabase.from("rewards").select(COLUMNS, { count: "exact" }).eq("active", true))
+    .order(column, { ascending, nullsFirst: false })
+    .order("id", { ascending })
+    .range((page - 1) * size, page * size - 1);
+
+  if (error?.code === "PGRST103") {
+    const head = await filtered(supabase.from("rewards").select("id", { count: "exact", head: true }).eq("active", true));
+    if (head.error || head.count === null) throw new Error(`listActiveRewardsPage: ${head.error?.message}`);
+    return { items: [], total: head.count };
+  }
+  if (error) throw new Error(`listActiveRewardsPage: ${error.message}`);
+  const items = await withImageUrls((data ?? []) as RewardRow[]);
+  return { items, total: count ?? items.length };
 }
 
 export async function getReward(id: string): Promise<Reward | null> {

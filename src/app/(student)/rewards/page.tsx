@@ -1,24 +1,28 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Badge } from "@/app/_components/activity-ui";
+import { ListToolbar, ListToolbarSkeleton } from "@/app/_components/list/list-toolbar";
+import { isNarrowed, pageSizeOf, parseListParams } from "@/app/_components/list/list-params";
+import { Pagination } from "@/app/_components/list/pagination";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
-import { RewardImage } from "@/app/_components/reward-image";
 import { ButtonLink, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/dal";
-import { cartItemCount, getBalance, listActiveRewards } from "@/lib/rewards/queries";
-import { AddToCartButton } from "./add-to-cart-button";
+import { REWARD_CONFIG } from "@/lib/rewards/list-config";
+import { cartItemCount, getBalance, listActiveRewardsPage } from "@/lib/rewards/queries";
+import { RewardCard, RewardRow } from "./_components/reward-card";
 
 export const metadata: Metadata = { title: "ของรางวัล | Green Campus" };
 
-export default function RewardsPage() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+export default function RewardsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6">
       <div className="mb-5">
         <PageHeader title="ของรางวัล" />
       </div>
       <Suspense fallback={<PageSkeleton />}>
-        <RewardGrid />
+        <RewardGrid searchParams={searchParams} />
       </Suspense>
     </main>
   );
@@ -26,14 +30,24 @@ export default function RewardsPage() {
 
 const number = new Intl.NumberFormat("th-TH");
 
-async function RewardGrid() {
+async function RewardGrid({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireUser("/rewards");
   const isStudent = user.role === "student";
-  const [rewards, balance, inCart] = await Promise.all([
-    listActiveRewards(),
+  let params = parseListParams(REWARD_CONFIG, await searchParams);
+  const [first, balance, inCart] = await Promise.all([
+    listActiveRewardsPage(params),
     isStudent ? getBalance(user.id) : Promise.resolve(null),
     isStudent ? cartItemCount(user.id) : Promise.resolve(0),
   ]);
+  let result = first;
+  if (result.total > 0) {
+    // past the end (e.g. ?page=999 or the list shrank): show the last page instead
+    const lastPage = Math.ceil(result.total / pageSizeOf(REWARD_CONFIG));
+    if (params.page > lastPage) {
+      params = { ...params, page: lastPage };
+      result = await listActiveRewardsPage(params);
+    }
+  }
 
   return (
     <>
@@ -71,36 +85,37 @@ async function RewardGrid() {
           </div>
         </Card>
       ) : null}
-      {rewards.length === 0 ? (
-        <EmptyState>ยังไม่มีของรางวัลที่เปิดให้แลก ลองกลับมาดูใหม่ภายหลัง</EmptyState>
+      <Suspense fallback={<ListToolbarSkeleton />}>
+        <ListToolbar base="/rewards" config={REWARD_CONFIG} placeholder="ค้นหารางวัล" />
+      </Suspense>
+      {result.total === 0 || result.items.length === 0 ? (
+        isNarrowed(REWARD_CONFIG, params) ? (
+          <EmptyState>
+            <p>ไม่พบรายการที่ตรงกับคำค้น</p>
+            <Link href="/rewards" className="mt-2 inline-flex min-h-11 items-center font-medium text-accent underline underline-offset-4">
+              ล้างการค้นหา
+            </Link>
+          </EmptyState>
+        ) : (
+          <EmptyState>ยังไม่มีของรางวัลที่เปิดให้แลก ลองกลับมาดูใหม่ภายหลัง</EmptyState>
+        )
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {rewards.map((r) => (
-            <Card as="li" flush key={r.id} data-testid="reward-card" className="flex flex-col overflow-hidden">
-              <RewardImage url={r.imageUrl} className="aspect-[4/3] w-full" />
-              <div className="flex flex-1 flex-col gap-2 p-4">
-                <h2 className="font-semibold break-words">{r.name}</h2>
-                <p className="text-accent">
-                  <span className="font-mono">{number.format(r.points_cost)}</span> แต้ม
-                </p>
-                <p className="text-sm text-muted">
-                  {r.stock > 0 ? (
-                    <>
-                      เหลือ <span className="font-mono">{number.format(r.stock)}</span> ชิ้น
-                    </>
-                  ) : (
-                    <Badge tone="amber">หมดแล้ว</Badge>
-                  )}
-                </p>
-                {isStudent ? (
-                  <div className="mt-auto pt-2">
-                    <AddToCartButton rewardId={r.id} outOfStock={r.stock <= 0} />
-                  </div>
-                ) : null}
-              </div>
-            </Card>
-          ))}
-        </ul>
+        <>
+          {params.view === "list" ? (
+            <ul className="divide-y divide-rule rounded-card border border-rule bg-surface shadow-sheet">
+              {result.items.map((r) => (
+                <RewardRow key={r.id} reward={r} isStudent={isStudent} />
+              ))}
+            </ul>
+          ) : (
+            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {result.items.map((r) => (
+                <RewardCard key={r.id} reward={r} isStudent={isStudent} />
+              ))}
+            </ul>
+          )}
+          <Pagination base="/rewards" config={REWARD_CONFIG} state={params} total={result.total} />
+        </>
       )}
     </>
   );

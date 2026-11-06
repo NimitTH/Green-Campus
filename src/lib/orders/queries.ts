@@ -1,6 +1,8 @@
 import "server-only";
+import { pageSizeOf, type ListState } from "@/app/_components/list/list-params";
 import { createServerClient } from "@/lib/supabase/server";
 import { orderIdRange, studentDisplayName } from "./format";
+import { MY_ORDER_CONFIG, MY_ORDER_SORT_COLUMN, orderSearchFilter } from "./list-config";
 
 // Read helpers for order pages. They run as the signed-in user, so RLS decides what is visible
 // (students: their own orders; staff: every order, 0002). Callers check the role via the DAL.
@@ -54,6 +56,39 @@ export async function listMyOrders(studentId: string): Promise<OrderSummary[]> {
     .order("created_at", { ascending: false });
   if (error) throw new Error(`listMyOrders: ${error.message}`);
   return ((data ?? []) as OrderRow[]).map(summary);
+}
+
+/**
+ * One page of the student's orders for /orders, from my_order_list (their session; the view is security_invoker).
+ * Optional search on the item names or the order number, sorted by date then id. A page past the end returns no
+ * items with the real total, so the page can ask again for the last page. Throws on failure.
+ */
+export async function listMyOrdersPage(
+  studentId: string,
+  state: Pick<ListState, "q" | "sort" | "dir" | "page">,
+): Promise<{ items: OrderSummary[]; total: number }> {
+  const supabase = await createServerClient();
+  const size = pageSizeOf(MY_ORDER_CONFIG);
+  const filter = state.q ? orderSearchFilter(state.q) : null;
+  const filtered = <T extends { or(filter: string): T }>(query: T): T => (filter ? query.or(filter) : query);
+  const column = Object.hasOwn(MY_ORDER_SORT_COLUMN, state.sort) ? MY_ORDER_SORT_COLUMN[state.sort as keyof typeof MY_ORDER_SORT_COLUMN] : "created_at";
+  const ascending = state.dir === "asc";
+  const page = Math.max(1, Math.trunc(state.page) || 1);
+  const { data, error, count } = await filtered(
+    supabase.from("my_order_list").select("id, status, total_points, created_at, expires_at, ready_at", { count: "exact" }).eq("student_id", studentId),
+  )
+    .order(column, { ascending, nullsFirst: false })
+    .order("id", { ascending })
+    .range((page - 1) * size, page * size - 1);
+
+  if (error?.code === "PGRST103") {
+    const head = await filtered(supabase.from("my_order_list").select("id", { count: "exact", head: true }).eq("student_id", studentId));
+    if (head.error || head.count === null) throw new Error(`listMyOrdersPage: ${head.error?.message}`);
+    return { items: [], total: head.count };
+  }
+  if (error) throw new Error(`listMyOrdersPage: ${error.message}`);
+  const items = ((data ?? []) as OrderRow[]).map(summary);
+  return { items, total: count ?? items.length };
 }
 
 type DetailRow = OrderRow & {

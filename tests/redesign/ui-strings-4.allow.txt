@@ -13,3 +13,6 @@ text:ค้นหาการแจ้งเตือน
 text:ลบการแจ้งเตือน
 text:ลบการแจ้งเตือนที่อ่านแล้วทั้งหมด?
 aria:ลบการแจ้งเตือน ${title}
+# Task 4 (DESIGN-4 1.3 /orders, /rewards): search placeholders (no-match copy is above).
+text:ค้นหาสินค้าหรือเลขที่ออเดอร์
+text:ค้นหารางวัล
