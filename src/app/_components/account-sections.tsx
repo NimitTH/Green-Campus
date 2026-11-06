@@ -1,11 +1,18 @@
-import { Card } from "@/components/ui";
+import Link from "next/link";
+import { Suspense } from "react";
+import { Card, EmptyState } from "@/components/ui";
 import { ROLE_LABEL_TH } from "@/lib/admin/validation";
 import type { CurrentUser } from "@/lib/auth/dal";
-import { createServerClient } from "@/lib/supabase/server";
+import { STAFF_NOTIFICATION_CONFIG, STUDENT_NOTIFICATION_CONFIG } from "@/lib/notifications/list-config";
+import { listNotificationsPage } from "@/lib/notifications/queries";
 import { AvatarSection } from "./avatar-section";
 import { EmailForm } from "./email-form";
 import { EmailNotice } from "./email-notice";
+import { ListToolbar, ListToolbarSkeleton } from "./list/list-toolbar";
+import { isNarrowed, pageSizeOf, parseListParams, type ListConfig, type ListState } from "./list/list-params";
+import { Pagination } from "./list/pagination";
 import { NotificationList, type NotificationRow } from "./notification-list";
+import { PageSkeleton } from "./page-skeleton";
 import { PasswordForm } from "./password-form";
 import { ProfileForm } from "./profile-form";
 
@@ -40,21 +47,71 @@ export function ProfileDetails({ user, emailNotice }: { user: CurrentUser; email
   );
 }
 
-/** The caller's latest 50 notifications (RLS: user_id = auth.uid()). Call after the session check. */
-export async function NotificationsSection() {
-  const supabase = await createServerClient();
-  const { data, error } = await supabase
-    .from("notifications")
-    .select("id, title, body, link, read_at, created_at")
-    .order("created_at", { ascending: false })
-    .limit(50);
-  if (error) {
-    console.error("load notifications failed", error.code, error.message);
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+async function load(config: ListConfig, p: ListState) {
+  try {
+    return await listNotificationsPage(p, config);
+  } catch (e) {
+    console.error("load notifications failed", e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
+/**
+ * The caller's notifications with search, sort, the type filter and pagination (DESIGN-4 3). Call after the session
+ * check, inside <Suspense>. The toolbar reads the URL itself (useSearchParams) in its own boundary.
+ */
+export function NotificationsSection({ base, role, searchParams }: { base: string; role: "student" | "staff"; searchParams: SearchParams }) {
+  const config = role === "student" ? STUDENT_NOTIFICATION_CONFIG : STAFF_NOTIFICATION_CONFIG;
+  return (
+    <>
+      <Suspense fallback={<ListToolbarSkeleton views={false} filters={1} />}>
+        <ListToolbar base={base} config={config} placeholder="ค้นหาการแจ้งเตือน" />
+      </Suspense>
+      <Suspense fallback={<PageSkeleton />}>
+        <NotificationResults base={base} role={role} config={config} searchParams={searchParams} />
+      </Suspense>
+    </>
+  );
+}
+
+async function NotificationResults({ base, role, config, searchParams }: { base: string; role: "student" | "staff"; config: ListConfig; searchParams: SearchParams }) {
+  let params = parseListParams(config, await searchParams);
+  let result = await load(config, params);
+  if (result && result.total > 0) {
+    // past the end (e.g. ?page=999 or the list shrank after a delete): show the last page instead
+    const lastPage = Math.ceil(result.total / pageSizeOf(config));
+    if (params.page > lastPage) {
+      params = { ...params, page: lastPage };
+      result = await load(config, params);
+    }
+  }
+  if (!result) {
     return (
       <p role="alert" className="rounded-card border border-danger bg-surface p-4 text-danger">
         โหลดการแจ้งเตือนไม่สำเร็จ รีเฟรชหน้าแล้วลองอีกครั้ง
       </p>
     );
   }
-  return <NotificationList items={(data ?? []) as NotificationRow[]} />;
+  if (result.total === 0 || result.items.length === 0) {
+    if (isNarrowed(config, params)) {
+      return (
+        <EmptyState>
+          <p>ไม่พบรายการที่ตรงกับคำค้น</p>
+          <Link href={base} className="mt-2 inline-flex min-h-11 items-center font-medium text-accent underline underline-offset-4">
+            ล้างการค้นหา
+          </Link>
+        </EmptyState>
+      );
+    }
+    return <EmptyState>ยังไม่มีการแจ้งเตือน</EmptyState>;
+  }
+  return (
+    <>
+      <NotificationList items={result.items} />
+      <Pagination base={base} config={config} state={params} total={result.total} />
+      {role === "student" ? <p className="mt-4 text-sm text-muted">ระบบเก็บการแจ้งเตือนล่าสุด 100 รายการ</p> : null}
+    </>
+  );
 }

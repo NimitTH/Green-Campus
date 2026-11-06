@@ -10,21 +10,23 @@ import { isStaffRole } from "@/lib/auth/routes";
 export const metadata: Metadata = { title: "แจ้งเตือน | Green Campus" };
 
 // Students read their own rows here; staff get the same list at /staff/notifications (staff shell, M7).
-export default function NotificationsPage() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+export default function NotificationsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
       <div className="mb-5">
         <PageHeader title="แจ้งเตือน" />
       </div>
       <Suspense fallback={<PageSkeleton />}>
-        <Notifications />
+        <Notifications searchParams={searchParams} />
       </Suspense>
     </main>
   );
 }
 
-async function Notifications() {
+async function Notifications({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireUser("/notifications");
   if (isStaffRole(user.role)) redirect("/staff/notifications");
-  return <NotificationsSection />;
+  return <NotificationsSection base="/notifications" role="student" searchParams={searchParams} />;
 }

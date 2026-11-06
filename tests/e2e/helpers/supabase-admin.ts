@@ -652,3 +652,28 @@ export async function deleteActivitiesByPrefix(prefix: string): Promise<void> {
     await deleteActivitiesByTitle(row.title);
   }
 }
+
+export type SeedNotification = { title: string; type?: string; body?: string | null; read?: boolean; createdAt?: string };
+
+/** Insert notifications for a user (service role, bypasses the 100-cap only because the cap trigger is student-side: keep counts low). */
+export async function seedNotifications(userId: string, rows: SeedNotification[]): Promise<string[]> {
+  const base = Date.UTC(2020, 0, 1);
+  const data = rows.map((r, i) => ({
+    id: randomUUID(),
+    user_id: userId,
+    type: r.type ?? "submission_new",
+    title: r.title,
+    body: r.body ?? null,
+    read_at: r.read ? new Date().toISOString() : null,
+    created_at: r.createdAt ?? new Date(base + i * 60_000).toISOString(),
+  }));
+  const { error } = await admin().from("notifications").insert(data);
+  if (error) throw new Error(`e2e: seed notifications failed: ${error.message}`);
+  return data.map((r) => r.id);
+}
+
+/** Remove every notification of a user (a fresh user starts with none, but opening an activity adds some). */
+export async function clearNotifications(userId: string): Promise<void> {
+  const { error } = await admin().from("notifications").delete().eq("user_id", userId);
+  if (error) throw new Error(`e2e: clear notifications failed: ${error.message}`);
+}

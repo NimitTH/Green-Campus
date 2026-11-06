@@ -6,6 +6,7 @@ import {
   createJoinedCodeActivity,
   deleteActivitiesByTitle,
   deleteUsers,
+  seedNotifications,
   seedSubmission,
   signedInClient,
   type TestUser,
@@ -66,7 +67,7 @@ test("approval raises the student's bell live; reading lowers it; other students
     const item = studentPage.getByTestId("notification").filter({ hasText: "ผลของคุณได้รับการอนุมัติ" });
     await expect(item).toBeVisible();
     await expect(item.getByText("ใหม่", { exact: true })).toBeVisible();
-    await item.getByRole("button").click();
+    await item.getByRole("button").first().click();
     await expect(studentPage).toHaveURL((url) => url.pathname === "/my-submissions");
     await expect(studentPage.getByRole("link", { name: /^แจ้งเตือน/ })).toHaveAccessibleName(unread(1));
 
@@ -166,6 +167,106 @@ test("staff can open /notifications and see the bell in the staff header", async
     await expect(page.getByRole("heading", { name: "แจ้งเตือน" })).toBeVisible();
     await page.goto("/staff");
     await expect(page.getByRole("banner").getByRole("link", { name: /^แจ้งเตือน (ไม่มีรายการใหม่|ยังไม่อ่าน)/ })).toBeVisible();
+  } finally {
+    await deleteUsers([teacher]);
+  }
+});
+
+// Redesign 4 Task 3: search, sort, filter, pagination and delete.
+const item = (page: import("@playwright/test").Page) => page.getByTestId("notification");
+
+test("student list: 12 per page, search, type filter, sort by name", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  let student: TestUser | undefined;
+  try {
+    student = await createConfirmedUser("student", `student-nl-${suffix}`);
+    await seedNotifications(student.id, [
+      ...Array.from({ length: 11 }, (_, i) => ({ title: `ผลงาน ${String(i).padStart(2, "0")}`, type: "submission_new" })),
+      { title: "ออเดอร์ของรางวัล", type: "order_new" },
+      { title: "กิจกรรมใหม่ทดสอบ", type: "activity_opened" },
+    ]);
+    await signIn(page, student, "/notifications");
+    await expect(item(page)).toHaveCount(12);
+    await expect(page.getByText("ระบบเก็บการแจ้งเตือนล่าสุด 100 รายการ")).toBeVisible();
+    await page.goto("/notifications?page=2");
+    await expect(item(page)).toHaveCount(1);
+    await page.goto("/notifications?page=99");
+    await expect(item(page)).toHaveCount(1);
+
+    await page.goto("/notifications?q=" + encodeURIComponent("ออเดอร์"));
+    await expect(item(page)).toHaveCount(1);
+    await page.goto("/notifications?q=zzzz");
+    await expect(page.getByText("ไม่พบรายการที่ตรงกับคำค้น")).toBeVisible();
+    await page.getByRole("link", { name: "ล้างการค้นหา" }).click();
+    await expect(item(page)).toHaveCount(12);
+
+    await page.goto("/notifications?type=order");
+    await expect(item(page)).toHaveCount(1);
+    await expect(item(page)).toContainText("ออเดอร์ของรางวัล");
+    await page.goto("/notifications?type=xyz");
+    await expect(item(page)).toHaveCount(12);
+
+    await page.goto("/notifications?sort=name");
+    await expect(item(page).first()).toContainText("กิจกรรมใหม่ทดสอบ");
+    await page.goto("/notifications?sort=name&dir=desc");
+    await expect(item(page).first()).toContainText("ออเดอร์ของรางวัล");
+  } finally {
+    await deleteUsers([student]);
+  }
+});
+
+test("delete one notification; it stays gone after reload; the bell drops without reload", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  let student: TestUser | undefined;
+  try {
+    student = await createConfirmedUser("student", `student-nd-${suffix}`);
+    await seedNotifications(student.id, [{ title: "อันแรก" }, { title: "อันสอง" }]);
+    await signIn(page, student, "/notifications");
+    const bell = page.getByRole("link", { name: /^แจ้งเตือน/ });
+    await expect(bell).toHaveAccessibleName(unread(2));
+    await page.getByRole("button", { name: "ลบการแจ้งเตือน อันแรก" }).click();
+    await expect(item(page)).toHaveCount(1);
+    await expect(bell).toHaveAccessibleName(unread(1), { timeout: 5000 });
+    await page.reload();
+    await expect(item(page)).toHaveCount(1);
+    await expect(item(page)).toContainText("อันสอง");
+  } finally {
+    await deleteUsers([student]);
+  }
+});
+
+test("delete read notifications keeps the unread ones", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  let student: TestUser | undefined;
+  try {
+    student = await createConfirmedUser("student", `student-nr-${suffix}`);
+    await seedNotifications(student.id, [{ title: "อ่านแล้ว 1", read: true }, { title: "อ่านแล้ว 2", read: true }, { title: "ยังไม่อ่าน" }]);
+    await signIn(page, student, "/notifications");
+    await expect(item(page)).toHaveCount(3);
+    page.once("dialog", (d) => {
+      expect(d.message()).toBe("ลบการแจ้งเตือนที่อ่านแล้วทั้งหมด?");
+      void d.accept();
+    });
+    await page.getByRole("button", { name: "ลบที่อ่านแล้วทั้งหมด" }).click();
+    await expect(item(page)).toHaveCount(1);
+    await expect(item(page)).toContainText("ยังไม่อ่าน");
+  } finally {
+    await deleteUsers([student]);
+  }
+});
+
+test("staff list has no activity option and no 100 note", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  let teacher: TestUser | undefined;
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-ns-${suffix}`);
+    await seedNotifications(teacher.id, [{ title: "ผลใหม่ของครู" }]);
+    await signIn(page, teacher, "/staff/notifications");
+    await expect(item(page)).toHaveCount(1);
+    const type = page.getByLabel("ประเภท");
+    await expect(type.locator("option", { hasText: "กิจกรรม" })).toHaveCount(0);
+    await expect(type.locator("option", { hasText: "ออเดอร์" })).toHaveCount(1);
+    await expect(page.getByText("ระบบเก็บการแจ้งเตือนล่าสุด 100 รายการ")).toHaveCount(0);
   } finally {
     await deleteUsers([teacher]);
   }

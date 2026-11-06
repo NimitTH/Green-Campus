@@ -3,9 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { markAllNotificationsRead, markNotificationRead } from "@/app/actions/notifications";
-import { Button, EmptyState } from "@/components/ui";
+import { Button } from "@/components/ui";
 import { formatBangkok } from "@/lib/datetime";
 import { internalLink } from "@/lib/notifications/link";
+import { DeleteNotificationButton, DeleteReadButton } from "./notification-delete";
 
 export type NotificationRow = {
   id: string;
@@ -21,12 +22,6 @@ export function NotificationList({ items }: { items: NotificationRow[] }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-
-  if (items.length === 0) {
-    return (
-      <EmptyState>ยังไม่มีการแจ้งเตือน</EmptyState>
-    );
-  }
 
   const hasUnread = items.some((n) => n.read_at === null);
 
@@ -57,7 +52,8 @@ export function NotificationList({ items }: { items: NotificationRow[] }) {
 
   return (
     <div>
-      <div className="mb-3 flex justify-end">
+      <div className="mb-3 flex flex-wrap justify-end gap-2">
+        <DeleteReadButton onError={setError} />
         <Button type="button" onClick={readAll} disabled={pending || !hasUnread}>
           อ่านทั้งหมด
         </Button>
@@ -69,12 +65,12 @@ export function NotificationList({ items }: { items: NotificationRow[] }) {
       ) : null}
       <ul className="space-y-2">
         {items.map((n) => (
-          <li key={n.id} data-testid="notification">
+          <li key={n.id} data-testid="notification" className="flex items-stretch gap-1">
             <button
               type="button"
               onClick={() => open(n)}
               disabled={pending}
-              className={`block min-h-11 w-full rounded-card border p-4 text-left text-ink shadow-card transition-colors hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-55 ${
+              className={`block min-h-11 min-w-0 flex-1 rounded-card border p-4 text-left text-ink shadow-card transition-colors hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-55 ${
                 n.read_at === null ? "border-accent bg-accent-soft" : "border-rule bg-surface"
               }`}
             >
@@ -87,6 +83,7 @@ export function NotificationList({ items }: { items: NotificationRow[] }) {
               {n.body ? <span className="mt-1 block text-sm text-ink">{n.body}</span> : null}
               <span className="mt-1 block text-xs text-muted">{formatBangkok(n.created_at)}</span>
             </button>
+            <DeleteNotificationButton id={n.id} title={n.title} onError={setError} />
           </li>
         ))}
       </ul>

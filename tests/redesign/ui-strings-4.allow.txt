@@ -3,3 +3,13 @@
 # direction texts live in src/lib/**/list-config.ts and list-params.ts (not scanned .tsx).
 text:เรียงตาม
 text:ทั้งหมด
+# Task 3 (DESIGN-4 1.3 notifications): search placeholder, delete buttons, confirm, no-match, student cap note.
+text:ลบ
+text:ลบที่อ่านแล้วทั้งหมด
+text:ไม่พบรายการที่ตรงกับคำค้น
+text:ล้างการค้นหา
+text:ระบบเก็บการแจ้งเตือนล่าสุด 100 รายการ
+text:ค้นหาการแจ้งเตือน
+text:ลบการแจ้งเตือน
+text:ลบการแจ้งเตือนที่อ่านแล้วทั้งหมด?
+aria:ลบการแจ้งเตือน ${title}

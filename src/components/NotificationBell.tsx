@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { NOTIFICATIONS_CHANGED_EVENT } from "@/lib/notifications/events";
 import { createBrowserClient } from "@/lib/supabase/browser";
 import { uniqueId } from "@/lib/unique-id";
 
@@ -173,9 +174,13 @@ function startStore(): () => void {
     if (document.visibilityState === "visible" && activeUid) void refetch();
   };
   document.addEventListener("visibilitychange", onVisible);
+  // the notifications page deleted rows (no Realtime DELETE subscription here)
+  const hasWindow = typeof window !== "undefined"; // the store unit tests run without a DOM
+  if (hasWindow) window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, scheduleRefetch);
 
   return () => {
     cancelled = true;
+    if (hasWindow) window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, scheduleRefetch);
     document.removeEventListener("visibilitychange", onVisible);
     sub.subscription.unsubscribe();
     teardown();

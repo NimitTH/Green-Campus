@@ -45,3 +45,32 @@ export async function markAllNotificationsRead(): Promise<NotificationActionResu
   }
   return { ok: true };
 }
+
+/** Delete one of the caller's notifications (RLS notifications_delete_own; a row that is not theirs matches nothing). */
+export async function deleteNotification(id: string): Promise<{ ok: boolean; error?: string }> {
+  if (!isUuid(id)) return { ok: false, error: GENERIC_ERROR_TH };
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: errorMessageTh("not_authenticated") };
+
+  const supabase = await createServerClient();
+  const { error } = await supabase.from("notifications").delete().eq("id", id);
+  if (error) {
+    console.error("deleteNotification failed", error.code, error.message);
+    return { ok: false, error: GENERIC_ERROR_TH };
+  }
+  return { ok: true };
+}
+
+/** Delete every read notification of the caller (unread ones stay). */
+export async function deleteReadNotifications(): Promise<{ ok: boolean; deleted: number; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, deleted: 0, error: errorMessageTh("not_authenticated") };
+
+  const supabase = await createServerClient();
+  const { data, error } = await supabase.from("notifications").delete().not("read_at", "is", null).select("id");
+  if (error) {
+    console.error("deleteReadNotifications failed", error.code, error.message);
+    return { ok: false, deleted: 0, error: GENERIC_ERROR_TH };
+  }
+  return { ok: true, deleted: data?.length ?? 0 };
+}
