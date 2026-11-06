@@ -1,9 +1,10 @@
 import { cacheLife, cacheTag } from "next/cache";
-import { PAGE_SIZE, type ListParams } from "@/app/_components/list/list-params";
+import { PAGE_SIZE, type ListState } from "@/app/_components/list/list-params";
 import { quoteOrValue, toIlikePattern } from "@/app/_components/list/search-escape";
 import { getStaffNames } from "@/lib/staff-names";
 import { createAnonClient } from "@/lib/supabase/anon";
-import { ARTICLE_BUCKET, excerpt, isValidSlug } from "./format";
+import { ARTICLE_BUCKET, excerpt, isArticleCategory, isValidSlug, type ArticleCategory } from "./format";
+import { ARTICLE_SORT_COLUMN } from "./list-config";
 
 // Published articles for the public pages (/articles, /articles/[slug]; spec 9.1). Anonymous and
 // cookie-free, so they are cached like the home page totals: the same public data for everyone. Every
@@ -34,10 +35,10 @@ export type PublicArticle = {
   authorName: string | null;
 };
 
-export type PublicArticleListItem = PublicArticleSummary & { authorName: string | null };
+export type PublicArticleListItem = PublicArticleSummary & { authorName: string | null; category: ArticleCategory };
 
 type Row = { id: string; slug: string; title: string; body: string; cover_path: string | null; created_at: string; updated_at: string };
-type PageRow = { id: string; slug: string; title: string; body: string; cover_path: string | null; created_at: string; author_id: string | null };
+type PageRow = { id: string; slug: string; title: string; body: string; cover_path: string | null; created_at: string; author_id: string | null; category: string };
 
 function coverUrl(path: string | null): string | null {
   return path ? createAnonClient().storage.from(ARTICLE_BUCKET).getPublicUrl(path).data.publicUrl : null;
@@ -74,31 +75,37 @@ export async function listPublishedArticles(): Promise<PublicArticleSummary[] | 
 }
 
 /**
- * One page (PAGE_SIZE) of published articles for /articles (DESIGN-3 5.1): optional title/body search
- * (matched literally, see search-escape.ts), newest or oldest first, with author names (one staff_names()
- * call per page). A page past the end returns no items with the real total, so the page can ask again for the
- * last page. Null on failure, cached only for seconds (same reason as listPublishedArticles).
+ * One page (PAGE_SIZE) of published articles for /articles (DESIGN-3 5.1, DESIGN-4 3): optional title/body search
+ * (matched literally, see search-escape.ts), an optional category filter, sorted by ARTICLE_LIST_CONFIG (date, name
+ * or category, then id, nulls last), with author names (one staff_names() call per page). The state is a plain
+ * object, so every q / sort / dir / filter / page combination is its own cache entry. A page past the end returns
+ * no items with the real total, so the page can ask again for the last page. Null on failure, cached only for
+ * seconds (same reason as listPublishedArticles).
  */
 export async function listPublishedArticlesPage(
-  p: Pick<ListParams, "q" | "sort" | "page">,
+  p: Pick<ListState, "q" | "sort" | "dir" | "filters" | "page">,
 ): Promise<{ items: PublicArticleListItem[]; total: number } | null> {
   "use cache";
   cacheTag(ARTICLES_TAG);
   const db = createAnonClient();
   const pattern = p.q ? quoteOrValue(toIlikePattern(p.q)) : null;
+  const category = isArticleCategory(p.filters.category) ? p.filters.category : null;
+  // published (and the category, when one is picked) as one match(): an eq() in the generic below hits TS2589
+  const scope: Record<string, unknown> = category ? { published: true, category } : { published: true };
   const filtered = <T extends { or(filter: string): T }>(query: T): T => (pattern ? query.or(`title.ilike.${pattern},body.ilike.${pattern}`) : query);
-  const ascending = p.sort === "old";
+  const column = Object.hasOwn(ARTICLE_SORT_COLUMN, p.sort) ? ARTICLE_SORT_COLUMN[p.sort as keyof typeof ARTICLE_SORT_COLUMN] : "created_at";
+  const ascending = p.dir === "asc";
   const page = Math.max(1, Math.trunc(p.page) || 1);
   const { data, error, count } = await filtered(
-    db.from("articles").select("id, slug, title, body, cover_path, created_at, author_id", { count: "exact" }).eq("published", true),
+    db.from("articles").select("id, slug, title, body, cover_path, created_at, author_id, category", { count: "exact" }).match(scope),
   )
-    .order("created_at", { ascending })
+    .order(column, { ascending, nullsFirst: false })
     .order("id", { ascending })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
   if (error?.code === "PGRST103") {
     // offset past the last row (HTTP 416): count only, so the caller can fall back to the last page
-    const head = await filtered(db.from("articles").select("id", { count: "exact", head: true }).eq("published", true));
+    const head = await filtered(db.from("articles").select("id", { count: "exact", head: true }).match(scope));
     if (head.error || head.count === null) {
       console.error("listPublishedArticlesPage failed");
       cacheLife("seconds");
@@ -125,6 +132,7 @@ export async function listPublishedArticlesPage(
       coverUrl: coverUrl(r.cover_path),
       createdAt: r.created_at,
       authorName: (r.author_id && names.get(r.author_id)) || null,
+      category: isArticleCategory(r.category) ? r.category : "knowledge",
     })),
   };
 }

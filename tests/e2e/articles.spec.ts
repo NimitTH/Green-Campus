@@ -197,12 +197,23 @@ test.describe("article list: search, sort, view, pagination", () => {
     await expect(page.getByText("โดย ครูทดสอบ")).toBeVisible();
   });
 
-  test("sort old → new puts the oldest first and goes back to page 1", async ({ page }) => {
+  test("the direction button switches to old → new, puts the oldest first and goes back to page 1", async ({ page }) => {
     await page.goto(`/articles?q=${prefix}&page=2`);
-    await page.getByLabel("เรียง").selectOption("old");
-    await expect(page).toHaveURL((url) => url.searchParams.get("sort") === "old" && !url.searchParams.has("page"));
+    const direction = page.getByRole("link", { name: "เก่า → ใหม่", exact: true });
+    await expect(direction).toHaveText("ใหม่ → เก่า");
+    await direction.click();
+    await expect(page).toHaveURL((url) => url.searchParams.get("dir") === "asc" && !url.searchParams.has("sort") && !url.searchParams.has("page"));
     await expect(titles(page)).toHaveCount(12);
     await expect(titles(page).first()).toHaveText(`${prefix} 00`);
+    await expect(page.getByRole("link", { name: "ใหม่ → เก่า", exact: true })).toHaveText("เก่า → ใหม่");
+  });
+
+  test("round-3 links: /articles?sort=old still lists the oldest first", async ({ page }) => {
+    await page.goto(`/articles?q=${prefix}&sort=old`);
+    await expect(titles(page)).toHaveCount(12);
+    await expect(titles(page).first()).toHaveText(`${prefix} 00`);
+    await page.goto(`/articles?q=${prefix}&sort=new`);
+    await expect(titles(page).first()).toHaveText(`${prefix} 12`);
   });
 
   test("the list view keeps the results and marks the toggle", async ({ page }) => {
@@ -264,5 +275,67 @@ test.describe("article list: search, sort, view, pagination", () => {
     await expect(page.getByRole("status").filter({ hasText: "คัดลอกแล้ว" })).toBeVisible();
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(page.url());
     await expect(page.getByRole("status").filter({ hasText: "คัดลอกแล้ว" })).toHaveCount(0, { timeout: 4000 });
+  });
+});
+
+// Redesign 4 Task 2 (DESIGN-4 2/3): sort by name (ก → ฮ and back), the category filter and badge, 360px.
+// Three published articles "ก-…", "ข-…", "ฮ-…" (knowledge, announcement, other) under a unique token.
+test.describe("article list: name sort, category filter", () => {
+  let token = "";
+  let seeded: SeededArticle[] = [];
+
+  test.beforeAll(async () => {
+    token = `e2ecat${uniqueSuffix(test.info().project.name).replace(/[^a-z0-9]/g, "")}`;
+    seeded = [
+      ...(await seedPublishedArticles(`ก-${token}`, `${token}-k`, 1, {}, { category: "knowledge" })),
+      ...(await seedPublishedArticles(`ข-${token}`, `${token}-a`, 1, {}, { category: "announcement", created_at: "2001-01-01T00:05:00Z" })),
+      ...(await seedPublishedArticles(`ฮ-${token}`, `${token}-o`, 1, {}, { category: "other", created_at: "2001-01-01T00:03:00Z" })),
+    ];
+  });
+
+  test.afterAll(async () => {
+    await deleteArticlesById(seeded.map((a) => a.id));
+  });
+
+  const titles = (page: Page) => page.getByRole("main").getByRole("heading", { level: 2 });
+
+  test("sort by name: ก → ฮ, then the direction button gives ฮ → ก", async ({ page }) => {
+    await page.goto(`/articles?q=${token}`);
+    // default: newest first (ข 00:05, ฮ 00:03, ก 00:00)
+    await expect(titles(page)).toHaveText([`ข-${token} 00`, `ฮ-${token} 00`, `ก-${token} 00`]);
+    await page.getByLabel("เรียงตาม").selectOption("name");
+    await expect(page).toHaveURL((url) => url.searchParams.get("sort") === "name" && !url.searchParams.has("dir"));
+    await expect(titles(page)).toHaveText([`ก-${token} 00`, `ข-${token} 00`, `ฮ-${token} 00`]);
+    const direction = page.getByRole("link", { name: "ฮ → ก", exact: true });
+    await expect(direction).toHaveText("ก → ฮ");
+    await direction.click();
+    await expect(page).toHaveURL((url) => url.searchParams.get("sort") === "name" && url.searchParams.get("dir") === "desc");
+    await expect(titles(page)).toHaveText([`ฮ-${token} 00`, `ข-${token} 00`, `ก-${token} 00`]);
+  });
+
+  test("the category filter shows only the announcement, with its badge; ทั้งหมด clears it", async ({ page }) => {
+    await page.goto(`/articles?q=${token}`);
+    await expect(page.getByTestId("article-card").filter({ hasText: `ก-${token}` })).toContainText("ให้ความรู้");
+    const filter = page.getByLabel("ประเภท", { exact: true });
+    await expect(filter).toHaveValue("all");
+    await filter.selectOption("announcement");
+    await expect(page).toHaveURL((url) => url.searchParams.get("category") === "announcement");
+    await expect(titles(page)).toHaveText([`ข-${token} 00`]);
+    await expect(page.getByTestId("article-card")).toContainText("ประกาศ");
+    await page.getByLabel("ประเภท", { exact: true }).selectOption("all");
+    await expect(page).toHaveURL((url) => !url.searchParams.has("category"));
+    await expect(titles(page)).toHaveCount(3);
+    // junk category falls back to all
+    await page.goto(`/articles?q=${token}&category=zzz&dir=up`);
+    await expect(titles(page)).toHaveCount(3);
+  });
+
+  test("no horizontal scroll at 360px with the two-row toolbar", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    for (const view of ["card", "list"]) {
+      await page.goto(`/articles?q=${token}&view=${view}&sort=name`);
+      await expect(titles(page)).toHaveCount(3);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth), view).toBeLessThanOrEqual(360);
+    }
   });
 });

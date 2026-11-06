@@ -6,6 +6,19 @@ export const ARTICLE_LIMITS = { titleMax: 200, slugMax: 80, bodyMax: 20_000, exc
 
 export const ARTICLE_BUCKET = "article-images";
 
+/** articles.category (0033, DESIGN-4 5.1); the database checks the same three values. */
+export const ARTICLE_CATEGORIES = ["knowledge", "announcement", "other"] as const;
+export type ArticleCategory = (typeof ARTICLE_CATEGORIES)[number];
+export const ARTICLE_CATEGORY_LABEL_TH: Record<ArticleCategory, string> = {
+  knowledge: "ให้ความรู้",
+  announcement: "ประกาศ",
+  other: "อื่นๆ",
+};
+
+export function isArticleCategory(value: unknown): value is ArticleCategory {
+  return typeof value === "string" && (ARTICLE_CATEGORIES as readonly string[]).includes(value);
+}
+
 /** Unique-constraint violation on articles.slug (agreed wording). */
 export const SLUG_TAKEN_TH = "slug นี้ถูกใช้แล้ว";
 

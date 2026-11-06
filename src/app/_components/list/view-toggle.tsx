@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listHref, type ListParams, type ListView } from "./list-params";
+import { listHref, type ListConfig, type ListState, type ListView } from "./list-params";
 
 const ICONS: Record<ListView, React.ReactNode> = {
   card: (
@@ -22,16 +22,16 @@ const ICONS: Record<ListView, React.ReactNode> = {
 
 const LABELS: Record<ListView, string> = { card: "การ์ด", list: "รายการ" };
 
-/** DESIGN-3 5.3: two links (card / list), the selected one marked aria-current. Keeps q, sort and page. */
-export function ViewToggle({ base, params }: { base: string; params: ListParams }) {
+/** DESIGN-3 5.3: two links (card / list), the selected one marked aria-current. Keeps the rest of the state, page included. */
+export function ViewToggle({ base, config, state }: { base: string; config: ListConfig; state: ListState }) {
   return (
     <div className="flex shrink-0">
       {(["card", "list"] as const).map((v) => {
-        const selected = params.view === v;
+        const selected = state.view === v;
         return (
           <Link
             key={v}
-            href={listHref(base, params, { view: v })}
+            href={listHref(base, config, state, { view: v })}
             aria-label={LABELS[v]}
             aria-current={selected ? "true" : undefined}
             scroll={false}

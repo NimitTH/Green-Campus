@@ -203,12 +203,14 @@ test("teacher removes a cover on edit, then deletes the activity: the cover obje
 test.describe("activity list: search, sort, view, pagination, visibility", () => {
   let prefix = "";
   let visPrefix = "";
+  let typePrefix = "";
   let student: TestUser | undefined;
 
   test.beforeAll(async () => {
     const suffix = uniqueSuffix(test.info().project.name).replace(/[^a-z0-9]/g, "");
     prefix = `e2eact${suffix}`;
     visPrefix = `e2evis${suffix}`;
+    typePrefix = `e2etype${suffix}`;
     student = await createConfirmedUser("student", `student-actlist-${suffix}`);
     const ids = await seedActivities(prefix, 13);
     await joinAs(student.id, ids[5]);
@@ -217,11 +219,14 @@ test.describe("activity list: search, sort, view, pagination, visibility", () =>
     await joinAs(student.id, joinedClosed);
     await updateActivity(joinedClosed, { status: "closed" });
     await seedActivities(`${visPrefix} other`, 1, { status: "closed" });
+    await seedActivities(`${typePrefix} fixed`, 1);
+    await seedActivities(`${typePrefix} tree`, 1, { type: "trees" });
   });
 
   test.afterAll(async () => {
     await deleteActivitiesByPrefix(prefix);
     await deleteActivitiesByPrefix(visPrefix);
+    await deleteActivitiesByPrefix(typePrefix);
     await deleteUsers([student]);
   });
 
@@ -275,6 +280,52 @@ test.describe("activity list: search, sort, view, pagination, visibility", () =>
     await expect(page.getByRole("link", { name: "ล้างการค้นหา" })).toHaveAttribute("href", "/activities");
   });
 
+  test("joined filter: yes keeps the joined one, no keeps the open ones not joined (DESIGN-4 3.4)", async ({ page }) => {
+    await signIn(page, student!, "/activities");
+    await page.goto(`/activities?q=${prefix}`);
+    await page.getByLabel("สถานะ", { exact: true }).selectOption("yes");
+    await expect(page).toHaveURL((url) => url.searchParams.get("joined") === "yes" && url.searchParams.get("q") === prefix);
+    await expect(items(page)).toHaveText([`${prefix} 05`]);
+    await page.getByLabel("สถานะ", { exact: true }).selectOption("no");
+    await expect(page).toHaveURL((url) => url.searchParams.get("joined") === "no");
+    await expect(items(page)).toHaveCount(12);
+    await expect(page.getByRole("link", { name: `${prefix} 05` })).toHaveCount(0);
+    await expect(page.getByRole("navigation", { name: "แบ่งหน้า" })).toHaveCount(0);
+    // the closed activity the student joined: shown under yes, never under no (no = open only)
+    await page.goto(`/activities?q=${visPrefix}&joined=yes`);
+    await expect(items(page)).toHaveText([`${visPrefix} joined 00`]);
+    await page.goto(`/activities?q=${visPrefix}&joined=no`);
+    await expect(page.getByText("ไม่พบกิจกรรมที่ตรงกับคำค้น")).toBeVisible();
+  });
+
+  test("type filter keeps one type; name sort and its direction button", async ({ page }) => {
+    await signIn(page, student!, "/activities");
+    await page.goto(`/activities?q=${typePrefix}`);
+    await expect(items(page)).toHaveCount(2);
+    await page.getByLabel("ประเภท", { exact: true }).selectOption("trees");
+    await expect(page).toHaveURL((url) => url.searchParams.get("type") === "trees");
+    await expect(items(page)).toHaveText([`${typePrefix} tree 00`]);
+    await page.goto(`/activities?q=${typePrefix}&sort=name`);
+    await expect(items(page)).toHaveText([`${typePrefix} fixed 00`, `${typePrefix} tree 00`]);
+    await page.getByRole("link", { name: "ฮ → ก", exact: true }).click();
+    await expect(page).toHaveURL((url) => url.searchParams.get("dir") === "desc");
+    await expect(items(page)).toHaveText([`${typePrefix} tree 00`, `${typePrefix} fixed 00`]);
+  });
+
+  test("joined=yes with nothing joined gives the empty result, not an error", async ({ page }, testInfo) => {
+    let fresh: TestUser | undefined;
+    try {
+      fresh = await createConfirmedUser("student", `student-nojoin-${uniqueSuffix(testInfo.project.name)}`);
+      await signIn(page, fresh, "/activities");
+      const res = await page.goto("/activities?joined=yes");
+      expect(res?.status()).toBe(200);
+      await expect(page.getByText("ไม่พบกิจกรรมที่ตรงกับคำค้น")).toBeVisible();
+      await expect(page.getByLabel("สถานะ", { exact: true })).toHaveValue("yes");
+    } finally {
+      await deleteUsers([fresh]);
+    }
+  });
+
   test("no horizontal scroll at 360px in either view", async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     await signIn(page, student!, "/activities");
@@ -283,6 +334,7 @@ test.describe("activity list: search, sort, view, pagination, visibility", () =>
       await expect(items(page)).toHaveCount(12);
       const { sw, cw } = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
       expect(sw, view).toBeLessThanOrEqual(cw);
+      expect(sw, view).toBeLessThanOrEqual(360);
     }
   });
 });

@@ -1,9 +1,10 @@
 import "server-only";
-import { PAGE_SIZE, type ListParams } from "@/app/_components/list/list-params";
+import { ALL, PAGE_SIZE, type ListState } from "@/app/_components/list/list-params";
 import { quoteOrValue, toIlikePattern } from "@/app/_components/list/search-escape";
 import { getStaffNames } from "@/lib/staff-names";
 import { createServerClient } from "@/lib/supabase/server";
 import { activityCoverUrl } from "./cover";
+import { ACTIVITY_LIST_CONFIG, ACTIVITY_SORT_COLUMN } from "./list-config";
 import type { ActivityRecord } from "./validation";
 
 // Read helpers for activity pages. They run as the signed-in user, so RLS decides what
@@ -88,27 +89,58 @@ export async function hasActiveSubmission(activityId: string, userId: string): P
 export type StudentActivityItem = ActivityRow & { joined: boolean; creatorName: string | null; coverUrl: string | null };
 
 /**
- * One page (PAGE_SIZE) of /activities for a student (DESIGN-3 6.2): the open activities plus every activity the
- * user joined (the same rule as before, which RLS also enforces), AND an optional title/description search
- * matched literally (search-escape.ts). PostgREST ANDs the two separate or= filters. Newest or oldest first by
- * created_at, then id. A page past the end returns no items with the real total, so the page can ask again for
- * the last page. Creator names come from one staff_names() call per page. Throws on failure.
+ * The filter methods the /activities query uses. The query builders are cast to this through unknown: checking a
+ * PostgrestFilterBuilder against a generic constraint with these methods hits TS2589 under `next build`.
+ */
+type ActivityFilterable = {
+  or(filter: string): ActivityFilterable;
+  eq(column: string, value: string): ActivityFilterable;
+  in(column: string, values: readonly string[]): ActivityFilterable;
+  not(column: string, operator: string, value: string): ActivityFilterable;
+};
+
+/**
+ * One page (PAGE_SIZE) of /activities for a student (DESIGN-3 6.2, DESIGN-4 3/3.4): the open activities plus every
+ * activity the user joined (the same rule as before, which RLS also enforces), AND an optional title/description
+ * search matched literally (search-escape.ts), AND the ACTIVITY_LIST_CONFIG filters: joined=yes keeps only the joined
+ * ids (none joined → total 0 without a query), joined=no keeps open activities the user has not joined, type keeps
+ * one activity type. PostgREST ANDs the separate or= filters. Sorted by created_at or title (nulls last), then id.
+ * A page past the end returns no items with the real total, so the page can ask again for the last page. Creator
+ * names come from one staff_names() call per page. Throws on failure.
  */
 export async function listActivitiesForStudentPage(
   userId: string,
-  p: Pick<ListParams, "q" | "sort" | "page">,
+  p: Pick<ListState, "q" | "sort" | "dir" | "filters" | "page">,
 ): Promise<{ items: StudentActivityItem[]; total: number }> {
   const joinedIds = await joinedActivityIds(userId);
+  const joined = p.filters.joined;
+  if (joined === "yes" && joinedIds.length === 0) return { items: [], total: 0 };
+  const type = p.filters.type;
+  const typeFilter = type && type !== ALL && Object.hasOwn(ACTIVITY_LIST_CONFIG.filters.type.options, type) ? type : null;
+
   const supabase = await createServerClient();
   const pattern = p.q ? quoteOrValue(toIlikePattern(p.q)) : null;
   // ids are uuids read from the database, safe inside the PostgREST filter.
-  const visible = joinedIds.length > 0 ? `status.eq.open,id.in.(${joinedIds.join(",")})` : "status.eq.open";
+  const idList = `(${joinedIds.join(",")})`;
+  const visible = joinedIds.length > 0 ? `status.eq.open,id.in.${idList}` : "status.eq.open";
   const search = pattern ? `title.ilike.${pattern},description.ilike.${pattern}` : null;
-  const filtered = <T extends { or(filter: string): T }>(query: T): T => (search ? query.or(visible).or(search) : query.or(visible));
-  const ascending = p.sort === "old";
+  // the same builder comes back (each method returns `this`), so the cast back to T is exact
+  const filtered = <T,>(query: T): T => {
+    let q = (query as unknown as ActivityFilterable).or(visible);
+    if (search) q = q.or(search);
+    if (joined === "yes") q = q.in("id", joinedIds);
+    else if (joined === "no") {
+      q = q.eq("status", "open");
+      if (joinedIds.length > 0) q = q.not("id", "in", idList);
+    }
+    if (typeFilter) q = q.eq("type", typeFilter);
+    return q as unknown as T;
+  };
+  const column = Object.hasOwn(ACTIVITY_SORT_COLUMN, p.sort) ? ACTIVITY_SORT_COLUMN[p.sort as keyof typeof ACTIVITY_SORT_COLUMN] : "created_at";
+  const ascending = p.dir === "asc";
   const page = Math.max(1, Math.trunc(p.page) || 1);
   const { data, error, count } = await filtered(supabase.from("activities").select(COLUMNS, { count: "exact" }))
-    .order("created_at", { ascending })
+    .order(column, { ascending, nullsFirst: false })
     .order("id", { ascending })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 

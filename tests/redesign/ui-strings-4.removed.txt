@@ -1,1 +1,5 @@
 # Redesign 4: baseline UI strings (text:... / aria:...) allowed to DISAPPEAR from src/**/*.tsx. Later tasks append here.
+# Task 2 (DESIGN-4 1.3): the round-3 "เรียง" label and its ใหม่ → เก่า / เก่า → ใหม่ options (now the direction button).
+text:เรียง
+text:ใหม่
+text:เก่า

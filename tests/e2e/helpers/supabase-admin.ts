@@ -534,13 +534,14 @@ export type SeededArticle = { id: string; slug: string; title: string; createdAt
 /**
  * Published articles titled `<titlePrefix> NN` (NN = 00, 01, …), slugs `<slugPrefix>-NN`, created one minute
  * apart from 2001-01-01 (older than any real article, so they never push others off page 1). Article 00 can
- * get an author and a cover (`<id>/<uuid>.jpg` in article-images).
+ * get an author and a cover (`<id>/<uuid>.jpg` in article-images). `fields` (e.g. a category) applies to every row.
  */
 export async function seedPublishedArticles(
   titlePrefix: string,
   slugPrefix: string,
   count: number,
   first: { authorId?: string; cover?: boolean } = {},
+  fields: Record<string, unknown> = {},
 ): Promise<SeededArticle[]> {
   const rows = Array.from({ length: count }, (_, i) => {
     const nn = String(i).padStart(2, "0");
@@ -552,6 +553,7 @@ export async function seedPublishedArticles(
       published: true,
       author_id: i === 0 ? (first.authorId ?? null) : null,
       created_at: new Date(Date.UTC(2001, 0, 1, 0, i)).toISOString(),
+      ...fields,
     };
   });
   const { error } = await admin().from("articles").insert(rows);

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PAGE_SIZE, listHref, type ListParams } from "./list-params";
+import { listHref, pageSizeOf, type ListConfig, type ListState } from "./list-params";
 
 /** Page numbers to show: 1, current ± 1 and the last page; a gap of one page shows that page, longer gaps "…". */
 export function pageWindow(current: number, last: number): (number | "…")[] {
@@ -28,12 +28,13 @@ function Chevron({ dir }: { dir: "prev" | "next" }) {
   );
 }
 
-/** DESIGN-3 5.3: previous / next and page numbers. Nothing when everything fits on one page. */
-export function Pagination({ base, params, total }: { base: string; params: ListParams; total: number }) {
-  if (total <= PAGE_SIZE) return null;
-  const last = Math.ceil(total / PAGE_SIZE);
-  const current = Math.min(Math.max(params.page, 1), last);
-  const href = (page: number) => listHref(base, params, { page });
+/** DESIGN-3 5.3 / DESIGN-4 2.5: previous / next and page numbers. Nothing when everything fits on one page. */
+export function Pagination({ base, config, state, total }: { base: string; config: ListConfig; state: ListState; total: number }) {
+  const size = pageSizeOf(config);
+  if (total <= size) return null;
+  const last = Math.ceil(total / size);
+  const current = Math.min(Math.max(state.page, 1), last);
+  const href = (page: number) => listHref(base, config, state, { page });
   return (
     <nav aria-label="แบ่งหน้า" className="mt-8 flex justify-center">
       <ul className="flex flex-wrap items-center justify-center gap-1">

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  ARTICLE_CATEGORIES,
+  ARTICLE_CATEGORY_LABEL_TH,
   ARTICLE_LIMITS,
+  isArticleCategory,
   excerpt,
   generateSlug,
   isArticleInputShape,
@@ -116,5 +119,16 @@ describe("isArticleInputShape", () => {
     expect(isArticleInputShape({ title: 1, slug: "", body: "", published: true })).toBe(false);
     expect(isArticleInputShape(null)).toBe(false);
     expect(isArticleInputShape([])).toBe(false);
+  });
+});
+
+describe("article categories", () => {
+  it("three values with Thai labels; isArticleCategory accepts only them", () => {
+    expect(ARTICLE_CATEGORIES).toEqual(["knowledge", "announcement", "other"]);
+    expect(ARTICLE_CATEGORY_LABEL_TH).toEqual({ knowledge: "ให้ความรู้", announcement: "ประกาศ", other: "อื่นๆ" });
+    expect(isArticleCategory("announcement")).toBe(true);
+    expect(isArticleCategory("all")).toBe(false);
+    expect(isArticleCategory("toString")).toBe(false);
+    expect(isArticleCategory(undefined)).toBe(false);
   });
 });

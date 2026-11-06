@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ListToolbar, ListToolbarSkeleton } from "@/app/_components/list/list-toolbar";
-import { PAGE_SIZE, parseListParams } from "@/app/_components/list/list-params";
+import { isNarrowed, pageSizeOf, parseListParams } from "@/app/_components/list/list-params";
 import { Pagination } from "@/app/_components/list/pagination";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/dal";
+import { ACTIVITY_LIST_CONFIG } from "@/lib/activities/list-config";
 import { listActivitiesForStudentPage } from "@/lib/activities/queries";
 import { ActivityCard, ActivityRow } from "./_components/activity-card";
 
@@ -14,8 +15,8 @@ export const metadata: Metadata = { title: "กิจกรรม | Green Campus
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-// One list of the open activities plus the ones the student joined (DESIGN-3 6.2): search, sort, card/list view,
-// 12 per page. The heading is in the static shell; the toolbar (useSearchParams) and the results (the session and
+// One list of the open activities plus the ones the student joined (DESIGN-3 6.2, DESIGN-4 3): search, sort +
+// direction, the joined / type filters, card/list view, 12 per page. The heading is in the static shell; the toolbar (useSearchParams) and the results (the session and
 // searchParams) each stream in their own <Suspense>, as on /articles.
 export default function ActivitiesPage({ searchParams }: { searchParams: SearchParams }) {
   return (
@@ -23,8 +24,8 @@ export default function ActivitiesPage({ searchParams }: { searchParams: SearchP
       <div className="mb-5">
         <PageHeader title="กิจกรรม" />
       </div>
-      <Suspense fallback={<ListToolbarSkeleton />}>
-        <ListToolbar base="/activities" placeholder="ค้นหากิจกรรม" />
+      <Suspense fallback={<ListToolbarSkeleton filters={2} />}>
+        <ListToolbar base="/activities" config={ACTIVITY_LIST_CONFIG} placeholder="ค้นหากิจกรรม" />
       </Suspense>
       <Suspense fallback={<PageSkeleton />}>
         <ActivityResults searchParams={searchParams} />
@@ -35,18 +36,18 @@ export default function ActivitiesPage({ searchParams }: { searchParams: SearchP
 
 async function ActivityResults({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireUser("/activities");
-  let params = parseListParams(await searchParams);
+  let params = parseListParams(ACTIVITY_LIST_CONFIG, await searchParams);
   let result = await listActivitiesForStudentPage(user.id, params);
   if (result.total > 0) {
     // past the end (e.g. ?page=999 or the list shrank): show the last page instead
-    const lastPage = Math.ceil(result.total / PAGE_SIZE);
+    const lastPage = Math.ceil(result.total / pageSizeOf(ACTIVITY_LIST_CONFIG));
     if (params.page > lastPage) {
       params = { ...params, page: lastPage };
       result = await listActivitiesForStudentPage(user.id, params);
     }
   }
   if (result.total === 0 || result.items.length === 0) {
-    if (params.q) {
+    if (isNarrowed(ACTIVITY_LIST_CONFIG, params)) {
       return (
         <EmptyState>
           <p>ไม่พบกิจกรรมที่ตรงกับคำค้น</p>
@@ -74,7 +75,7 @@ async function ActivityResults({ searchParams }: { searchParams: SearchParams })
           ))}
         </ul>
       )}
-      <Pagination base="/activities" params={params} total={result.total} />
+      <Pagination base="/activities" config={ACTIVITY_LIST_CONFIG} state={params} total={result.total} />
     </>
   );
 }
