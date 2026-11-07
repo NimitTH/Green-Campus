@@ -1,7 +1,7 @@
 -- Redesign 4 (DESIGN-4 7.3): my_submission_list, my_order_list, staff_activity_list, staff_order_list.
 -- ids: students ...5d11 (A) ...5d12 (B), teacher ...5d21
 begin;
-select plan(12);
+select plan(17);
 
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-000000005d11', 'lv-a@example.test', '{"full_name":"LV เอ"}'::jsonb),
@@ -72,8 +72,19 @@ select is((select string_agg(status_rank::text, '' order by status_rank) from pu
   '123', 'status_rank is 1 pending, 2 approved, 3 rejected');
 select is((select item_names like '%LV Alpha%' and item_names like '%LV Beta%' from public.my_order_list
            where id = '00000000-0000-0000-0000-000000005a11'), true, 'item_names contains both reward names');
-select is((select count(*)::int from public.staff_order_list where student_id <> '00000000-0000-0000-0000-000000005d11')
-          || '/' || (select count(*)::int from public.staff_order_list), '0/4', 'a student gets only own rows from staff_order_list');
+select is((select count(*)::int from public.my_submission_list where id = '00000000-0000-0000-0000-000000005f04')
+          || '/' || (select count(*)::int from public.my_order_list where id = '00000000-0000-0000-0000-000000005a15'), '0/0',
+  'B''s submission and order are invisible to A in my_submission_list and my_order_list');
+select is((select count(*)::int from public.staff_order_list), 0, 'a student gets 0 rows from staff_order_list (not even own orders)');
+select is((select count(*)::int from public.staff_activity_list), 0, 'a student gets 0 rows from staff_activity_list');
+reset role;
+
+-- student B
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000005d12","role":"authenticated"}', true);
+select is((select count(*)::int from public.my_submission_list where student_id = '00000000-0000-0000-0000-000000005d11')
+          || '/' || (select count(*)::int from public.my_order_list where student_id = '00000000-0000-0000-0000-000000005d11'), '0/0',
+  'A''s rows are invisible to B in my_submission_list and my_order_list');
 reset role;
 
 -- teacher
@@ -86,6 +97,12 @@ select is((select string_agg(status_group, ',' order by created_at) from public.
   'preparing,ready,completed,closed', 'status_group across the four states');
 select is((select buyer_name from public.staff_order_list where id = '00000000-0000-0000-0000-000000005a15'), 'LV บี',
   'blank display_name falls back to full_name');
+select is((select count(*)::int from public.my_submission_list) || '/' || (select count(*)::int from public.my_order_list), '0/0',
+  'staff see no student rows in the my_* views (they filter on auth.uid())');
+select is((select count(*)::int from public.staff_activity_list where id in ('00000000-0000-0000-0000-000000005e01', '00000000-0000-0000-0000-000000005e02'))
+          || '/' || (select count(*)::int from public.staff_order_list where id in ('00000000-0000-0000-0000-000000005a11',
+            '00000000-0000-0000-0000-000000005a12', '00000000-0000-0000-0000-000000005a13', '00000000-0000-0000-0000-000000005a14',
+            '00000000-0000-0000-0000-000000005a15')), '2/5', 'staff see every activity and order in the staff views');
 reset role;
 
 select * from finish();

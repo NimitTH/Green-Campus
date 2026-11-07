@@ -1,4 +1,5 @@
 import { pageSizeOf, type ListConfig, type ListState } from "@/app/_components/list/list-params";
+import { fetchPage } from "@/app/_components/list/paging";
 import { toIlikePattern } from "@/app/_components/list/search-escape";
 import type { NotificationRow } from "@/app/_components/notification-list";
 import { createServerClient } from "@/lib/supabase/server";
@@ -14,7 +15,6 @@ export async function listNotificationsPage(
   config: ListConfig,
 ): Promise<{ items: NotificationRow[]; total: number }> {
   const supabase = await createServerClient();
-  const size = pageSizeOf(config);
   const pattern = state.q ? toIlikePattern(state.q) : null;
   const prefix = typePrefix(state.filters.type);
   const filtered = <T extends { ilike(column: string, pattern: string): T; like(column: string, pattern: string): T }>(query: T): T => {
@@ -25,20 +25,25 @@ export async function listNotificationsPage(
   };
   const column = Object.hasOwn(NOTIFICATION_SORT_COLUMN, state.sort) ? NOTIFICATION_SORT_COLUMN[state.sort as keyof typeof NOTIFICATION_SORT_COLUMN] : "created_at";
   const ascending = state.dir === "asc";
-  const page = Math.max(1, Math.trunc(state.page) || 1);
-  const { data, error, count } = await filtered(
-    supabase.from("notifications").select("id, title, body, link, read_at, created_at", { count: "exact" }),
-  )
-    .order(column, { ascending, nullsFirst: false })
-    .order("id", { ascending })
-    .range((page - 1) * size, page * size - 1);
+  return fetchPage<NotificationRow>("listNotificationsPage", {
+    page: state.page,
+    size: pageSizeOf(config),
+    run: (from, to) =>
+      filtered(supabase.from("notifications").select("id, title, body, link, read_at, created_at", { count: "exact" }))
+        .order(column, { ascending, nullsFirst: false })
+        .order("id", { ascending })
+        .range(from, to),
+    head: () => filtered(supabase.from("notifications").select("id", { count: "exact", head: true })),
+  });
+}
 
-  if (error?.code === "PGRST103") {
-    const head = await filtered(supabase.from("notifications").select("id", { count: "exact", head: true }));
-    if (head.error || head.count === null) throw new Error(`listNotificationsPage: ${head.error?.message}`);
-    return { items: [], total: head.count };
-  }
-  if (error) throw new Error(`listNotificationsPage: ${error.message}`);
-  const items = (data ?? []) as NotificationRow[];
-  return { items, total: count ?? items.length };
+/**
+ * How many of the caller's notifications are unread, over the whole list (RLS limits it to their own rows), so
+ * "อ่านทั้งหมด" does not depend on the page that is shown. Throws on failure.
+ */
+export async function countUnreadNotifications(): Promise<number> {
+  const supabase = await createServerClient();
+  const { count, error } = await supabase.from("notifications").select("id", { count: "exact", head: true }).is("read_at", null);
+  if (error) throw new Error(`countUnreadNotifications: ${error.message}`);
+  return count ?? 0;
 }

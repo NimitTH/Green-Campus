@@ -38,11 +38,30 @@ select
 from public.orders o
 where o.student_id = (select auth.uid());
 
+-- The staff_* views are empty for a non-staff caller (DESIGN-4 7.3), on top of the RLS of the source tables.
 create view public.staff_activity_list with (security_invoker = true) as
 select
-  a.*,
+  a.id,
+  a.title,
+  a.description,
+  a.location,
+  a.is_offsite,
+  a.starts_at,
+  a.ends_at,
+  a.status,
+  a.type,
+  a.requires_code,
+  a.unit_points,
+  a.unit_carbon_kg,
+  a.max_per_submission,
+  a.created_by,
+  a.created_at,
+  a.updated_at,
+  a.cover_path,
+  a.details,
   (select count(*) from public.participations p where p.activity_id = a.id) as participant_count
-from public.activities a;
+from public.activities a
+where (select public.is_staff());
 
 create view public.staff_order_list with (security_invoker = true) as
 select
@@ -63,7 +82,8 @@ select
   pr.full_name as buyer_full_name,
   pr.display_name as buyer_display_name
 from public.orders o
-left join public.profiles pr on pr.id = o.student_id;
+left join public.profiles pr on pr.id = o.student_id
+where (select public.is_staff());
 
 revoke all on public.my_submission_list, public.my_order_list, public.staff_activity_list, public.staff_order_list
   from public, anon, authenticated;

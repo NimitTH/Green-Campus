@@ -4,14 +4,15 @@ import { Card, EmptyState } from "@/components/ui";
 import { ROLE_LABEL_TH } from "@/lib/admin/validation";
 import type { CurrentUser } from "@/lib/auth/dal";
 import { STAFF_NOTIFICATION_CONFIG, STUDENT_NOTIFICATION_CONFIG } from "@/lib/notifications/list-config";
-import { listNotificationsPage } from "@/lib/notifications/queries";
+import { countUnreadNotifications, listNotificationsPage } from "@/lib/notifications/queries";
 import { AvatarSection } from "./avatar-section";
 import { EmailForm } from "./email-form";
 import { EmailNotice } from "./email-notice";
 import { ListToolbar, ListToolbarSkeleton } from "./list/list-toolbar";
-import { isNarrowed, pageSizeOf, parseListParams, type ListConfig, type ListState } from "./list/list-params";
+import { isNarrowed, parseListParams, type ListConfig, type ListState } from "./list/list-params";
 import { Pagination } from "./list/pagination";
-import { NotificationList, type NotificationRow } from "./notification-list";
+import { loadClamped } from "./list/paging";
+import { NotificationList } from "./notification-list";
 import { PageSkeleton } from "./page-skeleton";
 import { PasswordForm } from "./password-form";
 import { ProfileForm } from "./profile-form";
@@ -58,6 +59,16 @@ async function load(config: ListConfig, p: ListState) {
   }
 }
 
+/** Unread rows over the whole list (not just the page shown); null when the count fails. */
+async function loadUnread() {
+  try {
+    return await countUnreadNotifications();
+  } catch (e) {
+    console.error("count unread notifications failed", e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
 /**
  * The caller's notifications with search, sort, the type filter and pagination (DESIGN-4 3). Call after the session
  * check, inside <Suspense>. The toolbar reads the URL itself (useSearchParams) in its own boundary.
@@ -66,27 +77,24 @@ export function NotificationsSection({ base, role, searchParams }: { base: strin
   const config = role === "student" ? STUDENT_NOTIFICATION_CONFIG : STAFF_NOTIFICATION_CONFIG;
   return (
     <>
+      {/* DESIGN-4 3.1: a small note under the heading, for students only, whatever the list shows */}
+      {role === "student" ? <p className="-mt-2 mb-4 text-sm text-muted">ระบบเก็บการแจ้งเตือนล่าสุด 100 รายการ</p> : null}
       <Suspense fallback={<ListToolbarSkeleton views={false} filters={1} />}>
         <ListToolbar base={base} config={config} placeholder="ค้นหาการแจ้งเตือน" />
       </Suspense>
       <Suspense fallback={<PageSkeleton />}>
-        <NotificationResults base={base} role={role} config={config} searchParams={searchParams} />
+        <NotificationResults base={base} config={config} searchParams={searchParams} />
       </Suspense>
     </>
   );
 }
 
-async function NotificationResults({ base, role, config, searchParams }: { base: string; role: "student" | "staff"; config: ListConfig; searchParams: SearchParams }) {
-  let params = parseListParams(config, await searchParams);
-  let result = await load(config, params);
-  if (result && result.total > 0) {
-    // past the end (e.g. ?page=999 or the list shrank after a delete): show the last page instead
-    const lastPage = Math.ceil(result.total / pageSizeOf(config));
-    if (params.page > lastPage) {
-      params = { ...params, page: lastPage };
-      result = await load(config, params);
-    }
-  }
+async function NotificationResults({ base, config, searchParams }: { base: string; config: ListConfig; searchParams: SearchParams }) {
+  const [{ params, result }, unread] = await Promise.all([
+    // past the end (e.g. ?page=999 or the list shrank after a delete): the last page instead
+    loadClamped(config, parseListParams(config, await searchParams), (p) => load(config, p)),
+    loadUnread(),
+  ]);
   if (!result) {
     return (
       <p role="alert" className="rounded-card border border-danger bg-surface p-4 text-danger">
@@ -109,9 +117,9 @@ async function NotificationResults({ base, role, config, searchParams }: { base:
   }
   return (
     <>
-      <NotificationList items={result.items} />
+      {/* a failed count keeps the button usable: the action itself reports errors */}
+      <NotificationList items={result.items} hasUnread={unread === null || unread > 0} />
       <Pagination base={base} config={config} state={params} total={result.total} />
-      {role === "student" ? <p className="mt-4 text-sm text-muted">ระบบเก็บการแจ้งเตือนล่าสุด 100 รายการ</p> : null}
     </>
   );
 }

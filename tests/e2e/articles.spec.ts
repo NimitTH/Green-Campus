@@ -231,12 +231,12 @@ test.describe("article list: search, sort, view, pagination", () => {
   test("PostgREST metacharacters are searched literally: empty state, no error", async ({ page }) => {
     const res = await page.goto(`/articles?q=${encodeURIComponent('a,b"(%')}`);
     expect(res?.status()).toBe(200);
-    await expect(page.getByText("ไม่พบบทความที่ตรงกับคำค้น")).toBeVisible();
+    await expect(page.getByText("ไม่พบรายการที่ตรงกับคำค้น")).toBeVisible();
     await expect(page.getByRole("link", { name: "ล้างการค้นหา" })).toHaveAttribute("href", "/articles");
     await expect(page.getByRole("searchbox", { name: "ค้นหาบทความ" })).toHaveValue('a,b"(%');
     // and a literal % / _ in the prefix search still finds only exact text
     await page.goto(`/articles?q=${encodeURIComponent(`${prefix}%`)}`);
-    await expect(page.getByText("ไม่พบบทความที่ตรงกับคำค้น")).toBeVisible();
+    await expect(page.getByText("ไม่พบรายการที่ตรงกับคำค้น")).toBeVisible();
   });
 
   test("page past the end shows the last page; junk params fall back to the defaults", async ({ page }) => {

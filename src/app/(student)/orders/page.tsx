@@ -3,8 +3,9 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Badge } from "@/app/_components/activity-ui";
 import { ListToolbar, ListToolbarSkeleton } from "@/app/_components/list/list-toolbar";
-import { isNarrowed, pageSizeOf, parseListParams } from "@/app/_components/list/list-params";
+import { isNarrowed, parseListParams } from "@/app/_components/list/list-params";
 import { Pagination } from "@/app/_components/list/pagination";
+import { loadClamped } from "@/app/_components/list/paging";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { ButtonLink, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/dal";
@@ -37,16 +38,8 @@ export default function OrdersPage({ searchParams }: { searchParams: SearchParam
 
 async function Orders({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireUser("/orders");
-  let params = parseListParams(MY_ORDER_CONFIG, await searchParams);
-  let result = await listMyOrdersPage(user.id, params);
-  if (result.total > 0) {
-    // past the end (e.g. ?page=999 or the list shrank): show the last page instead
-    const lastPage = Math.ceil(result.total / pageSizeOf(MY_ORDER_CONFIG));
-    if (params.page > lastPage) {
-      params = { ...params, page: lastPage };
-      result = await listMyOrdersPage(user.id, params);
-    }
-  }
+  // past the end (e.g. ?page=999 or the list shrank): the last page instead
+  const { params, result } = await loadClamped(MY_ORDER_CONFIG, parseListParams(MY_ORDER_CONFIG, await searchParams), (p) => listMyOrdersPage(user.id, p));
   const orders = result.items;
 
   if (orders.length === 0) {

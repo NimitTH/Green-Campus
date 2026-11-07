@@ -3,8 +3,9 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { LeafMark } from "@/app/_components/leaf-mark";
 import { ListToolbar, ListToolbarSkeleton } from "@/app/_components/list/list-toolbar";
-import { isNarrowed, pageSizeOf, parseListParams, type ListState } from "@/app/_components/list/list-params";
+import { isNarrowed, parseListParams, type ListState } from "@/app/_components/list/list-params";
 import { Pagination } from "@/app/_components/list/pagination";
+import { loadClamped } from "@/app/_components/list/paging";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { Badge, Card, EmptyState } from "@/components/ui";
 import { ARTICLE_CATEGORY_LABEL_TH } from "@/lib/articles/format";
@@ -46,22 +47,14 @@ async function load(p: ListState) {
 }
 
 async function ArticleResults({ searchParams }: { searchParams: SearchParams }) {
-  let params = parseListParams(ARTICLE_LIST_CONFIG, await searchParams);
-  let result = await load(params);
-  if (result && result.total > 0) {
-    // past the end (e.g. ?page=999 or the list shrank): show the last page instead
-    const lastPage = Math.ceil(result.total / pageSizeOf(ARTICLE_LIST_CONFIG));
-    if (params.page > lastPage) {
-      params = { ...params, page: lastPage };
-      result = await load(params);
-    }
-  }
+  // past the end (e.g. ?page=999 or the list shrank): the last page instead
+  const { params, result } = await loadClamped(ARTICLE_LIST_CONFIG, parseListParams(ARTICLE_LIST_CONFIG, await searchParams), load);
   if (!result) return <p className="text-sm text-muted">ยังโหลดบทความไม่ได้ในขณะนี้ ลองรีเฟรชอีกครั้ง</p>;
   if (result.total === 0 || result.items.length === 0) {
     if (isNarrowed(ARTICLE_LIST_CONFIG, params)) {
       return (
         <EmptyState>
-          <p>ไม่พบบทความที่ตรงกับคำค้น</p>
+          <p>ไม่พบรายการที่ตรงกับคำค้น</p>
           <Link href="/articles" className="mt-2 inline-flex min-h-11 items-center font-medium text-accent underline underline-offset-4">
             ล้างการค้นหา
           </Link>

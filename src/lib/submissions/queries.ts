@@ -1,5 +1,6 @@
 import "server-only";
 import { pageSizeOf, type ListState } from "@/app/_components/list/list-params";
+import { fetchPage } from "@/app/_components/list/paging";
 import { toIlikePattern } from "@/app/_components/list/search-escape";
 import { activityCoverUrl } from "@/lib/activities/cover";
 import { createServerClient } from "@/lib/supabase/server";
@@ -76,26 +77,22 @@ export async function listMySubmissionsPage(
   state: Pick<ListState, "q" | "sort" | "dir" | "page">,
 ): Promise<{ items: MySubmission[]; total: number }> {
   const supabase = await createServerClient();
-  const size = pageSizeOf(MY_SUBMISSION_CONFIG);
   const pattern = state.q ? toIlikePattern(state.q) : null;
   const filtered = <T extends { ilike(column: string, pattern: string): T }>(query: T): T => (pattern ? query.ilike("activity_title", pattern) : query);
   const column = Object.hasOwn(MY_SUBMISSION_SORT_COLUMN, state.sort)
     ? MY_SUBMISSION_SORT_COLUMN[state.sort as keyof typeof MY_SUBMISSION_SORT_COLUMN]
     : "created_at";
   const ascending = state.dir === "asc";
-  const page = Math.max(1, Math.trunc(state.page) || 1);
-  const { data, error, count } = await filtered(supabase.from("my_submission_list").select(COLUMNS, { count: "exact" }).eq("student_id", studentId))
-    .order(column, { ascending, nullsFirst: false })
-    .order("id", { ascending })
-    .range((page - 1) * size, page * size - 1);
-
-  if (error?.code === "PGRST103") {
-    const head = await filtered(supabase.from("my_submission_list").select("id", { count: "exact", head: true }).eq("student_id", studentId));
-    if (head.error || head.count === null) throw new Error(`listMySubmissionsPage: ${head.error?.message}`);
-    return { items: [], total: head.count };
-  }
-  if (error) throw new Error(`listMySubmissionsPage: ${error.message}`);
-  const rows = (data ?? []) as unknown as ViewRow[];
+  const { items: rows, total } = await fetchPage<ViewRow>("listMySubmissionsPage", {
+    page: state.page,
+    size: pageSizeOf(MY_SUBMISSION_CONFIG),
+    run: (from, to) =>
+      filtered(supabase.from("my_submission_list").select(COLUMNS, { count: "exact" }).eq("student_id", studentId))
+        .order(column, { ascending, nullsFirst: false })
+        .order("id", { ascending })
+        .range(from, to),
+    head: () => filtered(supabase.from("my_submission_list").select("id", { count: "exact", head: true }).eq("student_id", studentId)),
+  });
   const ids = rows.map((r) => r.id);
 
   const itemsBy = new Map<string, ItemRow[]>();
@@ -126,5 +123,5 @@ export async function listMySubmissionsPage(
     amountText: amountText(r.activity_type, itemsBy.get(r.id) ?? []),
     carbonKg: carbonBy.get(r.id) ?? null,
   }));
-  return { items: result, total: count ?? result.length };
+  return { items: result, total };
 }

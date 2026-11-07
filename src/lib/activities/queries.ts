@@ -1,5 +1,6 @@
 import "server-only";
-import { ALL, PAGE_SIZE, type ListState } from "@/app/_components/list/list-params";
+import { ALL, pageSizeOf, type ListState } from "@/app/_components/list/list-params";
+import { fetchPage } from "@/app/_components/list/paging";
 import { quoteOrValue, toIlikePattern } from "@/app/_components/list/search-escape";
 import { getStaffNames } from "@/lib/staff-names";
 import { createServerClient } from "@/lib/supabase/server";
@@ -100,7 +101,7 @@ type ActivityFilterable = {
 };
 
 /**
- * One page (PAGE_SIZE) of /activities for a student (DESIGN-3 6.2, DESIGN-4 3/3.4): the open activities plus every
+ * One page (pageSizeOf(ACTIVITY_LIST_CONFIG)) of /activities for a student (DESIGN-3 6.2, DESIGN-4 3/3.4): the open activities plus every
  * activity the user joined (the same rule as before, which RLS also enforces), AND an optional title/description
  * search matched literally (search-escape.ts), AND the ACTIVITY_LIST_CONFIG filters: joined=yes keeps only the joined
  * ids (none joined → total 0 without a query), joined=no keeps open activities the user has not joined, type keeps
@@ -138,25 +139,22 @@ export async function listActivitiesForStudentPage(
   };
   const column = Object.hasOwn(ACTIVITY_SORT_COLUMN, p.sort) ? ACTIVITY_SORT_COLUMN[p.sort as keyof typeof ACTIVITY_SORT_COLUMN] : "created_at";
   const ascending = p.dir === "asc";
-  const page = Math.max(1, Math.trunc(p.page) || 1);
-  const { data, error, count } = await filtered(supabase.from("activities").select(COLUMNS, { count: "exact" }))
-    .order(column, { ascending, nullsFirst: false })
-    .order("id", { ascending })
-    .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
-
-  if (error?.code === "PGRST103") {
-    // offset past the last row (HTTP 416): count only, so the caller can fall back to the last page
-    const head = await filtered(supabase.from("activities").select("id", { count: "exact", head: true }));
-    if (head.error || head.count === null) throw new Error(`listActivitiesForStudentPage: ${head.error?.message ?? "no count"}`);
-    return { items: [], total: head.count };
-  }
-  if (error) throw new Error(`listActivitiesForStudentPage: ${error.message}`);
+  const { items: raw, total } = await fetchPage<Record<string, unknown>>("listActivitiesForStudentPage", {
+    page: p.page,
+    size: pageSizeOf(ACTIVITY_LIST_CONFIG),
+    run: (from, to) =>
+      filtered(supabase.from("activities").select(COLUMNS, { count: "exact" }))
+        .order(column, { ascending, nullsFirst: false })
+        .order("id", { ascending })
+        .range(from, to),
+    head: () => filtered(supabase.from("activities").select("id", { count: "exact", head: true })),
+  });
 
   const joinedSet = new Set(joinedIds);
-  const rows = (data ?? []).map(toRow);
+  const rows = raw.map(toRow);
   const names = await getStaffNames(rows.map((r) => r.created_by));
   return {
-    total: count ?? rows.length,
+    total,
     items: rows.map((r) => ({
       ...r,
       joined: joinedSet.has(r.id),

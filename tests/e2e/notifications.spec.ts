@@ -273,3 +273,49 @@ test("staff list has no activity option and no 100 note", async ({ page }, testI
     await deleteUsers([teacher]);
   }
 });
+
+test("student sees the 100 note under the heading even with no notifications or no match", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  let student: TestUser | undefined;
+  try {
+    student = await createConfirmedUser("student", `student-n100-${suffix}`);
+    await signIn(page, student, "/notifications");
+    const note = page.getByText("ระบบเก็บการแจ้งเตือนล่าสุด 100 รายการ");
+    await expect(note).toBeVisible();
+    // under the heading: above the toolbar's search box
+    const noteBox = await note.boundingBox();
+    const searchBox = await page.getByRole("searchbox").first().boundingBox();
+    expect(noteBox && searchBox && noteBox.y < searchBox.y).toBe(true);
+    await page.goto("/notifications?q=zzzz-no-match");
+    await expect(page.getByText("ไม่พบรายการที่ตรงกับคำค้น")).toBeVisible();
+    await expect(note).toBeVisible();
+  } finally {
+    await deleteUsers([student]);
+  }
+});
+
+test("อ่านทั้งหมด is enabled on page 1 when the only unread notification is on page 2", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  let student: TestUser | undefined;
+  try {
+    student = await createConfirmedUser("student", `student-nu-${suffix}`);
+    // oldest first: the unread one is the oldest, so newest-first puts it on page 2
+    await seedNotifications(student.id, [
+      { title: "ยังไม่อ่านหน้าสอง" },
+      ...Array.from({ length: 12 }, (_, i) => ({ title: `อ่านแล้ว ${String(i).padStart(2, "0")}`, read: true })),
+    ]);
+    await signIn(page, student, "/notifications");
+    await expect(item(page)).toHaveCount(12);
+    await expect(item(page).filter({ hasText: "ยังไม่อ่านหน้าสอง" })).toHaveCount(0);
+    const readAll = page.getByRole("button", { name: "อ่านทั้งหมด" });
+    await expect(readAll).toBeEnabled();
+    await readAll.click();
+    await expect(readAll).toBeDisabled();
+    await page.goto("/notifications?page=2");
+    await expect(item(page)).toHaveCount(1);
+    await expect(item(page)).toContainText("ยังไม่อ่านหน้าสอง");
+    await expect(item(page).getByText("ใหม่", { exact: true })).toHaveCount(0);
+  } finally {
+    await deleteUsers([student]);
+  }
+});

@@ -276,7 +276,7 @@ test.describe("activity list: search, sort, view, pagination, visibility", () =>
     await signIn(page, student!, "/activities");
     const res = await page.goto(`/activities?q=${encodeURIComponent('%,"')}`);
     expect(res?.status()).toBe(200);
-    await expect(page.getByText("ไม่พบกิจกรรมที่ตรงกับคำค้น")).toBeVisible();
+    await expect(page.getByText("ไม่พบรายการที่ตรงกับคำค้น")).toBeVisible();
     await expect(page.getByRole("link", { name: "ล้างการค้นหา" })).toHaveAttribute("href", "/activities");
   });
 
@@ -295,7 +295,7 @@ test.describe("activity list: search, sort, view, pagination, visibility", () =>
     await page.goto(`/activities?q=${visPrefix}&joined=yes`);
     await expect(items(page)).toHaveText([`${visPrefix} joined 00`]);
     await page.goto(`/activities?q=${visPrefix}&joined=no`);
-    await expect(page.getByText("ไม่พบกิจกรรมที่ตรงกับคำค้น")).toBeVisible();
+    await expect(page.getByText("ไม่พบรายการที่ตรงกับคำค้น")).toBeVisible();
   });
 
   test("type filter keeps one type; name sort and its direction button", async ({ page }) => {
@@ -319,7 +319,7 @@ test.describe("activity list: search, sort, view, pagination, visibility", () =>
       await signIn(page, fresh, "/activities");
       const res = await page.goto("/activities?joined=yes");
       expect(res?.status()).toBe(200);
-      await expect(page.getByText("ไม่พบกิจกรรมที่ตรงกับคำค้น")).toBeVisible();
+      await expect(page.getByText("ไม่พบรายการที่ตรงกับคำค้น")).toBeVisible();
       await expect(page.getByLabel("สถานะ", { exact: true })).toHaveValue("yes");
     } finally {
       await deleteUsers([fresh]);

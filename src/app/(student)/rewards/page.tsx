@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ListToolbar, ListToolbarSkeleton } from "@/app/_components/list/list-toolbar";
-import { isNarrowed, pageSizeOf, parseListParams } from "@/app/_components/list/list-params";
+import { isNarrowed, parseListParams } from "@/app/_components/list/list-params";
 import { Pagination } from "@/app/_components/list/pagination";
+import { loadClamped } from "@/app/_components/list/paging";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { ButtonLink, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/dal";
@@ -33,21 +34,12 @@ const number = new Intl.NumberFormat("th-TH");
 async function RewardGrid({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireUser("/rewards");
   const isStudent = user.role === "student";
-  let params = parseListParams(REWARD_CONFIG, await searchParams);
-  const [first, balance, inCart] = await Promise.all([
-    listActiveRewardsPage(params),
+  const [{ params, result }, balance, inCart] = await Promise.all([
+    // past the end (e.g. ?page=999 or the list shrank): the last page instead
+    loadClamped(REWARD_CONFIG, parseListParams(REWARD_CONFIG, await searchParams), listActiveRewardsPage),
     isStudent ? getBalance(user.id) : Promise.resolve(null),
     isStudent ? cartItemCount(user.id) : Promise.resolve(0),
   ]);
-  let result = first;
-  if (result.total > 0) {
-    // past the end (e.g. ?page=999 or the list shrank): show the last page instead
-    const lastPage = Math.ceil(result.total / pageSizeOf(REWARD_CONFIG));
-    if (params.page > lastPage) {
-      params = { ...params, page: lastPage };
-      result = await listActiveRewardsPage(params);
-    }
-  }
 
   return (
     <>

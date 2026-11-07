@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ListToolbar, ListToolbarSkeleton } from "@/app/_components/list/list-toolbar";
-import { isNarrowed, pageSizeOf, parseListParams } from "@/app/_components/list/list-params";
+import { isNarrowed, parseListParams } from "@/app/_components/list/list-params";
 import { Pagination } from "@/app/_components/list/pagination";
+import { loadClamped } from "@/app/_components/list/paging";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/dal";
@@ -36,21 +37,15 @@ export default function ActivitiesPage({ searchParams }: { searchParams: SearchP
 
 async function ActivityResults({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireUser("/activities");
-  let params = parseListParams(ACTIVITY_LIST_CONFIG, await searchParams);
-  let result = await listActivitiesForStudentPage(user.id, params);
-  if (result.total > 0) {
-    // past the end (e.g. ?page=999 or the list shrank): show the last page instead
-    const lastPage = Math.ceil(result.total / pageSizeOf(ACTIVITY_LIST_CONFIG));
-    if (params.page > lastPage) {
-      params = { ...params, page: lastPage };
-      result = await listActivitiesForStudentPage(user.id, params);
-    }
-  }
+  // past the end (e.g. ?page=999 or the list shrank): the last page instead
+  const { params, result } = await loadClamped(ACTIVITY_LIST_CONFIG, parseListParams(ACTIVITY_LIST_CONFIG, await searchParams), (p) =>
+    listActivitiesForStudentPage(user.id, p),
+  );
   if (result.total === 0 || result.items.length === 0) {
     if (isNarrowed(ACTIVITY_LIST_CONFIG, params)) {
       return (
         <EmptyState>
-          <p>ไม่พบกิจกรรมที่ตรงกับคำค้น</p>
+          <p>ไม่พบรายการที่ตรงกับคำค้น</p>
           <Link href="/activities" className="mt-2 inline-flex min-h-11 items-center font-medium text-accent underline underline-offset-4">
             ล้างการค้นหา
           </Link>

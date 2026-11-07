@@ -18,12 +18,11 @@ export type NotificationRow = {
 };
 
 
-export function NotificationList({ items }: { items: NotificationRow[] }) {
+/** `hasUnread`: any unread row in the whole list (a server count), not only on this page. */
+export function NotificationList({ items, hasUnread }: { items: NotificationRow[]; hasUnread: boolean }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-
-  const hasUnread = items.some((n) => n.read_at === null);
 
   function open(item: NotificationRow) {
     setError(null);
