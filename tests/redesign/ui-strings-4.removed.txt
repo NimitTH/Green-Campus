@@ -3,3 +3,6 @@
 text:เรียง
 text:ใหม่
 text:เก่า
+# Task 5: "เข้าร่วม" moved into src/lib/submissions/queries.ts (amountText, same text on screen); the cart's "แต้มไม่พอ ขาดอีก" alert is replaced by the DESIGN-4 3.3 points line.
+text:เข้าร่วม
+text:แต้มไม่พอ ขาดอีก

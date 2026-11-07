@@ -101,18 +101,20 @@ export async function getBalance(studentId: string): Promise<number> {
 export type CartLine = {
   rewardId: string;
   qty: number;
+  /** When the line was added (cart_items.created_at, ISO). */
+  addedAt: string;
   /** null when the student can no longer read the reward (it was turned off, RLS hides it). */
   reward: Reward | null;
 };
 
-type CartRow = { reward_id: string; qty: number; rewards: RewardRow | RewardRow[] | null };
+type CartRow = { reward_id: string; qty: number; created_at: string; rewards: RewardRow | RewardRow[] | null };
 
 /** The student's cart, oldest line first. */
 export async function listCartLines(studentId: string): Promise<CartLine[]> {
   const supabase = await createServerClient();
   const { data, error } = await supabase
     .from("cart_items")
-    .select(`reward_id, qty, rewards(${COLUMNS})`)
+    .select(`reward_id, qty, created_at, rewards(${COLUMNS})`)
     .eq("student_id", studentId)
     .order("created_at", { ascending: true });
   if (error) throw new Error(`listCartLines: ${error.message}`);
@@ -120,7 +122,7 @@ export async function listCartLines(studentId: string): Promise<CartLine[]> {
   const rewards = rows.map((r) => (Array.isArray(r.rewards) ? (r.rewards[0] ?? null) : r.rewards));
   const withUrls = await withImageUrls(rewards.filter((r): r is RewardRow => r !== null));
   const byId = new Map(withUrls.map((r) => [r.id, r]));
-  return rows.map((r) => ({ rewardId: r.reward_id, qty: r.qty, reward: byId.get(r.reward_id) ?? null }));
+  return rows.map((r) => ({ rewardId: r.reward_id, qty: r.qty, addedAt: r.created_at, reward: byId.get(r.reward_id) ?? null }));
 }
 
 /** Total points of the lines that can still be redeemed (active rewards). */

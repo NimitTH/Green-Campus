@@ -1,123 +1,80 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
-import { Badge } from "@/app/_components/activity-ui";
-import { Card, EmptyState, PageHeader } from "@/components/ui";
+import { ListToolbar, ListToolbarSkeleton } from "@/app/_components/list/list-toolbar";
+import { isNarrowed, pageSizeOf, parseListParams } from "@/app/_components/list/list-params";
+import { Pagination } from "@/app/_components/list/pagination";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { EmptyState, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/dal";
-import { submissionStatusLabelTh, typeLabelTh } from "@/lib/activities/labels";
-import { formatBangkok } from "@/lib/datetime";
-import { createServerClient } from "@/lib/supabase/server";
+import { MY_SUBMISSION_CONFIG } from "@/lib/submissions/list-config";
+import { listMySubmissionsPage } from "@/lib/submissions/queries";
+import { SubmissionCard, SubmissionRow } from "./_components/submission-card";
 
 export const metadata: Metadata = { title: "ผลที่ส่ง | Green Campus" };
 
-export default function MySubmissionsPage() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+export default function MySubmissionsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
+    <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6">
       <div className="mb-5">
         <PageHeader title="ผลที่ส่ง" />
       </div>
       <Suspense fallback={<PageSkeleton />}>
-        <SubmissionList />
+        <SubmissionList searchParams={searchParams} />
       </Suspense>
     </main>
   );
 }
 
-type Row = {
-  id: string;
-  status: string;
-  created_at: string;
-  reject_reason: string | null;
-  activities: { title: string; type: string } | { title: string; type: string }[] | null;
-  submission_items: {
-    quantity: number;
-    waste_categories: { name: string } | { name: string }[] | null;
-  }[];
-};
-
-type Earn = { ref_submission_id: string; points: number; carbon_kg: number | string };
-
-function one<T>(v: T | T[] | null): T | null {
-  return Array.isArray(v) ? (v[0] ?? null) : v;
-}
-
-const kgFormat = new Intl.NumberFormat("th-TH", { maximumFractionDigits: 3 });
-const carbonFormat = new Intl.NumberFormat("th-TH", { maximumFractionDigits: 3 });
-
-function amountsTh(row: Row, type: string | undefined): string {
-  if (type === "waste") {
-    return row.submission_items
-      .map((i) => ({ name: one(i.waste_categories)?.name ?? "-", grams: i.quantity }))
-      .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
-      .map((i) => `${i.name} ${kgFormat.format(i.grams / 1000)} กก.`)
-      .join(", ");
-  }
-  if (type === "trees") {
-    return `${row.submission_items.reduce((s, i) => s + i.quantity, 0).toLocaleString("th-TH")} ต้น`;
-  }
-  return "เข้าร่วม";
-}
-
-const TONE: Record<string, "gray" | "green" | "amber"> = { pending: "amber", approved: "green", rejected: "gray" };
-
-async function SubmissionList() {
+async function SubmissionList({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireUser("/my-submissions");
-  const supabase = await createServerClient();
-  const { data, error } = await supabase
-    .from("submissions")
-    .select(
-      "id, status, created_at, reject_reason, activities(title, type), submission_items(quantity, waste_categories(name))",
-    )
-    .eq("student_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(50);
-  if (error) throw new Error(`my-submissions: ${error.message}`);
-  const rows = (data ?? []) as unknown as Row[];
-
-  const approvedIds = rows.filter((r) => r.status === "approved").map((r) => r.id);
-  const earns = new Map<string, Earn>();
-  if (approvedIds.length > 0) {
-    const { data: ledger, error: ledgerError } = await supabase
-      .from("ledger_entries")
-      .select("ref_submission_id, points, carbon_kg")
-      .eq("kind", "earn")
-      .in("ref_submission_id", approvedIds);
-    if (ledgerError) throw new Error(`my-submissions: ${ledgerError.message}`);
-    for (const e of (ledger ?? []) as Earn[]) earns.set(e.ref_submission_id, e);
+  let params = parseListParams(MY_SUBMISSION_CONFIG, await searchParams);
+  let result = await listMySubmissionsPage(user.id, params);
+  if (result.total > 0) {
+    // past the end (e.g. ?page=999 or the list shrank): show the last page instead
+    const lastPage = Math.ceil(result.total / pageSizeOf(MY_SUBMISSION_CONFIG));
+    if (params.page > lastPage) {
+      params = { ...params, page: lastPage };
+      result = await listMySubmissionsPage(user.id, params);
+    }
   }
 
-  if (rows.length === 0) {
-    return (
-      <EmptyState>ยังไม่มีผลที่ส่ง</EmptyState>
-    );
+  if (result.total === 0 && !isNarrowed(MY_SUBMISSION_CONFIG, params)) {
+    return <EmptyState>ยังไม่มีผลที่ส่ง</EmptyState>;
   }
 
   return (
-    <ul className="space-y-3">
-      {rows.map((row) => {
-        const activity = one(row.activities);
-        const earn = earns.get(row.id);
-        return (
-          <Card as="li" key={row.id} data-testid="submission">
-            <div className="flex items-start justify-between gap-3">
-              <p className="font-medium break-words">{activity?.title ?? "-"}</p>
-              <Badge tone={TONE[row.status] ?? "gray"}>{submissionStatusLabelTh(row.status)}</Badge>
-            </div>
-            <p className="mt-1 text-sm text-muted">
-              {activity ? typeLabelTh(activity.type) : "-"} · {amountsTh(row, activity?.type)}
-            </p>
-            <p className="mt-1 text-sm text-muted">ส่งเมื่อ {formatBangkok(row.created_at)}</p>
-            {row.status === "approved" && earn ? (
-              <p className="mt-2 text-sm text-accent">
-                ได้ {earn.points.toLocaleString("th-TH")} แต้ม · {carbonFormat.format(Number(earn.carbon_kg))} กก. CO2e
-              </p>
-            ) : null}
-            {row.status === "rejected" && row.reject_reason ? (
-              <p className="mt-2 text-sm text-danger">เหตุผล: {row.reject_reason}</p>
-            ) : null}
-          </Card>
-        );
-      })}
-    </ul>
+    <>
+      <Suspense fallback={<ListToolbarSkeleton />}>
+        <ListToolbar base="/my-submissions" config={MY_SUBMISSION_CONFIG} placeholder="ค้นหากิจกรรมที่เคยส่ง" />
+      </Suspense>
+      {result.total === 0 || result.items.length === 0 ? (
+        <EmptyState>
+          <p>ไม่พบรายการที่ตรงกับคำค้น</p>
+          <Link href="/my-submissions" className="mt-2 inline-flex min-h-11 items-center font-medium text-accent underline underline-offset-4">
+            ล้างการค้นหา
+          </Link>
+        </EmptyState>
+      ) : (
+        <>
+          {params.view === "list" ? (
+            <ul className="divide-y divide-rule rounded-card border border-rule bg-surface shadow-sheet">
+              {result.items.map((s) => (
+                <SubmissionRow key={s.id} submission={s} />
+              ))}
+            </ul>
+          ) : (
+            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {result.items.map((s) => (
+                <SubmissionCard key={s.id} submission={s} />
+              ))}
+            </ul>
+          )}
+          <Pagination base="/my-submissions" config={MY_SUBMISSION_CONFIG} state={params} total={result.total} />
+        </>
+      )}
+    </>
   );
 }

@@ -1,6 +1,20 @@
 import { expect, test, type Page } from "@playwright/test";
 import { signIn } from "./helpers/auth";
-import { createConfirmedUser, createOrderFor, createRewardRow, deleteRewardsByName, deleteUsers, listOrders, type TestUser } from "./helpers/supabase-admin";
+import { PNG_1X1 } from "./helpers/images";
+import {
+  createConfirmedUser,
+  createJoinedCodeActivity,
+  createOrderFor,
+  createRewardRow,
+  deleteActivitiesByTitle,
+  deleteRewardsByName,
+  deleteUsers,
+  listOrders,
+  seedSubmission,
+  setActivityCover,
+  signedInClient,
+  type TestUser,
+} from "./helpers/supabase-admin";
 
 // Redesign 4 Task 4: search, sort and pagination on /orders; search, sort, pagination and the card/list view on /rewards.
 
@@ -94,5 +108,68 @@ test("/orders: search by reward name and by order number, no-match, pagination",
   } finally {
     await deleteUsers([student]);
     await deleteRewardsByName([alpha, beta]);
+  }
+});
+
+test("/my-submissions: status sort, cover link to the activity, list view, search, no-match, 360 px", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const titleA = `กิจกรรมอนุมัติ ${suffix}`;
+  const titleB = `กิจกรรมรอตรวจ ${suffix}`;
+  let student: TestUser | undefined;
+  let teacher: TestUser | undefined;
+  try {
+    student = await createConfirmedUser("student", `student-ms-${suffix}`);
+    teacher = await createConfirmedUser("teacher", `teacher-ms-${suffix}`);
+    const idB = await createJoinedCodeActivity(titleB, student.id, { requires_code: false });
+    await seedSubmission(student, idB, PNG_1X1); // older, stays pending
+    await setActivityCover(idB);
+    const idA = await createJoinedCodeActivity(titleA, student.id, { requires_code: false, unit_points: 25 });
+    const submissionA = await seedSubmission(student, idA, PNG_1X1); // newer, approved
+    const { error } = await (await signedInClient(teacher)).rpc("approve_submission", { p_submission_id: submissionA });
+    expect(error).toBeNull();
+
+    await signIn(page, student, "/my-submissions");
+    const items = page.getByTestId("submission");
+    await expect(items).toHaveCount(2);
+    await expect(items.first()).toContainText(titleA); // date desc: newest first
+    await expect(items.first()).toContainText("ได้ 25 แต้ม");
+    await page.goto("/my-submissions?sort=status");
+    await expect(items.first()).toContainText(titleB); // pending first
+    await page.goto("/my-submissions?sort=status&dir=desc");
+    await expect(items.first()).toContainText(titleA);
+    await page.goto("/my-submissions?sort=points");
+    await expect(items.first()).toContainText(titleA);
+    await page.goto("/my-submissions?sort=name&dir=desc&view=list");
+    await expect(page.locator("ul.divide-y > li[data-testid='submission']")).toHaveCount(2);
+    await page.goto("/my-submissions?sort=bogus&dir=up&page=999");
+    await expect(items).toHaveCount(2);
+
+    // the cover (the only link in an item) goes to the activity; an item without a cover has the fallback link too
+    await page.goto("/my-submissions");
+    const itemB = items.filter({ hasText: titleB });
+    await expect(itemB.locator("img")).toHaveAttribute("src", /\/storage\/v1\/object\/public\/activity-images\//);
+    await expect(itemB.getByRole("link")).toHaveCount(1);
+    await itemB.getByRole("link", { name: `ดูกิจกรรม ${titleB}` }).click();
+    await expect(page).toHaveURL((url) => url.pathname === `/activities/${idB}`);
+
+    await page.goto(`/my-submissions?q=${encodeURIComponent(titleA)}`);
+    await expect(items).toHaveCount(1);
+    await expect(items).toContainText(titleA);
+    await page.goto(`/my-submissions?q=${encodeURIComponent("ไม่มีกิจกรรมนี้ " + suffix)}`);
+    await expect(page.getByText("ไม่พบรายการที่ตรงกับคำค้น")).toBeVisible();
+    await expect(page.getByRole("link", { name: "ล้างการค้นหา" })).toHaveAttribute("href", "/my-submissions");
+
+    await page.setViewportSize({ width: 360, height: 800 });
+    await page.goto("/my-submissions");
+    await expect(items).toHaveCount(2);
+    const { scrollWidth, clientWidth } = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth,
+    }));
+    expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
+  } finally {
+    await deleteUsers([student, teacher]);
+    await deleteActivitiesByTitle(titleA);
+    await deleteActivitiesByTitle(titleB);
   }
 });

@@ -16,3 +16,11 @@ aria:ลบการแจ้งเตือน ${title}
 # Task 4 (DESIGN-4 1.3 /orders, /rewards): search placeholders (no-match copy is above).
 text:ค้นหาสินค้าหรือเลขที่ออเดอร์
 text:ค้นหารางวัล
+# Task 5 (DESIGN-4 1.3 /my-submissions, /cart): search placeholders, cover link aria, cart points line.
+text:ค้นหากิจกรรมที่เคยส่ง
+text:ค้นหาในตะกร้า
+aria:ดูกิจกรรม ${s.activityTitle}
+text:แต้มที่มี
+text:แต้มรวม
+text:เหลือ
+text:ขาดอีก

@@ -109,13 +109,13 @@ test("staff creates a reward with an image, the student fills a cart and the tot
     await expect(line(page, nameA)).toContainText("สต็อกเหลือ 1 ชิ้น");
     await expect(line(page, nameB).getByLabel("ยอดรวมรายการ")).toHaveText("30 แต้ม");
     await expect(page.getByTestId("cart-total")).toHaveText("110 แต้ม");
-    await expect(page.getByText("แต้มไม่พอ")).toBeVisible();
+    await expect(page.getByRole("region", { name: "สรุปตะกร้า" })).toContainText("ขาดอีก 110 แต้ม");
 
     // enough points -> warning disappears
     await grantPoints(student.id, 200);
     await page.reload();
     await expect(page.getByTestId("balance")).toHaveText("200 แต้ม");
-    await expect(page.getByText("แต้มไม่พอ")).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "สรุปตะกร้า" })).toContainText("เหลือ 90 แต้ม");
 
     // stepper: + on B gives 2 x 30; - twice removes the line
     await line(page, nameB).getByRole("button", { name: "เพิ่มจำนวน" }).click();
@@ -214,5 +214,68 @@ test("the student header does not scroll sideways at 360 px", async ({ page }, t
     expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
   } finally {
     await deleteUsers([student]);
+  }
+});
+
+test("/cart: 13 lines page to 2, search and sort run in the app, the points line counts every line, no sideways scroll at 360 px", async ({ page }, testInfo) => {
+  const prefix = `ตะกร้าลิสต์ ${uniqueSuffix(testInfo.project.name)}`;
+  const names = Array.from({ length: 13 }, (_, i) => `${prefix} ${String(i + 1).padStart(2, "0")}`);
+  let student: TestUser | undefined;
+  try {
+    student = await createConfirmedUser("student", `student-cl-${uniqueSuffix(testInfo.project.name)}`);
+    const client = await signedInClient(student);
+    // price 10..130 in name order, 1 piece each: total 910; added in name order (so date desc = last first)
+    for (const [i, name] of names.entries()) {
+      const id = await createRewardRow(name, (i + 1) * 10, 5);
+      const { error } = await client.from("cart_items").insert({ student_id: student.id, reward_id: id, qty: 1 });
+      expect(error).toBeNull();
+    }
+    await grantPoints(student.id, 900);
+    await signIn(page, student, "/cart");
+
+    const summary = page.getByRole("region", { name: "สรุปตะกร้า" });
+    await expect(page.getByTestId("cart-line")).toHaveCount(12);
+    await expect(page.getByTestId("cart-total")).toHaveText("910 แต้ม");
+    await expect(summary).toContainText("ขาดอีก 10 แต้ม");
+    await expect(page.getByRole("button", { name: /ยืนยัน/ })).toBeDisabled();
+    await expect(page.getByTestId("cart-line").first()).toContainText(names[12]);
+
+    await page.getByRole("navigation", { name: "แบ่งหน้า" }).getByRole("link", { name: "หน้าถัดไป" }).click();
+    await expect(page).toHaveURL(/page=2/);
+    await expect(page.getByTestId("cart-line")).toHaveCount(1);
+    // the totals still use all 13 lines
+    await expect(page.getByTestId("cart-total")).toHaveText("910 แต้ม");
+
+    await page.goto("/cart?sort=price");
+    await expect(page.getByTestId("cart-line").first()).toContainText(names[0]);
+    await page.goto("/cart?sort=price&dir=desc");
+    await expect(page.getByTestId("cart-line").first()).toContainText(names[12]);
+    await page.goto("/cart?page=999");
+    await expect(page.getByTestId("cart-line")).toHaveCount(1);
+
+    await page.goto(`/cart?q=${encodeURIComponent(names[4])}`);
+    await expect(page.getByTestId("cart-line")).toHaveCount(1);
+    await expect(page.getByTestId("cart-total")).toHaveText("910 แต้ม");
+    await page.goto(`/cart?q=${encodeURIComponent(prefix + " zzz")}`);
+    await expect(page.getByText("ไม่พบรายการที่ตรงกับคำค้น")).toBeVisible();
+    await expect(page.getByRole("link", { name: "ล้างการค้นหา" })).toHaveAttribute("href", "/cart");
+
+    // more points: the line turns into "เหลือ"
+    await grantPoints(student.id, 100);
+    await page.goto("/cart");
+    await expect(summary).toContainText("เหลือ 90 แต้ม");
+    await expect(page.getByRole("button", { name: /ยืนยัน/ })).toBeEnabled();
+
+    await page.setViewportSize({ width: 360, height: 800 });
+    await page.reload();
+    await expect(page.getByTestId("cart-line")).toHaveCount(12);
+    const { scrollWidth, clientWidth } = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth,
+    }));
+    expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
+  } finally {
+    await deleteUsers([student]);
+    await deleteRewardsByName(names);
   }
 });
