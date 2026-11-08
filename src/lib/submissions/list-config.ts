@@ -6,7 +6,7 @@ export const MY_SUBMISSION_CONFIG = {
   sorts: {
     date: { label: "วันที่ส่ง", kind: "date", defaultDir: "desc" },
     // status_rank: pending (1) -> approved (2) -> rejected (3)
-    status: { label: "สถานะ", kind: "number", defaultDir: "asc" },
+    status: { label: "สถานะ", kind: "number", defaultDir: "asc", dirLabels: { asc: "รอตรวจก่อน", desc: "ปฏิเสธก่อน" } },
     points: { label: "แต้ม", kind: "number", defaultDir: "desc" },
     kg: { label: "กก.", kind: "number", defaultDir: "desc" },
     name: { label: "ชื่อกิจกรรม", kind: "text", defaultDir: "asc" },

@@ -199,13 +199,13 @@ test.describe("article list: search, sort, view, pagination", () => {
 
   test("the direction button switches to old → new, puts the oldest first and goes back to page 1", async ({ page }) => {
     await page.goto(`/articles?q=${prefix}&page=2`);
-    const direction = page.getByRole("link", { name: "เก่า → ใหม่", exact: true });
+    const direction = page.getByRole("link", { name: "ใหม่ → เก่า, กดเพื่อเปลี่ยนเป็น เก่า → ใหม่", exact: true });
     await expect(direction).toHaveText("ใหม่ → เก่า");
     await direction.click();
     await expect(page).toHaveURL((url) => url.searchParams.get("dir") === "asc" && !url.searchParams.has("sort") && !url.searchParams.has("page"));
     await expect(titles(page)).toHaveCount(12);
     await expect(titles(page).first()).toHaveText(`${prefix} 00`);
-    await expect(page.getByRole("link", { name: "ใหม่ → เก่า", exact: true })).toHaveText("เก่า → ใหม่");
+    await expect(page.getByRole("link", { name: "เก่า → ใหม่, กดเพื่อเปลี่ยนเป็น ใหม่ → เก่า", exact: true })).toHaveText("เก่า → ใหม่");
   });
 
   test("round-3 links: /articles?sort=old still lists the oldest first", async ({ page }) => {
@@ -306,7 +306,7 @@ test.describe("article list: name sort, category filter", () => {
     await page.getByLabel("เรียงตาม").selectOption("name");
     await expect(page).toHaveURL((url) => url.searchParams.get("sort") === "name" && !url.searchParams.has("dir"));
     await expect(titles(page)).toHaveText([`ก-${token} 00`, `ข-${token} 00`, `ฮ-${token} 00`]);
-    const direction = page.getByRole("link", { name: "ฮ → ก", exact: true });
+    const direction = page.getByRole("link", { name: "ก → ฮ, กดเพื่อเปลี่ยนเป็น ฮ → ก", exact: true });
     await expect(direction).toHaveText("ก → ฮ");
     await direction.click();
     await expect(page).toHaveURL((url) => url.searchParams.get("sort") === "name" && url.searchParams.get("dir") === "desc");

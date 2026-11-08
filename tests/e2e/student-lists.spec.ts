@@ -135,8 +135,10 @@ test("/my-submissions: status sort, cover link to the activity, list view, searc
     await expect(items.first()).toContainText("ได้ 25 แต้ม");
     await page.goto("/my-submissions?sort=status");
     await expect(items.first()).toContainText(titleB); // pending first
+    await expect(page.getByRole("link", { name: "รอตรวจก่อน, กดเพื่อเปลี่ยนเป็น ปฏิเสธก่อน", exact: true })).toHaveText("รอตรวจก่อน");
     await page.goto("/my-submissions?sort=status&dir=desc");
     await expect(items.first()).toContainText(titleA);
+    await expect(page.getByRole("link", { name: "ปฏิเสธก่อน, กดเพื่อเปลี่ยนเป็น รอตรวจก่อน", exact: true })).toHaveText("ปฏิเสธก่อน");
     await page.goto("/my-submissions?sort=points");
     await expect(items.first()).toContainText(titleA);
     await page.goto("/my-submissions?sort=name&dir=desc&view=list");

@@ -307,7 +307,7 @@ test.describe("activity list: search, sort, view, pagination, visibility", () =>
     await expect(items(page)).toHaveText([`${typePrefix} tree 00`]);
     await page.goto(`/activities?q=${typePrefix}&sort=name`);
     await expect(items(page)).toHaveText([`${typePrefix} fixed 00`, `${typePrefix} tree 00`]);
-    await page.getByRole("link", { name: "ฮ → ก", exact: true }).click();
+    await page.getByRole("link", { name: "ก → ฮ, กดเพื่อเปลี่ยนเป็น ฮ → ก", exact: true }).click();
     await expect(page).toHaveURL((url) => url.searchParams.get("dir") === "desc");
     await expect(items(page)).toHaveText([`${typePrefix} tree 00`, `${typePrefix} fixed 00`]);
   });

@@ -5,7 +5,13 @@
 export type SortKind = "date" | "number" | "text";
 export type SortDir = "asc" | "desc";
 export type ListView = "card" | "list";
-export type SortSpec = { label: string; kind: SortKind; defaultDir: SortDir };
+export type SortSpec = {
+  label: string;
+  kind: SortKind;
+  defaultDir: SortDir;
+  /** Overrides the direction button text for this sort (e.g. a ranked status column). */
+  dirLabels?: { asc: string; desc: string };
+};
 /** "all" is always an option and is not listed; defaultValue (when not "all") is what a missing param means. */
 export type FilterSpec = { label: string; options: Record<string, string>; defaultValue?: string };
 export type ListConfig = {
@@ -119,9 +125,15 @@ const DIRECTION_LABELS: Record<SortKind, Record<SortDir, string>> = {
   text: { asc: "ก → ฮ", desc: "ฮ → ก" },
 };
 
-/** The text of the sort direction button (DESIGN-4 2.3). */
-export function directionLabel(kind: SortKind, dir: SortDir): string {
-  return DIRECTION_LABELS[kind][dir];
+/** The text of the sort direction button (DESIGN-4 2.3); dirLabels (SortSpec) wins over the kind's labels. */
+export function directionLabel(kind: SortKind, dir: SortDir, dirLabels?: SortSpec["dirLabels"]): string {
+  return dirLabels ? dirLabels[dir] : DIRECTION_LABELS[kind][dir];
+}
+
+/** The button's accessible name: its visible text, then the order a press switches to (WCAG 2.5.3, DESIGN-4 2.3 D1). */
+export function directionAriaLabel(kind: SortKind, dir: SortDir, dirLabels?: SortSpec["dirLabels"]): string {
+  const other: SortDir = dir === "asc" ? "desc" : "asc";
+  return `${directionLabel(kind, dir, dirLabels)}, กดเพื่อเปลี่ยนเป็น ${directionLabel(kind, other, dirLabels)}`;
 }
 
 /** Rows per page for this config. */

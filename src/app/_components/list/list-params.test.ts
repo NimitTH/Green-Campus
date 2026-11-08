@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PAGE_SIZE, Q_MAX, directionLabel, listHref, parseListParams, searchParamsRecord, type ListConfig, type ListState } from "./list-params";
+import { PAGE_SIZE, Q_MAX, directionAriaLabel, directionLabel, listHref, parseListParams, searchParamsRecord, type ListConfig, type ListState } from "./list-params";
 
 const cfg: ListConfig = {
   sorts: {
@@ -139,5 +139,24 @@ describe("directionLabel", () => {
     expect(directionLabel("number", "asc")).toBe("น้อย → มาก");
     expect(directionLabel("text", "asc")).toBe("ก → ฮ");
     expect(directionLabel("text", "desc")).toBe("ฮ → ก");
+  });
+});
+
+describe("directionLabel dirLabels override (D2)", () => {
+  const dirLabels = { asc: "รอตรวจก่อน", desc: "ปฏิเสธก่อน" };
+  it("uses dirLabels when present, the kind's labels otherwise", () => {
+    expect(directionLabel("number", "asc", dirLabels)).toBe("รอตรวจก่อน");
+    expect(directionLabel("number", "desc", dirLabels)).toBe("ปฏิเสธก่อน");
+    expect(directionLabel("number", "asc", undefined)).toBe("น้อย → มาก");
+  });
+});
+
+describe("directionAriaLabel (D1)", () => {
+  it("is the visible label, then what a press switches to", () => {
+    expect(directionAriaLabel("date", "desc")).toBe("ใหม่ → เก่า, กดเพื่อเปลี่ยนเป็น เก่า → ใหม่");
+    expect(directionAriaLabel("text", "asc")).toBe("ก → ฮ, กดเพื่อเปลี่ยนเป็น ฮ → ก");
+  });
+  it("uses dirLabels on both sides", () => {
+    expect(directionAriaLabel("number", "asc", { asc: "รอตรวจก่อน", desc: "ปฏิเสธก่อน" })).toBe("รอตรวจก่อน, กดเพื่อเปลี่ยนเป็น ปฏิเสธก่อน");
   });
 });
