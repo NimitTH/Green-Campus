@@ -4,7 +4,7 @@ import { ButtonLink, ThemeToggle } from "@/components/ui";
 import { getCurrentUser, type CurrentUser } from "@/lib/auth/dal";
 import { isStaffRole } from "@/lib/auth/routes";
 import { AccountMenu, type AccountMenuLink } from "./account-menu";
-import { MainNav } from "./main-nav";
+import { MainNav, STAFF_MAIN_NAV_ITEMS } from "./main-nav";
 
 // DESIGN-3 3.2: the session-dependent part of the shared header. SiteHeader renders it inside <Suspense>, so the
 // session read (getCurrentUser calls connection()) stays out of the static shell of "/" and "/articles".
@@ -53,9 +53,16 @@ export function HeaderAccountView({ user }: { user: HeaderUser | null }) {
 
   if (isStaffRole(user.role)) {
     return (
-      <div className="ml-auto flex items-center gap-x-1">
-        <ThemeToggle />
-        {menu}
+      <div className="flex min-w-0 flex-1 items-center gap-x-1">
+        <MainNav items={STAFF_MAIN_NAV_ITEMS} />
+        <div className="ml-auto flex shrink-0 items-center gap-x-1 md:ml-0">
+          {/* Phones get the bell as the bottom-nav "แจ้งเตือน" item. */}
+          <div className="hidden md:block">
+            <NotificationBell href="/staff/notifications" />
+          </div>
+          <ThemeToggle />
+          {menu}
+        </div>
       </div>
     );
   }

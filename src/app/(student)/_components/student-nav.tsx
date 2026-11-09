@@ -18,11 +18,18 @@ function isUnder(pathname: string, prefix: string): boolean {
 
 type Item = { href: string; label: string; match: string[] };
 
-const BOTTOM: Item[] = [
+const STUDENT_BOTTOM_ITEMS: Item[] = [
   { href: "/dashboard", label: "หน้าหลัก", match: ["/dashboard", "/leaderboard", "/my-submissions"] },
   { href: "/activities", label: "กิจกรรม", match: ["/activities"] },
   { href: "/rewards", label: "รางวัล", match: ["/rewards", "/cart", "/orders"] },
   { href: "/notifications", label: "แจ้งเตือน", match: ["/notifications"] },
+];
+
+export const STAFF_BOTTOM_ITEMS: Item[] = [
+  { href: "/staff", label: "หน้าหลัก", match: ["/staff"] },
+  { href: "/activities", label: "กิจกรรม", match: ["/activities"] },
+  { href: "/rewards", label: "รางวัล", match: ["/rewards", "/orders"] },
+  { href: "/staff/notifications", label: "แจ้งเตือน", match: ["/staff/notifications"] },
 ];
 
 function active(pathname: string | null, item: Item): boolean {
@@ -58,11 +65,12 @@ const ICONS: Record<string, React.ReactNode> = {
 };
 
 /** Mobile bottom nav (DESIGN-3 1.3: หน้าหลัก / กิจกรรม / รางวัล / แจ้งเตือน), hidden from md up. */
-export function BottomNav() {
-  return withPathname((pathname) => <BottomNavView pathname={pathname} />);
+export function BottomNav({ variant = "student" }: { variant?: "student" | "staff" }) {
+  const items = variant === "staff" ? STAFF_BOTTOM_ITEMS : STUDENT_BOTTOM_ITEMS;
+  return withPathname((pathname) => <BottomNavView pathname={pathname} items={items} />);
 }
 
-function BottomNavView({ pathname }: { pathname: string | null }) {
+function BottomNavView({ pathname, items }: { pathname: string | null; items: Item[] }) {
   const unread = useUnreadCount();
   const count = unread.signedIn ? unread.count : 0;
   return (
@@ -72,9 +80,9 @@ function BottomNavView({ pathname }: { pathname: string | null }) {
       className="fixed inset-x-0 bottom-0 z-40 border-t border-rule bg-surface pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] md:hidden"
     >
       <ul className="grid grid-cols-4">
-        {BOTTOM.map((item) => {
+        {items.map((item) => {
           const current = active(pathname, item);
-          const isBell = item.href === "/notifications";
+          const isBell = item.href.endsWith("/notifications");
           return (
             <li key={item.href}>
               <Link
@@ -92,7 +100,7 @@ function BottomNavView({ pathname }: { pathname: string | null }) {
                     <BellIcon className="size-6" />
                   ) : (
                     <svg aria-hidden="true" viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      {ICONS[item.href]}
+                      {ICONS[item.href === "/staff" ? "/dashboard" : item.href]}
                     </svg>
                   )}
                   {isBell ? <UnreadBadge count={count} className="absolute right-1.5 -top-0.5" /> : null}

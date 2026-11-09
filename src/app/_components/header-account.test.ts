@@ -7,7 +7,7 @@ vi.mock("@/lib/auth/dal", () => ({ getCurrentUser: vi.fn(async () => null) }));
 vi.mock("@/lib/auth/actions", () => ({ signOut: vi.fn(async () => {}) }));
 
 const { HeaderAccountView } = await import("./header-account");
-const { MAIN_NAV_ITEMS } = await import("./main-nav");
+const { MAIN_NAV_ITEMS, STAFF_MAIN_NAV_ITEMS } = await import("./main-nav");
 
 type ViewUser = Parameters<typeof HeaderAccountView>[0]["user"];
 
@@ -58,10 +58,16 @@ describe("HeaderAccountView", () => {
   });
 
   for (const role of ["teacher", "admin"] as const) {
-    it(`${role}: staff links, no student centre nav`, () => {
+    it(`${role}: staff centre nav with the five staff items, staff links in the account menu`, () => {
       const out = html(person(role));
+      expect(out).toContain('aria-label="เมนูหลัก"');
+      const nav = out.match(/<nav[^>]*aria-label="เมนูหลัก"[^>]*>([\s\S]*?)<\/nav>/)?.[1] ?? "";
+      const links = [...nav.matchAll(/<a[^>]*href="([^"]+)"[^>]*>([^<]*)<\/a>/g)].map((m) => [m[1], m[2]]);
+      expect(links.map((l) => l[1])).toEqual(["หน้าหลัก", "กิจกรรม", "บทความ", "รางวัล", "อันดับ"]);
+      expect(links[0][0]).toBe("/staff");
+      expect(STAFF_MAIN_NAV_ITEMS).toHaveLength(5);
+      expect(out).not.toContain("ตะกร้า");
       expect(out).not.toContain("ผลที่ส่ง");
-      expect(out).not.toContain('aria-label="เมนูหลัก"');
       expect(out).toMatch(/<a[^>]*href="\/staff"[^>]*>หน้าผู้ดูแล<\/a>/);
       expect(out).toMatch(/<a[^>]*href="\/staff\/profile"[^>]*>โปรไฟล์<\/a>/);
       expect(out).not.toContain('href="/profile"');

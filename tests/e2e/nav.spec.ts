@@ -319,7 +319,7 @@ test("student account menu: name, email, โปรไฟล์; Escape closes it
   }
 });
 
-test("teacher on /: the staff account menu, no student nav and no bell", async ({ page }, testInfo) => {
+test("teacher on /: the staff account menu and the staff centre nav", async ({ page }, testInfo) => {
   const suffix = uniqueSuffix(testInfo.project.name);
   let teacher: TestUser | undefined;
   try {
@@ -330,8 +330,11 @@ test("teacher on /: the staff account menu, no student nav and no bell", async (
     const banner = page.getByRole("banner");
     await expect(banner.getByRole("link", { name: "หน้าผู้ดูแล" })).toHaveAttribute("href", "/staff");
     await expect(banner.getByRole("link", { name: "โปรไฟล์", exact: true })).toHaveAttribute("href", "/staff/profile");
-    await expect(page.locator('nav[aria-label="เมนูหลัก"]')).toHaveCount(0);
-    await expect(banner.getByRole("link", { name: /^แจ้งเตือน/ })).toHaveCount(0);
+    // Redesign 4 (DESIGN-4 4.1): staff get the staff centre nav (no student items) and a bell to /staff/notifications.
+    await expect(page.locator('nav[aria-label="เมนูหลัก"]').getByRole("link", { name: "ผลที่ส่ง" })).toHaveCount(0);
+    if (testInfo.project.name !== "mobile-chrome") {
+      await expect(banner.getByRole("link", { name: "หน้าหลัก", exact: true })).toHaveAttribute("href", "/staff");
+    }
     await banner.getByRole("link", { name: "หน้าผู้ดูแล" }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/staff");
   } finally {
@@ -439,4 +442,35 @@ test("register page: description, two eye toggles, Google placeholder, link back
   await expect(page.getByText("มีบัญชีแล้ว?").filter({ visible: true })).toBeVisible();
   await page.locator("main").getByRole("link", { name: "เข้าสู่ระบบ", exact: true }).filter({ visible: true }).click();
   await expect(page).toHaveURL(/\/login$/);
+});
+
+test("teacher on public pages: centre nav on desktop, bottom nav on phones, both lead to the staff home", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  let teacher: TestUser | undefined;
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-public-nav-${suffix}`);
+    await signIn(page, teacher, "/staff");
+    await page.goto("/activities");
+    const nav = page.getByRole("navigation", { name: "เมนูหลัก" });
+    await expect(nav).toBeVisible();
+    if (testInfo.project.name === "mobile-chrome") {
+      const links = nav.getByRole("link");
+      await expect(links).toHaveCount(4);
+      await expect(links.nth(1)).toHaveAttribute("aria-current", "page");
+      await expect(links.nth(3)).toHaveAttribute("href", "/staff/notifications");
+      await links.nth(3).click();
+      await expect(page).toHaveURL(/\/staff\/notifications$/);
+      await page.goBack();
+      await page.getByRole("navigation", { name: "เมนูหลัก" }).getByRole("link", { name: "หน้าหลัก" }).click();
+      await expect(page).toHaveURL(/\/staff$/);
+    } else {
+      await expect(nav.getByRole("link")).toHaveText(["หน้าหลัก", "กิจกรรม", "บทความ", "รางวัล", "อันดับ"]);
+      await expect(nav.getByRole("link", { name: "กิจกรรม" })).toHaveAttribute("aria-current", "page");
+      await expect(nav.getByRole("link", { name: "ตะกร้า" })).toHaveCount(0);
+      await nav.getByRole("link", { name: "หน้าหลัก" }).click();
+      await expect(page).toHaveURL(/\/staff$/);
+    }
+  } finally {
+    if (teacher) await deleteUsers([teacher]);
+  }
 });

@@ -20,6 +20,14 @@ export const MAIN_NAV_ITEMS: readonly MainNavItem[] = [
   { href: "/articles", label: "บทความ", match: ["/articles"] },
 ];
 
+export const STAFF_MAIN_NAV_ITEMS: readonly MainNavItem[] = [
+  { href: "/staff", label: "หน้าหลัก", match: ["/staff"] },
+  { href: "/activities", label: "กิจกรรม", match: ["/activities"] },
+  { href: "/articles", label: "บทความ", match: ["/articles"] },
+  { href: "/rewards", label: "รางวัล", match: ["/rewards", "/orders"] },
+  { href: "/leaderboard", label: "อันดับ", match: ["/leaderboard"] },
+];
+
 function isUnder(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
@@ -28,22 +36,22 @@ function active(pathname: string | null, item: MainNavItem): boolean {
   return pathname !== null && item.match.some((m) => isUnder(pathname, m));
 }
 
-function WithPathname() {
-  return <MainNavView pathname={usePathname()} />;
+function WithPathname({ items }: { items: readonly MainNavItem[] }) {
+  return <MainNavView pathname={usePathname()} items={items} />;
 }
 
-export function MainNav() {
+export function MainNav({ items = MAIN_NAV_ITEMS }: { items?: readonly MainNavItem[] }) {
   return (
-    <Suspense fallback={<MainNavView pathname={null} />}>
-      <WithPathname />
+    <Suspense fallback={<MainNavView pathname={null} items={items} />}>
+      <WithPathname items={items} />
     </Suspense>
   );
 }
 
-function MainNavView({ pathname }: { pathname: string | null }) {
+function MainNavView({ pathname, items }: { pathname: string | null; items: readonly MainNavItem[] }) {
   return (
     <nav aria-label="เมนูหลัก" className="mx-auto hidden min-w-0 items-center gap-0.5 text-sm whitespace-nowrap md:flex">
-      {MAIN_NAV_ITEMS.map((item) => {
+      {items.map((item) => {
         const current = active(pathname, item);
         return (
           <Link

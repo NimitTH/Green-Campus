@@ -1,3 +1,6 @@
+import { Suspense } from "react";
+import { getCurrentUser } from "@/lib/auth/dal";
+import { isStaffRole } from "@/lib/auth/routes";
 import { SiteFooter } from "../_components/site-footer";
 import { SiteHeader } from "../_components/site-header";
 import { BottomNav } from "./_components/student-nav";
@@ -13,7 +16,15 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       <SiteHeader />
       {children}
       <SiteFooter />
-      <BottomNav />
+      {/* The role is read inside Suspense; the fallback is the student bar without a role-specific item set. */}
+      <Suspense fallback={<BottomNav />}>
+        <RoleBottomNav />
+      </Suspense>
     </div>
   );
+}
+
+async function RoleBottomNav() {
+  const user = await getCurrentUser();
+  return <BottomNav variant={user && isStaffRole(user.role) ? "staff" : "student"} />;
 }
