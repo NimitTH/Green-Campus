@@ -1,6 +1,6 @@
 -- Redesign 4: staff_carbon_by_month / staff_waste_by_category. ids: student ...5c11, teacher ...5c21
 begin;
-select plan(9);
+select plan(10);
 
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-000000005c11', 'sc-s@example.test', '{"full_name":"SC นักเรียน"}'::jsonb),
@@ -25,6 +25,15 @@ insert into public.ledger_entries (student_id, kind, points, carbon_kg, created_
   ('00000000-0000-0000-0000-000000005c11', 'redeem', -5, 0,
     (date_trunc('month', now() at time zone 'Asia/Bangkok') + interval '30 minutes') at time zone 'Asia/Bangkok');
 
+-- Expected series recomputed straight from ledger_entries (as the table owner, so RLS cannot hide rows): the
+-- same 6 Bangkok months, earn only, coalesce(sum, 0). Months with no rows prove zero-fill on any data.
+select set_config('t.exp', (
+  select string_agg(m.d::date || ':' || round(coalesce((
+    select sum(le.carbon_kg) from public.ledger_entries le
+    where le.kind = 'earn' and date_trunc('month', le.created_at at time zone 'Asia/Bangkok') = m.d), 0), 3), ',' order by m.d)
+  from generate_series(date_trunc('month', now() at time zone 'Asia/Bangkok') - interval '5 months',
+                       date_trunc('month', now() at time zone 'Asia/Bangkok'), interval '1 month') m(d)), true);
+
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000005c11","role":"authenticated"}', true);
 select throws_ok($$select * from public.staff_carbon_by_month()$$, 'P0001', 'not_staff', 'a student is refused');
@@ -44,6 +53,8 @@ select is((select array_agg(month order by month) from public.staff_carbon_by_mo
   '6 months, oldest first, the current Bangkok month last');
 select is((select carbon_kg from public.staff_carbon_by_month() order by month limit 1), current_setting('t.old')::numeric,
   'the oldest month is unchanged by the fixtures (nothing earned there)');
+select is((select string_agg(month || ':' || carbon_kg, ',' order by month) from public.staff_carbon_by_month()),
+  current_setting('t.exp'), 'every month equals the sum recomputed from ledger_entries (zero-fill included)');
 select is((select carbon_kg from public.staff_carbon_by_month() order by month desc limit 1), current_setting('t.cur')::numeric + 1.5,
   'an entry 30 min into the Bangkok month counts in it (redeem ignored)');
 select is((select carbon_kg from public.staff_carbon_by_month() order by month desc offset 1 limit 1), current_setting('t.prev')::numeric + 2.25,
