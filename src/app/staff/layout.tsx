@@ -37,8 +37,8 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
         <NotificationBell href="/staff/notifications" />
       </header>
       <div className="flex flex-1">
-        {/* DESIGN-4 4.2: the cookie is request data, so it is read inside <Suspense>; the static shell keeps the expanded sidebar */}
-        <Suspense fallback={<StaffSidebar>{nav}</StaffSidebar>}>
+        {/* DESIGN-4 4.2: the cookie is request data, so it is read inside <Suspense>; the static shell copy collapses in CSS from the pre-paint <html> attribute (no flash) */}
+        <Suspense fallback={<StaffSidebar shell>{nav}</StaffSidebar>}>
           <SidebarFromCookie>{nav}</SidebarFromCookie>
         </Suspense>
         <div className="flex min-w-0 flex-1 flex-col">
@@ -83,7 +83,7 @@ const ACCOUNT_ITEMS: StaffNavItem[] = [
   { href: "/staff/notifications", label: "แจ้งเตือน", icon: "notifications" },
 ];
 
-// Classes prefixed group-data-[collapsed=true]/sidebar apply inside a collapsed sidebar only (never in the drawer).
+// Classes prefixed sidebar-collapsed: apply inside a collapsed sidebar only, never in the drawer (globals.css).
 
 /** Menu items by role, decided here on the server (admin items are not sent to teachers). */
 async function StaffNav() {
@@ -97,16 +97,16 @@ async function StaffNav() {
       {admin ? (
         <div className="border-t border-rule pt-3">
           {/* collapsed: the rule above stands in for the heading */}
-          <p className="px-3 pb-1 text-xs text-muted group-data-[collapsed=true]/sidebar:sr-only">ผู้ดูแลระบบ</p>
+          <p className="px-3 pb-1 text-xs text-muted sidebar-collapsed:sr-only">ผู้ดูแลระบบ</p>
           <StaffNavLinks items={ADMIN_ITEMS} />
         </div>
       ) : null}
       <div className="border-t border-rule pt-3">
         <StaffNavLinks items={ACCOUNT_ITEMS} />
-        <form action={signOut} className="px-3 pt-2 group-data-[collapsed=true]/sidebar:flex group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:px-0">
-          <Button type="submit" variant="card" size="sm" className="group-data-[collapsed=true]/sidebar:w-11 group-data-[collapsed=true]/sidebar:px-0">
-            <StaffNavIcon name="signout" className="hidden group-data-[collapsed=true]/sidebar:block" />
-            <span className="group-data-[collapsed=true]/sidebar:sr-only">ออกจากระบบ</span>
+        <form action={signOut} className="px-3 pt-2 sidebar-collapsed:flex sidebar-collapsed:justify-center sidebar-collapsed:px-0">
+          <Button type="submit" variant="card" size="sm" className="sidebar-collapsed:w-11 sidebar-collapsed:px-0">
+            <StaffNavIcon name="signout" className="hidden sidebar-collapsed:block" />
+            <span className="sidebar-collapsed:sr-only">ออกจากระบบ</span>
           </Button>
         </form>
       </div>

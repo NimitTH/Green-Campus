@@ -4,15 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, Suspense, use, useCallback, useEffect, useId, useRef, useState } from "react";
 import { ThemeToggle } from "@/components/ui";
-import { sidebarCookieAssignment } from "./sidebar-cookie";
+import { SIDEBAR_COLLAPSED, SIDEBAR_HTML_ATTR, sidebarCookieAssignment } from "./sidebar-cookie";
 import { StaffNavIcon, type StaffIconName } from "./staff-nav-icons";
 
 // Spec 9.3: staff navigation. Sidebar from md up, a drawer (menu button) below. The weigh station is a
 // standing kiosk page with big buttons, so there the sidebar only appears from xl and tablets get the drawer.
 // Cache Components: usePathname() suspends while the static shell of a route with unknown dynamic params is
 // prerendered, so every reader sits inside <Suspense> (fallback: the same markup, non-station, no highlight).
-// DESIGN-4 4.2: the sidebar collapses to icons (w-16). Client links read the state from context; the server-rendered
-// parts of the menu (group heading, sign out) follow the aside's data-collapsed through group-data variants.
+// DESIGN-4 4.2: the sidebar collapses to icons (w-16). The look is CSS (the sidebar-collapsed variant, globals.css), so the
+// server-rendered menu parts and the static shell follow it too; client links read context only for aria-label/tooltip.
 
 export type StaffNavItem = { href: string; label: string; icon: StaffIconName };
 
@@ -58,12 +58,12 @@ function LinksView({ items, pathname }: { items: StaffNavItem[]; pathname: strin
               href={item.href}
               aria-current={current ? "page" : undefined}
               aria-label={collapsed ? item.label : undefined}
-              className={`group/item relative flex min-h-11 items-center gap-3 rounded-input border-l-[3px] ${
-                collapsed ? "justify-center px-0" : "px-3"
-              } ${current ? "border-accent bg-accent-soft font-semibold text-ink" : "border-transparent text-ink hover:bg-accent-soft"}`}
+              className={`group/item relative flex min-h-11 items-center gap-3 rounded-input border-l-[3px] px-3 sidebar-collapsed:justify-center sidebar-collapsed:px-0 ${
+                current ? "border-accent bg-accent-soft font-semibold text-ink" : "border-transparent text-ink hover:bg-accent-soft"
+              }`}
             >
               <StaffNavIcon name={item.icon} className={current ? "text-accent" : "text-muted"} />
-              <span className={collapsed ? "sr-only" : "min-w-0"}>{item.label}</span>
+              <span className="min-w-0 sidebar-collapsed:sr-only">{item.label}</span>
               {collapsed ? (
                 <span aria-hidden="true" className={TOOLTIP}>
                   {item.label}
@@ -80,18 +80,36 @@ function LinksView({ items, pathname }: { items: StaffNavItem[]; pathname: strin
 /**
  * Desktop sidebar (hidden on phones; hidden below xl on the weigh station). `collapsed` is the first state, read
  * from the cookie by the layout; the toggle switches at once on the client and rewrites the cookie (no refresh).
+ * `shell`: the layout's Suspense fallback (static shell). It cannot know the cookie, so it collapses in CSS from
+ * `<html data-staff-sidebar>` (SIDEBAR_INIT_SCRIPT, before first paint); see the sidebar-collapsed variant in globals.css.
  */
-export function StaffSidebar({ collapsed = false, children }: { collapsed?: boolean; children: React.ReactNode }) {
+export function StaffSidebar({
+  collapsed = false,
+  shell = false,
+  children,
+}: {
+  collapsed?: boolean;
+  shell?: boolean;
+  children: React.ReactNode;
+}) {
   return (
-    <Suspense fallback={<SidebarFrame station={false} initialCollapsed={collapsed}>{children}</SidebarFrame>}>
-      <SidebarWithPath initialCollapsed={collapsed}>{children}</SidebarWithPath>
+    <Suspense
+      fallback={
+        <SidebarFrame station={false} initialCollapsed={collapsed} shell={shell}>
+          {children}
+        </SidebarFrame>
+      }
+    >
+      <SidebarWithPath initialCollapsed={collapsed} shell={shell}>
+        {children}
+      </SidebarWithPath>
     </Suspense>
   );
 }
 
-function SidebarWithPath({ initialCollapsed, children }: { initialCollapsed: boolean; children: React.ReactNode }) {
+function SidebarWithPath({ initialCollapsed, shell, children }: { initialCollapsed: boolean; shell: boolean; children: React.ReactNode }) {
   return (
-    <SidebarFrame station={isStation(usePathname())} initialCollapsed={initialCollapsed}>
+    <SidebarFrame station={isStation(usePathname())} initialCollapsed={initialCollapsed} shell={shell}>
       {children}
     </SidebarFrame>
   );
@@ -100,10 +118,12 @@ function SidebarWithPath({ initialCollapsed, children }: { initialCollapsed: boo
 function SidebarFrame({
   station,
   initialCollapsed,
+  shell,
   children,
 }: {
   station: boolean;
   initialCollapsed: boolean;
+  shell: boolean;
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(initialCollapsed);
@@ -114,29 +134,32 @@ function SidebarFrame({
     const next = !collapsed;
     setCollapsed(next);
     document.cookie = sidebarCookieAssignment(next);
+    // keep the pre-paint attribute in step with the cookie (it styles only the shell copy)
+    if (next) document.documentElement.setAttribute(SIDEBAR_HTML_ATTR, SIDEBAR_COLLAPSED);
+    else document.documentElement.removeAttribute(SIDEBAR_HTML_ATTR);
   }
 
+  // Collapsed look comes from the sidebar-collapsed variant (data-collapsed here, or the html attribute for the shell),
+  // so the server shell and the streamed sidebar share one set of classes. xl:w-60 needs its own collapsed override.
   return (
     <aside
       id={id}
       data-collapsed={collapsed ? "true" : "false"}
-      className={`group/sidebar ${station ? "hidden xl:flex" : "hidden md:flex"} ${
-        collapsed ? "w-16 px-2" : "w-52 px-3 xl:w-60"
-      } shrink-0 flex-col border-r border-rule bg-paper-2 py-4`}
+      data-sidebar-shell={shell ? "" : undefined}
+      className={`${station ? "hidden xl:flex" : "hidden md:flex"} w-52 shrink-0 flex-col border-r border-rule bg-paper-2 px-3 py-4 xl:w-60 sidebar-collapsed:w-16 sidebar-collapsed:px-2 sidebar-collapsed:xl:w-16`}
     >
       <CollapsedContext value={collapsed}>{children}</CollapsedContext>
-      <div className={`mt-auto flex flex-col gap-1 pt-3 ${collapsed ? "items-center" : "items-start"}`}>
+      <div className="mt-auto flex flex-col items-start gap-1 pt-3 sidebar-collapsed:items-center">
         <button
           type="button"
           aria-expanded={!collapsed}
           aria-controls={id}
           onClick={toggle}
-          className={`group/item relative flex min-h-11 items-center gap-3 rounded-input text-sm text-ink hover:bg-accent-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
-            collapsed ? "w-11 justify-center" : "w-full px-3"
-          }`}
+          className="group/item relative flex min-h-11 w-full items-center gap-3 rounded-input px-3 text-sm text-ink hover:bg-accent-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sidebar-collapsed:w-11 sidebar-collapsed:justify-center sidebar-collapsed:px-0"
         >
-          <StaffNavIcon name={collapsed ? "expand" : "collapse"} className="text-muted" />
-          <span className={collapsed ? "sr-only" : undefined}>{label}</span>
+          <StaffNavIcon name="collapse" className="text-muted sidebar-collapsed:hidden" />
+          <StaffNavIcon name="expand" className="hidden text-muted sidebar-collapsed:block" />
+          <span className="sidebar-collapsed:sr-only">{label}</span>
           {collapsed ? (
             <span aria-hidden="true" className={TOOLTIP}>
               {label}

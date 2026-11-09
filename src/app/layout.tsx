@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, IBM_Plex_Sans_Thai, Sarabun } from "next/font/google";
 import { THEME_INIT_SCRIPT } from "@/components/ui/theme";
+import { SIDEBAR_INIT_SCRIPT } from "./staff/_components/sidebar-cookie";
 import "./globals.css";
 
 const sarabun = Sarabun({
@@ -47,6 +48,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: SIDEBAR_INIT_SCRIPT }} />
       </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

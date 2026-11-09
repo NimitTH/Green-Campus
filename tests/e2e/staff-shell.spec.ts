@@ -61,6 +61,7 @@ test("the staff sidebar collapses to icons, remembers it across a reload, and ex
     expect(cookie?.value).toBe("collapsed");
     expect(cookie?.path).toBe("/staff");
     expect(cookie?.sameSite).toBe("Lax");
+    await expect(page.locator("html")).toHaveAttribute("data-staff-sidebar", "collapsed");
 
     // a tooltip on hover (CSS, aria-hidden)
     const tip = reviews.locator("span[aria-hidden=true]");
@@ -87,10 +88,52 @@ test("the staff sidebar collapses to icons, remembers it across a reload, and ex
     await expect(reviews).toHaveText("ตรวจผล");
     expect((await aside.boundingBox())!.width).toBeGreaterThan(150);
     expect((await context.cookies()).find((c) => c.name === "staff-sidebar")).toBeUndefined();
+    await expect(page.locator("html")).not.toHaveAttribute("data-staff-sidebar", /./);
     await page.reload();
     await expect(collapse).toHaveAttribute("aria-expanded", "true");
   } finally {
     await deleteUsers([admin]);
+  }
+});
+
+// Review I1 (DESIGN-4 4.2 "ไม่กระพริบ"): the sidebar in the static shell (the Suspense fallback, before the cookie-backed
+// sidebar streams in) is already collapsed. The page runs with no app bundles and with React's inline "swap the streamed
+// boundary in" scripts removed, so what is measured is exactly what the browser can paint first: server HTML + head scripts.
+test("a collapsed sidebar is already 64px in the server shell, before streaming or hydration", async ({ page, context }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "desktop sidebar only (phones keep the drawer)");
+  const suffix = uniqueSuffix(testInfo.project.name);
+  let teacher: TestUser | undefined;
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-shell-${suffix}`);
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await signIn(page, teacher, "/staff");
+    const origin = new URL(page.url()).origin;
+    await context.addCookies([{ name: "staff-sidebar", value: "collapsed", url: `${origin}/staff`, sameSite: "Lax" }]);
+
+    await page.route("**/_next/static/**/*.js", (route) => route.abort());
+    await page.route(
+      (url) => url.pathname === "/staff",
+      async (route) => {
+        const response = await route.fetch();
+        const html = (await response.text()).replace(/<script\b[^>]*>(?:(?!<\/script>)[\s\S])*?\$R[A-Z]\((?:(?!<\/script>)[\s\S])*?<\/script>/g, "");
+        await route.fulfill({ response, body: html });
+      },
+    );
+    await page.goto("/staff");
+    const asides = page.locator("aside").filter({ visible: true });
+    await expect(asides).toHaveCount(1);
+    // the shell: the expanded-state fallback markup (its toggle still says ยุบเมนู), so this is not the streamed sidebar
+    await expect(asides.locator("button", { hasText: "ยุบเมนู" })).toHaveCount(1);
+    expect((await asides.boundingBox())!.width).toBeLessThanOrEqual(64);
+
+    // control: without the cookie the same shell stays expanded
+    await context.clearCookies({ name: "staff-sidebar" });
+    await page.goto("/staff");
+    await expect(asides).toHaveCount(1);
+    await expect(page.locator("html")).not.toHaveAttribute("data-staff-sidebar", /./);
+    expect((await asides.boundingBox())!.width).toBeGreaterThan(150);
+  } finally {
+    await deleteUsers([teacher]);
   }
 });
 

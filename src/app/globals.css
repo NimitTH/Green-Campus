@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+/* DESIGN-4 4.2: the staff sidebar collapsed. The live sidebar says so in data-collapsed; the static-shell copy (the
+   Suspense fallback, data-sidebar-shell) follows <html data-staff-sidebar>, set from the cookie before first paint,
+   so a collapsed user never sees it expanded (review I1). The drawer is not an <aside>, so it never matches. */
+@custom-variant sidebar-collapsed {
+  &:where(
+      aside[data-collapsed=true],
+      aside[data-collapsed=true] *,
+      html[data-staff-sidebar=collapsed] aside[data-sidebar-shell],
+      html[data-staff-sidebar=collapsed] aside[data-sidebar-shell] *
+    ) {
+    @slot;
+  }
+}
+
 @custom-variant dark {
   &:where([data-theme=dark], [data-theme=dark] *) {
     @slot;

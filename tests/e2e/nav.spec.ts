@@ -46,13 +46,20 @@ test("student on a 360 px phone: 4-item bottom nav, one tap to rewards, nothing 
     await expect(page.getByRole("link", { name: /^แจ้งเตือน/ })).toHaveCount(1);
 
     // fixed to the bottom of the viewport, tap targets >= 44 px
-    const navBox = await nav.boundingBox();
-    expect(navBox).not.toBeNull();
-    expect(Math.abs(navBox!.y + navBox!.height - 640)).toBeLessThanOrEqual(1);
+    await expect
+      .poll(async () => {
+        const navBox = await nav.boundingBox();
+        return navBox ? Math.abs(navBox.y + navBox.height - 640) : Infinity;
+      })
+      .toBeLessThanOrEqual(1);
+    // polled: the role-decided nav replaces its Suspense fallback, and a box read during that swap is null (Task 8 flake)
     for (let i = 0; i < 4; i++) {
-      const box = await links.nth(i).boundingBox();
-      expect(box!.height).toBeGreaterThanOrEqual(44);
-      expect(box!.width).toBeGreaterThanOrEqual(44);
+      await expect
+        .poll(async () => {
+          const box = await links.nth(i).boundingBox();
+          return box ? Math.min(box.width, box.height) : 0;
+        })
+        .toBeGreaterThanOrEqual(44);
     }
     await noSideScroll(page);
 
