@@ -20,3 +20,38 @@ export const ACTIVITY_SORT_COLUMN: Record<keyof typeof ACTIVITY_LIST_CONFIG.sort
   date: "created_at",
   name: "title",
 };
+
+// DESIGN-4 3 (/staff/activities): the staff list config, read from the staff_activity_list view.
+export const STAFF_ACTIVITY_CONFIG = {
+  sorts: {
+    date: { label: "วันที่", kind: "date", defaultDir: "desc" },
+    participants: { label: "ผู้เข้าร่วม", kind: "number", defaultDir: "desc" },
+    name: { label: "ชื่อ", kind: "text", defaultDir: "asc" },
+  },
+  defaultSort: "date",
+  filters: {
+    type: { label: "ประเภท", options: { waste: "ชั่งน้ำหนัก", trees: "ปลูกต้นไม้", fixed: "แต้มคงที่" } },
+    status: { label: "สถานะ", options: { draft: "ร่าง", open: "เปิดรับ", closed: "ปิดรับ" } },
+    code: { label: "รหัสจุดชั่ง", options: { yes: "ใช้รหัสจุดชั่ง", no: "ไม่ใช้" } },
+  },
+} satisfies ListConfig;
+
+/** The staff_activity_list column behind each sort key. */
+export const STAFF_ACTIVITY_SORT_COLUMN: Record<keyof typeof STAFF_ACTIVITY_CONFIG.sorts, string> = {
+  date: "created_at",
+  participants: "participant_count",
+  name: "title",
+};
+
+export type StaffActivityFilter = [column: string, op: "eq", value: string | boolean];
+
+/** The column filters of a staff list state ("all", missing and unknown values add none). */
+export function staffActivityFilters(filters: Record<string, string>): StaffActivityFilter[] {
+  const out: StaffActivityFilter[] = [];
+  const { type, status, code } = STAFF_ACTIVITY_CONFIG.filters;
+  const known = (spec: { options: Record<string, string> }, v: string | undefined): v is string => v !== undefined && Object.hasOwn(spec.options, v);
+  if (known(type, filters.type)) out.push(["type", "eq", filters.type]);
+  if (known(status, filters.status)) out.push(["status", "eq", filters.status]);
+  if (known(code, filters.code)) out.push(["requires_code", "eq", filters.code === "yes"]);
+  return out;
+}

@@ -49,10 +49,10 @@ export async function issueWeighCode(activityId: string, studentId: string): Pro
   return { ok: true, code: row.code, expiresAt: row.expires_at, serverNow };
 }
 
-export type StudentHit = { id: string; name: string };
+export type StudentHit = { id: string; name: string; joinedAt: string };
 export type SearchStudentsResult = { students: StudentHit[]; error?: string };
 
-const SEARCH_LIMIT = 20;
+const SEARCH_LIMIT = 200;
 
 /** Participants of an activity whose name matches `query` (empty = first names). Staff only. */
 export async function searchParticipants(activityId: string, query: string): Promise<SearchStudentsResult> {
@@ -66,7 +66,7 @@ export async function searchParticipants(activityId: string, query: string): Pro
   const supabase = await createServerClient();
   let request = supabase
     .from("participations")
-    .select("student_id, profiles!inner(full_name, display_name)")
+    .select("student_id, created_at, profiles!inner(full_name, display_name)")
     .eq("activity_id", activityId)
     .order("created_at", { ascending: true })
     .limit(SEARCH_LIMIT);
@@ -83,10 +83,11 @@ export async function searchParticipants(activityId: string, query: string): Pro
   const students = (data ?? []).map((raw) => {
     const row = raw as unknown as {
       student_id: string;
+      created_at: string;
       profiles: { full_name: string; display_name: string | null } | { full_name: string; display_name: string | null }[];
     };
     const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
-    return { id: row.student_id, name: profile?.display_name || profile?.full_name || "" };
+    return { id: row.student_id, name: profile?.display_name || profile?.full_name || "", joinedAt: row.created_at };
   });
   return { students };
 }

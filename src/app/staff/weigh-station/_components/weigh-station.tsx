@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useId, useLayoutEffect, useRef, useState, useTransition } from "react";
-import { Button, Card, inputClassLg } from "@/components/ui";
+import { paginateRows, sortRows } from "@/app/_components/list/client-list";
+import { directionAriaLabel, directionLabel, PAGE_SIZE, type SortDir } from "@/app/_components/list/list-params";
+import { pageWindow } from "@/app/_components/list/pagination";
+import { Button, Card, inputClass, inputClassLg } from "@/components/ui";
+import { formatBangkok } from "@/lib/datetime";
 import { GENERIC_ERROR_TH } from "@/lib/errors";
 import { countdownTone } from "./countdown-tone";
 import {
@@ -10,6 +14,9 @@ import {
   type IssueCodeResult,
   type StudentHit,
 } from "@/app/actions/weigh-codes";
+
+const PAGE_BTN =
+  "inline-flex size-11 items-center justify-center rounded-input text-sm font-medium text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:text-muted disabled:opacity-55";
 
 type Activity = { id: string; title: string };
 
@@ -75,6 +82,9 @@ export function WeighStation({ activities }: { activities: Activity[] }) {
   const [students, setStudents] = useState<StudentHit[]>([]);
   // Search key (activity + text) of the results currently shown; differs while a search is in flight.
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const [sort, setSort] = useState<"joined" | "name">("joined");
+  const [dir, setDir] = useState<SortDir>("asc");
+  const [page, setPage] = useState(1);
   const [searchError, setSearchError] = useState<string | undefined>();
   const [issued, setIssued] = useState<Issued | null>(null);
   const [issueError, setIssueError] = useState<string | undefined>();
@@ -104,6 +114,7 @@ export function WeighStation({ activities }: { activities: Activity[] }) {
         .then((result) => {
           if (id !== requestId.current) return;
           setStudents(result.students);
+          setPage(1);
           setSearchError(result.error);
           setLoadedKey(key);
         })
@@ -117,6 +128,9 @@ export function WeighStation({ activities }: { activities: Activity[] }) {
     return () => clearTimeout(timer);
   }, [activityId, query]);
 
+  const sortKind = sort === "name" ? "text" : "date";
+  const sorted = sort === "name" ? sortRows(students, (s) => s.name, "text", dir) : sortRows(students, (s) => s.joinedAt, "date", dir);
+  const paged = paginateRows(sorted, page, PAGE_SIZE);
   const searching = loadedKey !== `${activityId}|${query}`;
 
   function issue(student: StudentHit) {
@@ -161,6 +175,7 @@ export function WeighStation({ activities }: { activities: Activity[] }) {
             if (e.target.value === activityId) return;
             setActivityId(e.target.value);
             setStudents([]);
+            setPage(1);
             setSearchError(undefined);
             setIssued(null);
             setIssueError(undefined);
@@ -239,10 +254,45 @@ export function WeighStation({ activities }: { activities: Activity[] }) {
       ) : students.length === 0 ? (
         <p className="text-muted">ไม่พบนักเรียนที่เข้าร่วมกิจกรรมนี้</p>
       ) : (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <label htmlFor={`${uid}-sort`} className="shrink-0 text-sm text-muted">
+              เรียงตาม
+            </label>
+            <select
+              id={`${uid}-sort`}
+              value={sort}
+              onChange={(e) => {
+                setSort(e.target.value === "name" ? "name" : "joined");
+                setDir("asc");
+                setPage(1);
+              }}
+              className={`${inputClass} w-auto min-w-0 max-w-full pr-8`}
+            >
+              <option value="joined">วันที่เข้าร่วม</option>
+              <option value="name">ชื่อ</option>
+            </select>
+            <button
+              type="button"
+              data-testid="weigh-sort-dir"
+              data-dir={dir}
+              aria-label={directionAriaLabel(sortKind, dir)}
+              onClick={() => {
+                setDir(dir === "asc" ? "desc" : "asc");
+                setPage(1);
+              }}
+              className="inline-flex min-h-11 shrink-0 items-center rounded-input border border-rule-strong bg-surface px-3 text-sm font-medium whitespace-nowrap text-ink hover:border-accent hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              {directionLabel(sortKind, dir)}
+            </button>
+          </div>
         <ul className="space-y-3">
-          {students.map((s) => (
+          {paged.items.map((s) => (
             <Card as="li" key={s.id} className="flex items-center justify-between gap-3">
-              <span className="min-w-0 text-lg break-words">{s.name}</span>
+              <span className="min-w-0">
+                <span className="block text-lg break-words">{s.name}</span>
+                <span className="block text-sm text-muted">เข้าร่วม {formatBangkok(s.joinedAt)}</span>
+              </span>
               <Button
                 type="button"
                 variant="primary"
@@ -257,6 +307,42 @@ export function WeighStation({ activities }: { activities: Activity[] }) {
             </Card>
           ))}
         </ul>
+          {paged.lastPage > 1 ? (
+            <nav aria-label="แบ่งหน้า" className="flex justify-center">
+              <ul className="flex flex-wrap items-center justify-center gap-1">
+                <li>
+                  <button type="button" aria-label="หน้าก่อน" disabled={paged.page <= 1} onClick={() => setPage(paged.page - 1)} className={PAGE_BTN}>
+                    ‹
+                  </button>
+                </li>
+                {pageWindow(paged.page, paged.lastPage).map((n, i) =>
+                  n === "…" ? (
+                    <li key={`gap-${i}`} aria-hidden="true" className="inline-flex size-11 items-center justify-center text-muted">
+                      …
+                    </li>
+                  ) : (
+                    <li key={n}>
+                      <button
+                        type="button"
+                        aria-label={`หน้า ${n}`}
+                        aria-current={n === paged.page ? "page" : undefined}
+                        onClick={() => setPage(n)}
+                        className={`${PAGE_BTN} ${n === paged.page ? "bg-accent text-on-accent" : "hover:bg-accent-soft"}`}
+                      >
+                        {n}
+                      </button>
+                    </li>
+                  ),
+                )}
+                <li>
+                  <button type="button" aria-label="หน้าถัดไป" disabled={paged.page >= paged.lastPage} onClick={() => setPage(paged.page + 1)} className={PAGE_BTN}>
+                    ›
+                  </button>
+                </li>
+              </ul>
+            </nav>
+          ) : null}
+        </>
       )}
     </div>
   );

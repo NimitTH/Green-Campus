@@ -5,7 +5,7 @@ import { quoteOrValue, toIlikePattern } from "@/app/_components/list/search-esca
 import { getStaffNames } from "@/lib/staff-names";
 import { createServerClient } from "@/lib/supabase/server";
 import { activityCoverUrl } from "./cover";
-import { ACTIVITY_LIST_CONFIG, ACTIVITY_SORT_COLUMN } from "./list-config";
+import { ACTIVITY_LIST_CONFIG, ACTIVITY_SORT_COLUMN, STAFF_ACTIVITY_CONFIG, STAFF_ACTIVITY_SORT_COLUMN, staffActivityFilters } from "./list-config";
 import type { ActivityRecord } from "./validation";
 
 // Read helpers for activity pages. They run as the signed-in user, so RLS decides what
@@ -29,21 +29,51 @@ function toRow(raw: Record<string, unknown>): ActivityRow {
   };
 }
 
-export type StaffActivityRow = ActivityRow & { participantCount: number };
+type StaffFilterable = {
+  or(filter: string): StaffFilterable;
+  eq(column: string, value: string | boolean): StaffFilterable;
+};
 
-export async function listActivitiesForStaff(): Promise<StaffActivityRow[]> {
+export type StaffActivityListRow = ActivityRow & { participantCount: number; coverUrl: string | null };
+
+/**
+ * One page (pageSizeOf(STAFF_ACTIVITY_CONFIG)) of /staff/activities from the staff_activity_list view: optional
+ * title/description search matched literally, AND the staffActivityFilters columns. Sorted by created_at,
+ * participant_count or title (nulls last), then id. A page past the end returns no items with the real total.
+ */
+export async function listActivitiesForStaffPage(
+  p: Pick<ListState, "q" | "sort" | "dir" | "filters" | "page">,
+): Promise<{ items: StaffActivityListRow[]; total: number }> {
   const supabase = await createServerClient();
-  const { data, error } = await supabase
-    .from("activities")
-    .select(`${COLUMNS}, participations(count)`)
-    .order("starts_at", { ascending: false });
-  if (error) throw new Error(`listActivitiesForStaff: ${error.message}`);
-  return (data ?? []).map((raw) => {
-    const { participations, ...rest } = raw as Record<string, unknown> & {
-      participations?: { count: number }[];
-    };
-    return { ...toRow(rest), participantCount: participations?.[0]?.count ?? 0 };
+  const pattern = p.q ? quoteOrValue(toIlikePattern(p.q)) : null;
+  const filters = staffActivityFilters(p.filters);
+  // the same builder comes back (each method returns `this`), so the cast back to T is exact
+  const filtered = <T,>(query: T): T => {
+    let q = query as unknown as StaffFilterable;
+    if (pattern) q = q.or(`title.ilike.${pattern},description.ilike.${pattern}`);
+    for (const [column, , value] of filters) q = q.eq(column, value);
+    return q as unknown as T;
+  };
+  const column = Object.hasOwn(STAFF_ACTIVITY_SORT_COLUMN, p.sort) ? STAFF_ACTIVITY_SORT_COLUMN[p.sort as keyof typeof STAFF_ACTIVITY_SORT_COLUMN] : "created_at";
+  const ascending = p.dir === "asc";
+  const { items: raw, total } = await fetchPage<Record<string, unknown>>("listActivitiesForStaffPage", {
+    page: p.page,
+    size: pageSizeOf(STAFF_ACTIVITY_CONFIG),
+    run: (from, to) =>
+      filtered(supabase.from("staff_activity_list").select(`${COLUMNS}, participant_count`, { count: "exact" }))
+        .order(column, { ascending, nullsFirst: false })
+        .order("id", { ascending })
+        .range(from, to),
+    head: () => filtered(supabase.from("staff_activity_list").select("id", { count: "exact", head: true })),
   });
+  return {
+    total,
+    items: raw.map((r) => {
+      const { participant_count, ...rest } = r;
+      const row = toRow(rest);
+      return { ...row, participantCount: Number(participant_count ?? 0), coverUrl: activityCoverUrl(row.cover_path) };
+    }),
+  };
 }
 
 export async function getActivity(id: string): Promise<ActivityRow | null> {

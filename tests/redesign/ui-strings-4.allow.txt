@@ -37,3 +37,25 @@ testid:carbon-chart
 testid:carbon-table
 testid:staff-role
 testid:staff-name
+# Task 9 (staff activity list, weigh-station paging)
+text:กลับ
+text:ดู
+text:ผู้เข้าร่วม
+text:รหัสจุดชั่ง
+text:ค้นหากิจกรรม
+text:เรียงตาม
+text:วันที่เข้าร่วม
+text:เข้าร่วม
+text:ไม่ใช้
+text:ร่าง
+text:เปิดรับ
+text:ปิดรับ
+text:ชั่งน้ำหนัก
+text:ปลูกต้นไม้
+text:แต้มคงที่
+aria:ดู ${a.title}
+aria:หน้าก่อน
+aria:หน้า ${n}
+aria:หน้าถัดไป
+aria:แบ่งหน้า
+testid:weigh-sort-dir

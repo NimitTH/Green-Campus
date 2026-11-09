@@ -338,3 +338,60 @@ test.describe("activity list: search, sort, view, pagination, visibility", () =>
     }
   });
 });
+
+// Redesign 4 Task 9: /staff/activities filters (status, code), sort by participants, "ดู" (absent on a draft), "กลับ".
+test("staff activity list: filters, participant sort, view link and back link", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const prefix = `กิจกรรมแอดมินลิสต์ ${suffix}`;
+  let teacher: TestUser | undefined;
+  let s1: TestUser | undefined;
+  let s2: TestUser | undefined;
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-stafflist-${suffix}`);
+    s1 = await createConfirmedUser("student", `student-sl1-${suffix}`);
+    s2 = await createConfirmedUser("student", `student-sl2-${suffix}`);
+    const draftId = await createActivityRow(`${prefix} ร่าง`, { status: "draft", requires_code: true });
+    const openId = await createActivityRow(`${prefix} เปิด`, { status: "open" });
+    const manyId = await createActivityRow(`${prefix} คนเยอะ`, { status: "open" });
+    await joinAs(s1.id, manyId);
+    await joinAs(s2.id, manyId);
+    await joinAs(s1.id, openId);
+
+    const q = encodeURIComponent(prefix);
+    await signIn(page, teacher, "/staff/activities");
+    await page.goto(`/staff/activities?q=${q}`);
+    await expect(page.getByRole("heading", { level: 2 })).toHaveCount(3);
+    await expect(page.getByRole("link", { name: "กลับ", exact: true })).toHaveAttribute("href", "/staff");
+
+    // status=draft: only the draft, and it has no "ดู" link
+    await page.goto(`/staff/activities?q=${q}&status=draft`);
+    await expect(page.getByRole("heading", { level: 2 })).toHaveCount(1);
+    await expect(page.getByRole("heading", { name: `${prefix} ร่าง` })).toBeVisible();
+    await expect(page.getByRole("link", { name: `ดู ${prefix} ร่าง` })).toHaveCount(0);
+
+    // code=yes: the draft is the only activity with a code
+    await page.goto(`/staff/activities?q=${q}&code=yes`);
+    await expect(page.getByRole("heading", { level: 2 })).toHaveCount(1);
+    await expect(page.getByRole("heading", { name: `${prefix} ร่าง` })).toBeVisible();
+
+    // no match: the shared copy and a clear link
+    await page.goto(`/staff/activities?q=${q}&status=closed`);
+    await expect(page.getByText("ไม่พบรายการที่ตรงกับคำค้น")).toBeVisible();
+    await expect(page.getByRole("link", { name: "ล้างการค้นหา" })).toBeVisible();
+
+    // sort by participants (more first): "คนเยอะ" (2) before "เปิด" (1) before the draft (0)
+    await page.goto(`/staff/activities?q=${q}&sort=participants`);
+    const headings = page.getByRole("heading", { level: 2 });
+    await expect(headings).toHaveCount(3);
+    await expect(headings.nth(0)).toHaveText(`${prefix} คนเยอะ`);
+    await expect(headings.nth(1)).toHaveText(`${prefix} เปิด`);
+    await expect(headings.nth(2)).toHaveText(`${prefix} ร่าง`);
+
+    // "ดู" on an open activity goes to its public page
+    await expect(page.getByRole("link", { name: `ดู ${prefix} เปิด` })).toHaveAttribute("href", `/activities/${openId}`);
+    expect(draftId).toBeTruthy();
+  } finally {
+    await deleteActivitiesByPrefix(prefix);
+    await deleteUsers([teacher, s1, s2]);
+  }
+});
