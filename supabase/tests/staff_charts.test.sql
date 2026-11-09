@@ -7,6 +7,14 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-000000005c21', 'sc-t@example.test', '{"full_name":"SC ครู"}'::jsonb);
 update public.profiles set role = 'teacher' where id = '00000000-0000-0000-0000-000000005c21';
 
+-- Baselines first (the DB may already hold earn rows: seed data, e2e leftovers); assertions below are deltas.
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000005c21","role":"authenticated"}', true);
+select set_config('t.cur', (select carbon_kg::text from public.staff_carbon_by_month() order by month desc limit 1), true);
+select set_config('t.prev', (select carbon_kg::text from public.staff_carbon_by_month() order by month desc offset 1 limit 1), true);
+select set_config('t.old', (select carbon_kg::text from public.staff_carbon_by_month() order by month limit 1), true);
+reset role;
+
 -- Clock-relative fixtures: +30 min after the start of the current Bangkok month (counts in it, even when that
 -- is the previous UTC day) and -30 min before it (counts in the previous Bangkok month).
 insert into public.ledger_entries (student_id, kind, points, carbon_kg, created_at) values
@@ -34,11 +42,11 @@ select is((select array_agg(month order by month) from public.staff_carbon_by_mo
      date_trunc('month', now() at time zone 'Asia/Bangkok') - interval '5 months',
      date_trunc('month', now() at time zone 'Asia/Bangkok'), interval '1 month') d),
   '6 months, oldest first, the current Bangkok month last');
-select is((select carbon_kg from public.staff_carbon_by_month() order by month limit 1), 0::numeric,
-  'a month without entries is 0');
-select is((select carbon_kg from public.staff_carbon_by_month() order by month desc limit 1), 1.5::numeric,
+select is((select carbon_kg from public.staff_carbon_by_month() order by month limit 1), current_setting('t.old')::numeric,
+  'the oldest month is unchanged by the fixtures (nothing earned there)');
+select is((select carbon_kg from public.staff_carbon_by_month() order by month desc limit 1), current_setting('t.cur')::numeric + 1.5,
   'an entry 30 min into the Bangkok month counts in it (redeem ignored)');
-select is((select carbon_kg from public.staff_carbon_by_month() order by month desc offset 1 limit 1), 2.25::numeric,
+select is((select carbon_kg from public.staff_carbon_by_month() order by month desc offset 1 limit 1), current_setting('t.prev')::numeric + 2.25,
   'an entry 30 min before the Bangkok month starts counts in the previous month');
 select is(array[(select count(*) from public.staff_carbon_by_month(0)), (select count(*) from public.staff_carbon_by_month(99))],
   array[1, 24]::bigint[], 'p_months is clamped to 1..24');
