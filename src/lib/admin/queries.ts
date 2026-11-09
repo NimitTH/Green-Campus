@@ -1,4 +1,6 @@
 import "server-only";
+import { cache } from "react";
+import type { WasteDatum } from "@/components/charts/WasteByCategory";
 import { toRole, type Role } from "@/lib/auth/routes";
 import { createServerClient } from "@/lib/supabase/server";
 import { cleanSearchTerm, USERS_PAGE_SIZE, type RoleFilter } from "./validation";
@@ -58,6 +60,37 @@ export async function getStaffStats(): Promise<StaffStats> {
     })),
   };
 }
+
+export type StaffCharts = {
+  /** Oldest first, the current Bangkok month last; `month` is the first day ("2026-11-01"). */
+  months: { month: string; carbonKg: number }[];
+  /** School-wide approved waste per category, in the functions' fixed category order. */
+  waste: WasteDatum[];
+};
+
+/**
+ * DESIGN-4 4.3: chart data for the /staff home, from staff_carbon_by_month(6) and staff_waste_by_category() (0035,
+ * staff only). React cache(): both chart boundaries on one request share one pair of calls.
+ */
+export const getStaffCharts = cache(async (): Promise<StaffCharts> => {
+  const supabase = await createServerClient();
+  const [months, waste] = await Promise.all([
+    supabase.rpc("staff_carbon_by_month", { p_months: 6 }),
+    supabase.rpc("staff_waste_by_category"),
+  ]);
+  if (months.error) throw new Error(`getStaffCharts: ${months.error.message}`);
+  if (waste.error) throw new Error(`getStaffCharts: ${waste.error.message}`);
+  return {
+    months: ((months.data ?? []) as { month: string; carbon_kg: number | string }[]).map((m) => ({
+      month: m.month,
+      carbonKg: Number(m.carbon_kg),
+    })),
+    waste: ((waste.data ?? []) as { code: string; name: string; grams: number | string }[]).map((w) => ({
+      name: w.name,
+      kg: Number(w.grams) / 1000,
+    })),
+  };
+});
 
 // /staff/users (R119) ------------------------------------------------------------------------------
 

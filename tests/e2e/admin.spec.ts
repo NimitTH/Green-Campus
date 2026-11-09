@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { signIn } from "./helpers/auth";
+import { staffMenu } from "./helpers/staff-menu";
 import {
   createActivityRow,
   createConfirmedUser,
@@ -34,7 +35,7 @@ test("admin changes a student to teacher; that user can then open /staff", async
     await setFullName(student.id, name);
 
     await signIn(page, adminUser, "/staff");
-    await page.getByRole("navigation", { name: "เมนูครู" }).getByRole("link", { name: /จัดการผู้ใช้/ }).click();
+    await (await staffMenu(page)).getByRole("link", { name: "ผู้ใช้", exact: true }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/staff/users");
     await page.getByRole("searchbox", { name: "ค้นหาชื่อ" }).fill(name);
     await page.getByRole("button", { name: "ค้นหา", exact: true }).click();
@@ -54,8 +55,9 @@ test("admin changes a student to teacher; that user can then open /staff", async
     try {
       const p2 = await ctx.newPage();
       await signIn(p2, student, "/staff");
-      await expect(p2.getByRole("navigation", { name: "เมนูครู" })).toBeVisible();
-      await expect(p2.getByRole("link", { name: /จัดการผู้ใช้/ })).toHaveCount(0); // teachers only
+      await expect(p2.getByTestId("staff-role")).toHaveText("ครู");
+      await expect(p2.locator('a[href="/staff/reports"]').first()).toBeAttached(); // the streamed menu is in
+      await expect(p2.locator('a[href="/staff/users"]')).toHaveCount(0); // teachers only (hidden copies included)
       await p2.goto("/staff/notifications"); // R142: staff read notifications in the staff shell
       await expect(p2.getByTestId("notification").filter({ hasText: "บทบาทของคุณถูกเปลี่ยน" })).toContainText("ครู");
     } finally {
@@ -162,12 +164,13 @@ test("teachers cannot open /staff/users or /staff/rates and see no admin links",
   try {
     teacher = await createConfirmedUser("teacher", `teacher-ad-${suffix}`);
     await signIn(page, teacher, "/staff");
-    await expect(page.getByRole("link", { name: /จัดการผู้ใช้/ })).toHaveCount(0);
-    await expect(page.getByRole("link", { name: /อัตราแต้มและ carbon/ })).toHaveCount(0);
+    await expect(page.locator('a[href="/staff/reports"]').first()).toBeAttached(); // the streamed menu is in
+    await expect(page.locator('a[href="/staff/users"]')).toHaveCount(0);
+    await expect(page.locator('a[href="/staff/rates"]')).toHaveCount(0);
     for (const path of ["/staff/users", "/staff/rates", `/staff/users/${teacher.id}`]) {
       await page.goto(path);
       await expect(page, path).toHaveURL((url) => url.pathname === "/staff");
-      await expect(page.getByRole("navigation", { name: "เมนูครู" })).toBeVisible();
+      await expect(page.getByTestId("staff-role")).toHaveText("ครู");
     }
   } finally {
     await deleteUsers([teacher]);

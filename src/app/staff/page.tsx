@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
-import { PageHeader } from "@/components/ui";
+import { WasteByCategory } from "@/components/charts/WasteByCategory";
+import { Avatar, Card, EmptyState } from "@/components/ui";
+import { Badge } from "@/app/_components/activity-ui";
+import { getStaffCharts } from "@/lib/admin/queries";
 import { requireStaff } from "@/lib/auth/dal";
-import { isAdminRole } from "@/lib/auth/routes";
-import { previewDisplayName } from "@/lib/profile/validation";
+import { greetingFor, greetingName } from "@/lib/greeting";
 import { PageSkeleton } from "../_components/page-skeleton";
+import { CarbonByMonth } from "./_components/carbon-by-month";
 import { StaffStats } from "./_components/staff-stats";
 
 export const metadata: Metadata = { title: "ครูและผู้ดูแล | Green Campus" };
@@ -20,47 +22,86 @@ export default function StaffPage() {
   );
 }
 
-const linkClass =
-  "block rounded-card border border-rule bg-surface p-4 font-semibold text-ink shadow-sheet transition-colors hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent md:p-5";
-const hintClass = "block text-sm font-normal text-muted";
-
-const MENU = [
-  { href: "/staff/reviews", label: "ตรวจผล", hint: "อนุมัติหรือปฏิเสธผลที่นักเรียนส่ง" },
-  { href: "/staff/activities", label: "จัดการกิจกรรม", hint: "สร้าง แก้ไข เปิด/ปิดกิจกรรม" },
-  { href: "/staff/weigh-station", label: "จุดชั่ง", hint: "ออกรหัส 6 หลักให้นักเรียนที่มาชั่ง" },
-  { href: "/staff/orders", label: "ออเดอร์", hint: "ยืนยันรับของ หรือยกเลิกออเดอร์ที่รอรับ" },
-  { href: "/staff/rewards", label: "ของรางวัล", hint: "เพิ่ม แก้ไข สต็อก และเปิด/ปิดการแลก" },
-  { href: "/staff/articles", label: "บทความ", hint: "เขียน แก้ไข และเผยแพร่บทความความรู้" },
-  { href: "/staff/profile", label: "โปรไฟล์", hint: "แก้ชื่อและชื่อที่แสดง" },
-  { href: "/staff/reports", label: "รายงาน", hint: "สรุปรายกิจกรรมและรายนักเรียน ดาวน์โหลด CSV/PDF" },
-] as const;
-
-// Spec 9.3: /staff/users and /staff/rates are admin only (the pages check again, requireAdmin).
-const ADMIN_MENU = [
-  { href: "/staff/users", label: "จัดการผู้ใช้", hint: "เปลี่ยนบทบาท และปรับแต้มนักเรียน" },
-  { href: "/staff/rates", label: "อัตราแต้มและ carbon", hint: "แก้ชื่อกลุ่มขยะ แต้มต่อกิโลกรัม และค่า carbon" },
-] as const;
-
+// DESIGN-4 4.3: the student dashboard header (greeting, 72px avatar, role badge before the name, email), the
+// unchanged work/totals stats, then two school-wide charts, each streamed in its own boundary. No menu cards: the
+// sidebar (or the drawer on phones) is the menu.
 async function StaffHome() {
   const user = await requireStaff();
-  const menu = isAdminRole(user.role) ? [...MENU, ...ADMIN_MENU] : MENU;
   return (
     <>
       <div className="mb-6">
-        <p className="mb-1 text-sm text-muted">{user.role === "admin" ? "ผู้ดูแลระบบ" : "ครู"}</p>
-        <PageHeader title={previewDisplayName(user.displayName, user.fullName)} />
+        <h1 className="font-display text-[clamp(1.75rem,2vw+1rem,2.25rem)] font-semibold leading-tight tracking-[-0.01em] text-ink">
+          {`${greetingFor(new Date())} ${greetingName(user)}`}
+        </h1>
+        <div className="mt-3 flex items-center gap-3">
+          <Avatar name={greetingName(user)} url={user.avatarUrl} size={72} />
+          <div className="min-w-0">
+            <p className="flex flex-wrap items-center gap-2 font-semibold break-words text-ink">
+              <Badge tone={user.role === "admin" ? "amber" : "green"} data-testid="staff-role">
+                {user.role === "admin" ? "ผู้ดูแลระบบ" : "ครู"}
+              </Badge>
+              <span data-testid="staff-name">{user.fullName}</span>
+            </p>
+            <p className="text-sm break-all text-muted">{user.email}</p>
+          </div>
+        </div>
       </div>
       <Suspense fallback={<div aria-hidden="true" className="mb-6 h-40 animate-pulse rounded-card bg-paper-2" />}>
         <StaffStats />
       </Suspense>
-      <nav aria-label="เมนูครู" className="mb-4 grid gap-3 sm:grid-cols-2">
-        {menu.map((m) => (
-          <Link key={m.href} href={m.href} className={linkClass}>
-            {m.label}
-            <span className={hintClass}>{m.hint}</span>
-          </Link>
-        ))}
-      </nav>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card as="section">
+          <h2 className="mb-3 font-display font-semibold">carbon ที่ลดได้รายเดือน (กก. CO₂e)</h2>
+          <Suspense fallback={<ChartSkeleton />}>
+            <CarbonChart />
+          </Suspense>
+        </Card>
+        <Card as="section">
+          <h2 className="mb-3 font-display font-semibold">ขยะแยกตามกลุ่ม (กก.)</h2>
+          <Suspense fallback={<ChartSkeleton />}>
+            <WasteChart />
+          </Suspense>
+        </Card>
+      </div>
     </>
+  );
+}
+
+async function loadCharts() {
+  try {
+    return await getStaffCharts();
+  } catch (e) {
+    console.error("StaffCharts failed", e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
+async function CarbonChart() {
+  const charts = await loadCharts();
+  if (!charts) return <ChartError />;
+  if (charts.months.every((m) => m.carbonKg === 0)) return <ChartEmpty />;
+  return <CarbonByMonth data={charts.months} />;
+}
+
+async function WasteChart() {
+  const charts = await loadCharts();
+  if (!charts) return <ChartError />;
+  if (charts.waste.every((w) => w.kg === 0)) return <ChartEmpty />;
+  return <WasteByCategory data={charts.waste} />;
+}
+
+function ChartSkeleton() {
+  return <div aria-hidden="true" className="h-64 animate-pulse rounded-card bg-paper-2" />;
+}
+
+function ChartEmpty() {
+  return <EmptyState className="grid h-64 place-items-center">ยังไม่มีข้อมูล</EmptyState>;
+}
+
+function ChartError() {
+  return (
+    <p role="alert" className="rounded-input border border-warn p-3 text-sm text-warn">
+      ยังโหลดสถิติรวมไม่ได้ในขณะนี้
+    </p>
   );
 }

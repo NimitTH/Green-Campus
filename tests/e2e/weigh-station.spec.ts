@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { signIn } from "./helpers/auth";
+import { staffMenu } from "./helpers/staff-menu";
 import {
   createConfirmedUser,
   createJoinedCodeActivity,
@@ -47,7 +48,7 @@ test("an issued code is gone after leaving and returning, and is cleared when it
 
 
     await signIn(page, teacher, "/staff");
-    await page.getByRole("navigation", { name: "เมนูครู" }).getByRole("link", { name: /จุดชั่ง/ }).click();
+    await (await staffMenu(page)).getByRole("link", { name: "จุดชั่ง", exact: true }).click();
     await page.getByLabel("กิจกรรม", { exact: true }).filter({ visible: true }).selectOption({ label: title });
     await page.getByRole("button", { name: /^ออกรหัสให้ / }).filter({ visible: true }).click();
     await expect(page.getByTestId("weigh-code").filter({ visible: true })).toHaveText(/^\d{6}$/);
@@ -55,7 +56,7 @@ test("an issued code is gone after leaving and returning, and is cleared when it
     // leave and come back by client navigation: no stale code
     await page.getByRole("link", { name: /Green Campus/ }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/staff");
-    await page.getByRole("navigation", { name: "เมนูครู" }).getByRole("link", { name: /จุดชั่ง/ }).click();
+    await (await staffMenu(page)).getByRole("link", { name: "จุดชั่ง", exact: true }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/staff/weigh-station");
     await expect(page.getByRole("button", { name: /^ออกรหัสให้ / }).filter({ visible: true }).first()).toBeVisible();
     await expect(page.getByTestId("weigh-code")).toHaveCount(0);

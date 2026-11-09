@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { signIn } from "./helpers/auth";
+import { staffMenu } from "./helpers/staff-menu";
 import {
   checkoutAs,
   createConfirmedUser,
@@ -99,7 +100,7 @@ test("earn -> cart -> ยืนยันแลก -> staff notified -> เตร
 
     // teacher: /staff -> ออเดอร์ -> เตรียมของเสร็จแล้ว
     await staffPage.goto("/staff");
-    await staffPage.getByRole("navigation", { name: "เมนูครู" }).getByRole("link", { name: /ออเดอร์/ }).click();
+    await (await staffMenu(staffPage)).getByRole("link", { name: "ออเดอร์", exact: true }).click();
     await expect(staffPage).toHaveURL((url) => url.pathname === "/staff/orders");
     await expect(staffPage.getByRole("button", { name: "ยกเลิกออเดอร์ที่หมดอายุ" })).toHaveCount(0); // admin only
     await expect(staffOrder(staffPage, orderId).getByTestId("order-status")).toHaveText("รอเตรียมของ");

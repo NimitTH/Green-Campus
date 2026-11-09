@@ -173,7 +173,7 @@ test("dashboard greets by time of day with the name, full name and email", async
   try {
     student = await createConfirmedUser("student", `student-greet-${suffix}`);
     await signIn(page, student, "/dashboard");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^สวัสดีตอน(เช้า|เที่ยง|บ่าย|เย็น) ทดสอบ student$/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^สวัสดีตอน(เช้า|เที่ยง|บ่าย|เย็น|ดึก) ทดสอบ student$/);
     const main = page.getByRole("main");
     await expect(main.getByText("ทดสอบ student", { exact: true })).toBeVisible();
     await expect(main.getByText(student.email, { exact: true })).toBeVisible();

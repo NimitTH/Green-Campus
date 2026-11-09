@@ -2,14 +2,26 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Suspense, useCallback, useEffect, useId, useRef, useState } from "react";
+import { createContext, Suspense, use, useCallback, useEffect, useId, useRef, useState } from "react";
+import { ThemeToggle } from "@/components/ui";
+import { sidebarCookieAssignment } from "./sidebar-cookie";
+import { StaffNavIcon, type StaffIconName } from "./staff-nav-icons";
 
 // Spec 9.3: staff navigation. Sidebar from md up, a drawer (menu button) below. The weigh station is a
 // standing kiosk page with big buttons, so there the sidebar only appears from xl and tablets get the drawer.
 // Cache Components: usePathname() suspends while the static shell of a route with unknown dynamic params is
 // prerendered, so every reader sits inside <Suspense> (fallback: the same markup, non-station, no highlight).
+// DESIGN-4 4.2: the sidebar collapses to icons (w-16). Client links read the state from context; the server-rendered
+// parts of the menu (group heading, sign out) follow the aside's data-collapsed through group-data variants.
 
-export type StaffNavItem = { href: string; label: string };
+export type StaffNavItem = { href: string; label: string; icon: StaffIconName };
+
+/** True inside a collapsed sidebar (the drawer has no provider, so it always shows labels). */
+const CollapsedContext = createContext(false);
+
+/** Tooltip for a collapsed item: shown on hover / keyboard focus of the parent `group/item`, never covers other links. */
+const TOOLTIP =
+  "pointer-events-none absolute top-1/2 left-full z-50 ml-2 hidden -translate-y-1/2 rounded-input bg-ink px-2 py-1 text-xs whitespace-nowrap text-paper shadow-cast group-hover/item:block group-focus-visible/item:block";
 
 function isStation(pathname: string | null): boolean {
   return pathname === "/staff/weigh-station" || (pathname ?? "").startsWith("/staff/weigh-station/");
@@ -35,6 +47,7 @@ function LinksWithPath({ items }: { items: StaffNavItem[] }) {
 }
 
 function LinksView({ items, pathname }: { items: StaffNavItem[]; pathname: string | null }) {
+  const collapsed = use(CollapsedContext);
   return (
     <ul className="space-y-1">
       {items.map((item) => {
@@ -44,11 +57,18 @@ function LinksView({ items, pathname }: { items: StaffNavItem[]; pathname: strin
             <Link
               href={item.href}
               aria-current={current ? "page" : undefined}
-              className={`flex min-h-11 items-center rounded-input border-l-[3px] px-3 ${
-                current ? "border-accent bg-accent-soft font-semibold text-ink" : "border-transparent text-ink hover:bg-accent-soft"
-              }`}
+              aria-label={collapsed ? item.label : undefined}
+              className={`group/item relative flex min-h-11 items-center gap-3 rounded-input border-l-[3px] ${
+                collapsed ? "justify-center px-0" : "px-3"
+              } ${current ? "border-accent bg-accent-soft font-semibold text-ink" : "border-transparent text-ink hover:bg-accent-soft"}`}
             >
-              {item.label}
+              <StaffNavIcon name={item.icon} className={current ? "text-accent" : "text-muted"} />
+              <span className={collapsed ? "sr-only" : "min-w-0"}>{item.label}</span>
+              {collapsed ? (
+                <span aria-hidden="true" className={TOOLTIP}>
+                  {item.label}
+                </span>
+              ) : null}
             </Link>
           </li>
         );
@@ -57,25 +77,74 @@ function LinksView({ items, pathname }: { items: StaffNavItem[]; pathname: strin
   );
 }
 
-/** Desktop sidebar wrapper (hidden on phones; hidden below xl on the weigh station). */
-export function StaffSidebar({ children }: { children: React.ReactNode }) {
+/**
+ * Desktop sidebar (hidden on phones; hidden below xl on the weigh station). `collapsed` is the first state, read
+ * from the cookie by the layout; the toggle switches at once on the client and rewrites the cookie (no refresh).
+ */
+export function StaffSidebar({ collapsed = false, children }: { collapsed?: boolean; children: React.ReactNode }) {
   return (
-    <Suspense fallback={<SidebarFrame station={false}>{children}</SidebarFrame>}>
-      <SidebarWithPath>{children}</SidebarWithPath>
+    <Suspense fallback={<SidebarFrame station={false} initialCollapsed={collapsed}>{children}</SidebarFrame>}>
+      <SidebarWithPath initialCollapsed={collapsed}>{children}</SidebarWithPath>
     </Suspense>
   );
 }
 
-function SidebarWithPath({ children }: { children: React.ReactNode }) {
-  return <SidebarFrame station={isStation(usePathname())}>{children}</SidebarFrame>;
+function SidebarWithPath({ initialCollapsed, children }: { initialCollapsed: boolean; children: React.ReactNode }) {
+  return (
+    <SidebarFrame station={isStation(usePathname())} initialCollapsed={initialCollapsed}>
+      {children}
+    </SidebarFrame>
+  );
 }
 
-function SidebarFrame({ station, children }: { station: boolean; children: React.ReactNode }) {
+function SidebarFrame({
+  station,
+  initialCollapsed,
+  children,
+}: {
+  station: boolean;
+  initialCollapsed: boolean;
+  children: React.ReactNode;
+}) {
+  const [collapsed, setCollapsed] = useState(initialCollapsed);
+  const id = useId();
+  const label = collapsed ? "กางเมนู" : "ยุบเมนู";
+
+  function toggle() {
+    const next = !collapsed;
+    setCollapsed(next);
+    document.cookie = sidebarCookieAssignment(next);
+  }
+
   return (
     <aside
-      className={`${station ? "hidden xl:flex" : "hidden md:flex"} w-52 shrink-0 flex-col xl:w-60 border-r border-rule bg-paper-2 px-3 py-4`}
+      id={id}
+      data-collapsed={collapsed ? "true" : "false"}
+      className={`group/sidebar ${station ? "hidden xl:flex" : "hidden md:flex"} ${
+        collapsed ? "w-16 px-2" : "w-52 px-3 xl:w-60"
+      } shrink-0 flex-col border-r border-rule bg-paper-2 py-4`}
     >
-      {children}
+      <CollapsedContext value={collapsed}>{children}</CollapsedContext>
+      <div className={`mt-auto flex flex-col gap-1 pt-3 ${collapsed ? "items-center" : "items-start"}`}>
+        <button
+          type="button"
+          aria-expanded={!collapsed}
+          aria-controls={id}
+          onClick={toggle}
+          className={`group/item relative flex min-h-11 items-center gap-3 rounded-input text-sm text-ink hover:bg-accent-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+            collapsed ? "w-11 justify-center" : "w-full px-3"
+          }`}
+        >
+          <StaffNavIcon name={collapsed ? "expand" : "collapse"} className="text-muted" />
+          <span className={collapsed ? "sr-only" : undefined}>{label}</span>
+          {collapsed ? (
+            <span aria-hidden="true" className={TOOLTIP}>
+              {label}
+            </span>
+          ) : null}
+        </button>
+        <ThemeToggle />
+      </div>
     </aside>
   );
 }

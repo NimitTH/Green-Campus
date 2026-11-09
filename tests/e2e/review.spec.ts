@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { signIn } from "./helpers/auth";
+import { staffMenu } from "./helpers/staff-menu";
 import { PNG_1X1 } from "./helpers/images";
 import {
   createConfirmedUser,
@@ -41,7 +42,7 @@ test("teacher approves a waste result into the ledger and the student sees อ�
 
     // teacher: /staff -> ตรวจผล -> queue -> detail
     await signIn(page, teacher, "/staff");
-    await page.getByRole("navigation", { name: "เมนูครู" }).getByRole("link", { name: /ตรวจผล/ }).click();
+    await (await staffMenu(page)).getByRole("link", { name: "ตรวจผล", exact: true }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/staff/reviews");
     const row = page.getByTestId("review-row").filter({ hasText: title });
     await expect(row).toContainText("รวม 1.5 กก.");

@@ -1,16 +1,17 @@
 import { BANGKOK_TIME_ZONE } from "@/lib/datetime";
 
-export type Greeting = "สวัสดีตอนเช้า" | "สวัสดีตอนเที่ยง" | "สวัสดีตอนบ่าย" | "สวัสดีตอนเย็น";
+export type Greeting = "สวัสดีตอนเช้า" | "สวัสดีตอนเที่ยง" | "สวัสดีตอนบ่าย" | "สวัสดีตอนเย็น" | "สวัสดีตอนดึก";
 
 const hourFormat = new Intl.DateTimeFormat("en-GB", { timeZone: BANGKOK_TIME_ZONE, hour: "2-digit", hourCycle: "h23" });
 
-/** Time-of-day greeting in Asia/Bangkok: 05-10 morning, 11-12 noon, 13-16 afternoon, 17-04 evening. */
+/** Time-of-day greeting in Asia/Bangkok: 05-10 morning, 11-12 noon, 13-16 afternoon, 17-18 evening, 19-04 night. */
 export function greetingFor(date: Date): Greeting {
   const hour = Number(hourFormat.format(date));
   if (hour >= 5 && hour < 11) return "สวัสดีตอนเช้า";
   if (hour >= 11 && hour < 13) return "สวัสดีตอนเที่ยง";
   if (hour >= 13 && hour < 17) return "สวัสดีตอนบ่าย";
-  return "สวัสดีตอนเย็น";
+  if (hour >= 17 && hour < 19) return "สวัสดีตอนเย็น";
+  return "สวัสดีตอนดึก";
 }
 
 /** displayName (trimmed) when non-empty, otherwise the first word of fullName. */

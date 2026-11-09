@@ -33,7 +33,8 @@ const REMOVED_OK = new Set();
 for (const [file, set] of [["ui-strings-2.allow.txt", ALLOWED_NEW], ["ui-strings-3.allow.txt", ALLOWED_NEW], ["ui-strings-3.removed.txt", REMOVED_OK], ["ui-strings-4.allow.txt", ALLOWED_NEW], ["ui-strings-4.removed.txt", REMOVED_OK]]) {
   let txt = "";
   try { txt = readFileSync(join(here, file), "utf8"); } catch { /* optional file */ }
-  for (const l of txt.split(/\r?\n/)) if (/^(text|aria):/.test(l.trim())) set.add(l.trim());
+  // Redesign 4 Task 8: the files may also list data-testid values (testid:...) that are new or removed on purpose.
+  for (const l of txt.split(/\r?\n/)) if (/^(text|aria|testid):/.test(l.trim())) set.add(l.trim());
 }
 
 function git(args) {

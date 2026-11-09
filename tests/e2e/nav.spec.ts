@@ -139,7 +139,7 @@ test("staff drawer on mobile lists admin items only for admins and closes after 
       await signIn(page, user, "/staff");
       const menu = page.getByRole("navigation", { name: "เมนูผู้ดูแล" });
       await expect(menu).toBeHidden();
-      const toggle = page.getByRole("button", { name: "เมนู" });
+      const toggle = page.getByRole("button", { name: "เมนู", exact: true });
       await expect(toggle).toBeVisible();
       // the menu content is streamed in; wait until it is there (hidden) before opening
       const panelId = await toggle.getAttribute("aria-controls");
@@ -198,7 +198,7 @@ test("staff sidebar on desktop; staff /profile and /notifications keep the staff
     await signIn(page, teacher, "/staff/orders");
     const side = page.getByRole("navigation", { name: "เมนูผู้ดูแล" });
     await expect(side).toBeVisible();
-    await expect(page.getByRole("button", { name: "เมนู" })).toBeHidden();
+    await expect(page.getByRole("button", { name: "เมนู", exact: true })).toBeHidden();
     await expect(side.getByRole("link", { name: "ออเดอร์", exact: true })).toHaveAttribute("aria-current", "page");
     await expect(side.getByRole("link", { name: "ผู้ใช้", exact: true })).toHaveCount(0);
     // hidden elements included: no admin link anywhere for a teacher
@@ -234,13 +234,13 @@ test("on a tablet the weigh station keeps its full width (no sidebar squeezing i
     await signIn(page, teacher, "/staff/weigh-station");
     await expect(page.getByRole("heading", { level: 1, name: /จุดชั่ง/ })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "เมนูผู้ดูแล" })).toBeHidden();
-    await expect(page.getByRole("button", { name: "เมนู" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "เมนู", exact: true })).toBeVisible();
     const main = await page.locator("main").filter({ visible: true }).boundingBox();
     expect(main!.width).toBeGreaterThanOrEqual(760);
     // other staff pages on the same tablet do get the sidebar
     await page.goto("/staff");
     await expect(page.getByRole("navigation", { name: "เมนูผู้ดูแล" })).toBeVisible();
-    await expect(page.getByRole("link", { name: /รายงาน/ }).filter({ hasText: "ดาวน์โหลด CSV/PDF" })).toBeVisible();
+    await expect(page.getByTestId("stat-pending-reviews")).toBeVisible();
   } finally {
     await deleteUsers([teacher]);
   }

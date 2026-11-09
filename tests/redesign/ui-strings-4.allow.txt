@@ -24,3 +24,16 @@ text:แต้มที่มี
 text:แต้มรวม
 text:เหลือ
 text:ขาดอีก
+# Task 8 (DESIGN-4 1.3 staff sidebar, /staff): collapse toggle, chart headings (the "₂" of CO₂e ends the scanned run),
+# empty chart copy, and the new chart/header test ids. "สวัสดีตอนดึก" lives in src/lib/greeting.ts (not scanned .tsx).
+# "บัญชีนักเรียน" comes with Task 17 (ruling R1).
+text:ยุบเมนู
+text:กางเมนู
+text:ที่ลดได้รายเดือน (กก. CO
+text:กก. CO
+text:ขยะแยกตามกลุ่ม (กก.)
+text:ยังไม่มีข้อมูล
+testid:carbon-chart
+testid:carbon-table
+testid:staff-role
+testid:staff-name

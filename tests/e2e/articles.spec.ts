@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { signIn } from "./helpers/auth";
+import { staffMenu } from "./helpers/staff-menu";
 import { PNG_1X1 } from "./helpers/images";
 import {
   createConfirmedUser,
@@ -36,7 +37,7 @@ test("a teacher writes and publishes an article; anonymous visitors see it, and 
   try {
     teacher = await createConfirmedUser("teacher", `teacher-art-${suffix}`);
     await signIn(page, teacher, "/staff");
-    await page.getByRole("navigation", { name: "เมนูครู" }).getByRole("link", { name: /บทความ/ }).click();
+    await (await staffMenu(page)).getByRole("link", { name: "บทความ", exact: true }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/staff/articles");
     await page.getByRole("link", { name: "เขียนบทความ" }).click();
 
