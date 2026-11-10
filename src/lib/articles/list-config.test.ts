@@ -11,7 +11,8 @@ describe("staffArticleSearchFilter", () => {
 describe("STAFF_ARTICLE_CONFIG", () => {
   it("sorts date desc and name asc; filters by category", () => {
     expect(Object.keys(STAFF_ARTICLE_CONFIG.sorts)).toEqual(["date", "name"]);
-    expect(STAFF_ARTICLE_SORT_COLUMN).toEqual({ date: "created_at", name: "title" });
+    // review M2 (task 11): rows show "แก้ไขล่าสุด", so the date sort is the last edit
+    expect(STAFF_ARTICLE_SORT_COLUMN).toEqual({ date: "updated_at", name: "title" });
     expect(parseListParams(STAFF_ARTICLE_CONFIG, { sort: "category" })).toMatchObject({ sort: "date", dir: "desc" });
     expect(parseListParams(STAFF_ARTICLE_CONFIG, { category: "announcement" }).filters.category).toBe("announcement");
   });

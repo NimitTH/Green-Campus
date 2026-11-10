@@ -34,7 +34,7 @@ export const STAFF_ARTICLE_CONFIG = {
 
 /** The articles column behind each staff sort key. */
 export const STAFF_ARTICLE_SORT_COLUMN: Record<keyof typeof STAFF_ARTICLE_CONFIG.sorts, string> = {
-  date: "created_at",
+  date: "updated_at", // each row shows "แก้ไขล่าสุด" (review M2)
   name: "title",
 };
 

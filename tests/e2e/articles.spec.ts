@@ -7,6 +7,7 @@ import {
   deleteArticlesById,
   deleteArticlesByTitle,
   deleteUsers,
+  editArticleBody,
   findArticle,
   seedPublishedArticles,
   setDisplayName,
@@ -351,6 +352,9 @@ test.describe("staff article list: search, paging, category", () => {
     token = `e2estaff${uniqueSuffix(test.info().project.name).replace(/[^a-z0-9]/g, "")}`;
     teacher = await createConfirmedUser("teacher", `teacher-alist-${token}`);
     seeded = await seedPublishedArticles(`บทความสตาฟ ${token}`, `${token}`, 13, { cover: true }, { category: "announcement" });
+    // review M2 (task 11): the date sort is the last edit (each row shows "แก้ไขล่าสุด"). Setting 00's cover was an
+    // edit; edit 03 after it, so the newest edits lead: 03, 00, then 12 → 04 and 02 by their seeded times; 01 is last.
+    await editArticleBody(seeded[3].id, `แก้ไขแล้ว ${token}`);
   });
 
   test.afterAll(async () => {
@@ -360,20 +364,23 @@ test.describe("staff article list: search, paging, category", () => {
 
   const items = (page: Page) => page.getByTestId("staff-article");
 
-  test("12 per page, page 2 has the oldest; category badge, cover and back link", async ({ page }) => {
+  test("12 per page, newest edit first, page 2 has the oldest edit; category badge, cover and back link", async ({ page }) => {
     await signIn(page, teacher!, "/staff/articles");
     await expect(page.getByRole("link", { name: "กลับ", exact: true })).toHaveAttribute("href", "/staff");
     await page.getByRole("searchbox", { name: "ค้นหาบทความ" }).fill(`บทความสตาฟ ${token}`);
     await page.getByRole("searchbox", { name: "ค้นหาบทความ" }).press("Enter");
     await expect(page).toHaveURL((url) => url.searchParams.get("q") === `บทความสตาฟ ${token}`);
     await expect(items(page)).toHaveCount(12);
-    await expect(items(page).first()).toContainText(`บทความสตาฟ ${token} 12`);
+    await expect(items(page).nth(0)).toContainText(`บทความสตาฟ ${token} 03`);
+    await expect(items(page).nth(1)).toContainText(`บทความสตาฟ ${token} 00`);
+    await expect(items(page).nth(1).locator("img")).toHaveCount(1); // article 00 has a cover
+    await expect(items(page).nth(2)).toContainText(`บทความสตาฟ ${token} 12`);
+    await expect(items(page).last()).toContainText(`บทความสตาฟ ${token} 02`);
     await expect(items(page).first()).toContainText("ประกาศ");
     await page.getByRole("navigation", { name: "แบ่งหน้า" }).getByRole("link", { name: "หน้าถัดไป" }).click();
     await expect(page).toHaveURL((url) => url.searchParams.get("page") === "2");
     await expect(items(page)).toHaveCount(1);
-    await expect(items(page).first()).toContainText(`บทความสตาฟ ${token} 00`);
-    await expect(items(page).first().locator("img")).toHaveCount(1); // article 00 has a cover
+    await expect(items(page).first()).toContainText(`บทความสตาฟ ${token} 01`);
   });
 
   test("the category filter and name sort apply; a filter with no match shows the clear link", async ({ page }) => {

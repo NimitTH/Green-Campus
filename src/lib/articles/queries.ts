@@ -60,7 +60,7 @@ export async function listArticlesForStaffPage(
     if (categoryFilter) q = q.eq("category", categoryFilter);
     return q as unknown as T;
   };
-  const column = Object.hasOwn(STAFF_ARTICLE_SORT_COLUMN, p.sort) ? STAFF_ARTICLE_SORT_COLUMN[p.sort as keyof typeof STAFF_ARTICLE_SORT_COLUMN] : "created_at";
+  const column = Object.hasOwn(STAFF_ARTICLE_SORT_COLUMN, p.sort) ? STAFF_ARTICLE_SORT_COLUMN[p.sort as keyof typeof STAFF_ARTICLE_SORT_COLUMN] : STAFF_ARTICLE_SORT_COLUMN.date;
   const ascending = p.dir === "asc";
   const { items, total } = await fetchPage<Row>("listArticlesForStaffPage", {
     page: p.page,
