@@ -247,7 +247,10 @@ function DrawerFrame({ pathname, children }: { pathname: string | null; children
         }}
         className="absolute inset-x-0 top-full z-40 outline-none max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-rule bg-paper-2 px-3 py-3 shadow-cast"
       >
-        {children}
+        {/* The server-passed children (menu, ThemeToggle) can suspend after the toggle is live: a client reference waits for
+            its route chunks (on /staff that includes the charts bundle). Without this boundary the suspension reaches
+            StaffDrawer's own Suspense, which swaps fallback DrawerFrame for DrawerWithPath and remounts it, closing an open drawer. */}
+        <Suspense fallback={null}>{children}</Suspense>
       </div>
     </div>
   );
