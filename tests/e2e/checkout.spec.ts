@@ -16,6 +16,7 @@ import {
   listOrders,
   makeOrderDue,
   seedApprovedEarn,
+  setFullName,
   setRewardStock,
   signedInClient,
   updateReward,
@@ -120,6 +121,9 @@ test("earn -> cart -> ยืนยันแลก -> staff notified -> เตร
 
     // teacher confirms the pickup
     await staffOrder(staffPage, orderId).getByRole("button", { name: "ยืนยันรับแล้ว" }).click();
+    // a completed order leaves the default (รอรับทั้งหมด) list and shows under รับแล้ว
+    await expect(staffOrder(staffPage, orderId)).toHaveCount(0);
+    await staffPage.goto("/staff/orders?status=completed");
     await expect(staffOrder(staffPage, orderId).getByTestId("order-status")).toHaveText("รับแล้ว");
     await expect.poll(async () => (await listOrders(student!.id))[0]?.status).toBe("completed");
     await staffContext.close();
@@ -162,20 +166,20 @@ test("teacher cancels an order (with a confirm step): stock and points come back
 
     await signIn(page, teacher, "/staff/orders");
     // search by order number prefix
-    await page.getByLabel("ค้นหา").fill(orderNumber(orderId).slice(0, 6).toLowerCase());
-    await page.getByRole("button", { name: "ค้นหา" }).click();
+    await page.getByRole("searchbox", { name: "ชื่อนักเรียน หรือเลขที่ออเดอร์" }).fill(orderNumber(orderId).slice(0, 6).toLowerCase());
+    await page.keyboard.press("Enter");
     await expect(page).toHaveURL((url) => url.searchParams.get("q") === orderNumber(orderId).slice(0, 6).toLowerCase());
     await expect(page.getByTestId("staff-order")).toHaveCount(1);
     // search by student name (every e2e user is named "ทดสอบ <role>")
-    await page.getByLabel("ค้นหา").fill("ทดสอบ stud");
-    await page.getByRole("button", { name: "ค้นหา" }).click();
+    await page.getByRole("searchbox", { name: "ชื่อนักเรียน หรือเลขที่ออเดอร์" }).fill("ทดสอบ stud");
+    await page.keyboard.press("Enter");
     await expect(page).toHaveURL((url) => url.searchParams.get("q") === "ทดสอบ stud");
     await expect(staffOrder(page, orderId)).toBeVisible();
-    await page.getByLabel("ค้นหา").fill("ไม่มีชื่อนี้แน่นอน");
-    await page.getByRole("button", { name: "ค้นหา" }).click();
-    await expect(page.getByText("ไม่พบออเดอร์ที่ตรงกับคำค้น")).toBeVisible();
-    await page.getByLabel("ค้นหา").fill(orderNumber(orderId));
-    await page.getByRole("button", { name: "ค้นหา" }).click();
+    await page.getByRole("searchbox", { name: "ชื่อนักเรียน หรือเลขที่ออเดอร์" }).fill("ไม่มีชื่อนี้แน่นอน");
+    await page.keyboard.press("Enter");
+    await expect(page.getByText("ไม่พบรายการที่ตรงกับคำค้น")).toBeVisible();
+    // the cancelled order leaves the default (pending) list once the page refreshes, so look at every status
+    await page.goto(`/staff/orders?status=all&q=${orderNumber(orderId)}`);
     await expect(page.getByTestId("staff-order")).toHaveCount(1);
     const row = staffOrder(page, orderId);
     await row.getByRole("button", { name: "ยกเลิก", exact: true }).click();
@@ -382,6 +386,66 @@ test("cancel_order and checkout on a shared reward at the same moment: no deadlo
     expect(await listCart(student.id)).toHaveLength(0);
   } finally {
     await deleteUsers([student, teacher]);
+    await deleteRewardsByName([name]);
+  }
+});
+
+// Redesign 4 Task 10: /staff/orders list framework (default open, oldest first; status filter; sort by points and buyer).
+test("staff orders list: default is pending only, oldest first; status, points and buyer sorts", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const name = `ของลิสต์ออเดอร์ ${suffix}`;
+  const prefix = `ผู้สั่ง${suffix.replace(/[^a-z0-9]/gi, "")}`;
+  let teacher: TestUser | undefined;
+  let a: TestUser | undefined;
+  let b: TestUser | undefined;
+  let c: TestUser | undefined;
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-olist-${suffix}`);
+    a = await createConfirmedUser("student", `student-ola-${suffix}`);
+    b = await createConfirmedUser("student", `student-olb-${suffix}`);
+    c = await createConfirmedUser("student", `student-olc-${suffix}`);
+    await setFullName(a.id, `${prefix} ข`);
+    await setFullName(b.id, `${prefix} ก`);
+    await setFullName(c.id, `${prefix} ค`);
+    for (const s of [a, b, c]) await grantPoints(s.id, 200);
+    const rewardId = await createRewardRow(name, 10, 20);
+    const orderA = await checkoutAs(a, rewardId, 3); // 30 points, oldest
+    const orderB = await checkoutAs(b, rewardId, 1); // 10 points
+    const orderC = await checkoutAs(c, rewardId, 2); // completed below
+    const t = await signedInClient(teacher);
+    expect((await t.rpc("complete_order", { p_order_id: orderC })).error).toBeNull();
+
+    const q = encodeURIComponent(prefix);
+    const rows = page.getByTestId("staff-order");
+    await signIn(page, teacher, "/staff/orders");
+    await expect(page.getByRole("link", { name: "กลับ", exact: true })).toHaveAttribute("href", "/staff");
+    // default: pending only, longest waiting first
+    await page.goto(`/staff/orders?q=${q}`);
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(0)).toContainText(orderNumber(orderA));
+    await expect(rows.nth(1)).toContainText(orderNumber(orderB));
+    // points: more first; buyer: ก before ข
+    await page.goto(`/staff/orders?q=${q}&sort=points`);
+    await expect(rows.nth(0)).toContainText(orderNumber(orderA));
+    await page.goto(`/staff/orders?q=${q}&sort=buyer`);
+    await expect(rows.nth(0)).toContainText(orderNumber(orderB));
+    await expect(rows.nth(1)).toContainText(orderNumber(orderA));
+    // completed shows the completed one; all shows three; ready is empty with the shared no-match copy
+    await page.goto(`/staff/orders?q=${q}&status=completed`);
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toContainText(orderNumber(orderC));
+    await page.goto(`/staff/orders?q=${q}&status=all`);
+    await expect(rows).toHaveCount(3);
+    await page.goto(`/staff/orders?q=${q}&status=ready`);
+    await expect(page.getByText("ไม่พบรายการที่ตรงกับคำค้น")).toBeVisible();
+    await expect(page.getByRole("link", { name: "ล้างการค้นหา" })).toBeVisible();
+    // the status filter in the toolbar reaches the URL (ทั้งหมด is kept as status=all)
+    await page.goto(`/staff/orders?q=${q}`);
+    await page.getByLabel("สถานะ", { exact: true }).selectOption("all");
+    await expect(page).toHaveURL((url) => url.searchParams.get("status") === "all");
+    await expect(rows).toHaveCount(3);
+  } finally {
+    await deleteUsers([a, b, c, teacher]);
     await deleteRewardsByName([name]);
   }
 });

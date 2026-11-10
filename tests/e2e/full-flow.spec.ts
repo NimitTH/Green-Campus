@@ -124,7 +124,7 @@ test("demo script: register, join, weigh code, submit, approve (live bell), rede
     expect(isPdf(await readFile(await download.path()))).toBe(true);
 
     // 8. the teacher marks it ready, then confirms the pickup; the student sees รับแล้ว
-    await staff.goto(`/staff/orders?q=${orderNumber(orderId)}`);
+    await staff.goto(`/staff/orders?status=all&q=${orderNumber(orderId)}`);
     const staffOrder = staff.getByTestId("staff-order").filter({ hasText: orderNumber(orderId) });
     await staffOrder.getByRole("button", { name: "เตรียมของเสร็จแล้ว" }).click();
     await expect(staffOrder.getByTestId("order-status")).toHaveText("พร้อมรับ");

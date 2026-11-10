@@ -2,8 +2,8 @@ import "server-only";
 import { pageSizeOf, type ListState } from "@/app/_components/list/list-params";
 import { fetchPage } from "@/app/_components/list/paging";
 import { createServerClient } from "@/lib/supabase/server";
-import { orderIdRange, studentDisplayName } from "./format";
-import { MY_ORDER_CONFIG, MY_ORDER_SORT_COLUMN, orderSearchFilter } from "./list-config";
+import { studentDisplayName } from "./format";
+import { MY_ORDER_CONFIG, MY_ORDER_SORT_COLUMN, orderSearchFilter, STAFF_ORDER_CONFIG, STAFF_ORDER_SORT_COLUMN, staffOrderFilter, staffOrderSearchFilter } from "./list-config";
 
 // Read helpers for order pages. They run as the signed-in user, so RLS decides what is visible
 // (students: their own orders; staff: every order, 0002). Callers check the role via the DAL.
@@ -122,59 +122,51 @@ export async function getOrder(id: string): Promise<OrderDetail | null> {
   };
 }
 
-type StaffRow = OrderRow & { student: One<ProfileRef>; order_items: { qty: number; reward_name: string }[] };
-
-const STAFF_COLUMNS =
-  "id, status, total_points, created_at, expires_at, ready_at, " +
-  "student:profiles!orders_student_id_fkey!inner(full_name, display_name), order_items(qty, reward_name)";
-const LIMIT = 100;
-
-function escapeLike(text: string): string {
-  return text.replace(/[\\%_]/g, (c) => `\\${c}`);
-}
-
-async function staffQuery(status: "pending" | "done", query: string, by: "full_name" | "display_name" | "number"): Promise<StaffRow[]> {
-  const supabase = await createServerClient();
-  let q = supabase.from("orders").select(STAFF_COLUMNS);
-  q = status === "pending" ? q.eq("status", "pending_pickup") : q.neq("status", "pending_pickup");
-  if (by === "number") {
-    const range = orderIdRange(query);
-    if (!range) return [];
-    q = q.gte("id", range.from).lte("id", range.to);
-  } else if (query) {
-    q = q.ilike(`student.${by}`, `%${escapeLike(query)}%`);
-  }
-  const { data, error } = await q.order("created_at", { ascending: status === "pending" }).limit(LIMIT);
-  if (error) throw new Error(`listStaffOrders: ${error.message}`);
-  return (data ?? []) as unknown as StaffRow[];
-}
+type StaffViewRow = OrderRow & { buyer_name: string | null };
+type Filterable = { or(filter: string): Filterable; eq(column: string, value: string): Filterable };
 
 /**
- * Orders for /staff/orders: pending_pickup first (oldest first: the longest waiting on top), then
- * the rest, newest first. `query` matches the student's name, or an order number prefix.
+ * One page (pageSizeOf(STAFF_ORDER_CONFIG)) of /staff/orders from staff_order_list: optional search on the buyer's names
+ * or the order number (staffOrderSearchFilter), AND the status filter (staffOrderFilter, default open = pending_pickup).
+ * Sorted by created_at, total_points or buyer_name (nulls last), then id. A page past the end returns no items with the
+ * real total. The order lines come from one order_items query for the page. Throws on failure.
  */
-export async function listStaffOrders(query: string): Promise<StaffOrder[]> {
-  const text = query.trim();
-  const searches = async (status: "pending" | "done") => {
-    if (!text) return staffQuery(status, "", "full_name");
-    // The list shows display_name || full_name, so match either column (one escaped ilike each).
-    const lists = await Promise.all([
-      staffQuery(status, text, "full_name"),
-      staffQuery(status, text, "display_name"),
-      orderIdRange(text) ? staffQuery(status, text, "number") : Promise.resolve([]),
-    ]);
-    const seen = new Map<string, StaffRow>();
-    for (const r of lists.flat()) seen.set(r.id, r);
-    const asc = status === "pending";
-    return [...seen.values()].sort((a, b) => (asc ? 1 : -1) * a.created_at.localeCompare(b.created_at));
+export async function listStaffOrdersPage(
+  p: Pick<ListState, "q" | "sort" | "dir" | "filters" | "page">,
+): Promise<{ items: StaffOrder[]; total: number }> {
+  const supabase = await createServerClient();
+  const search = p.q ? staffOrderSearchFilter(p.q) : null;
+  const status = staffOrderFilter(p.filters.status);
+  // the same builder comes back (each method returns `this`), so the cast back to T is exact
+  const filtered = <T,>(query: T): T => {
+    let q = query as unknown as Filterable;
+    if (search) q = q.or(search);
+    if (status) q = q.eq(status[0], status[2]);
+    return q as unknown as T;
   };
-  const [pending, done] = await Promise.all([searches("pending"), searches("done")]);
-  return [...pending, ...done].map((r) => {
-    const student = one(r.student);
-    return {
-      ...summary(r),
-      studentName: student ? studentDisplayName(student.display_name, student.full_name) : "-",
-      lines: r.order_items.map((i) => ({ name: i.reward_name, qty: i.qty })),
-    };
+  const column = Object.hasOwn(STAFF_ORDER_SORT_COLUMN, p.sort) ? STAFF_ORDER_SORT_COLUMN[p.sort as keyof typeof STAFF_ORDER_SORT_COLUMN] : "created_at";
+  const ascending = p.dir === "asc";
+  const { items: rows, total } = await fetchPage<StaffViewRow>("listStaffOrdersPage", {
+    page: p.page,
+    size: pageSizeOf(STAFF_ORDER_CONFIG),
+    run: (from, to) =>
+      filtered(supabase.from("staff_order_list").select("id, status, total_points, created_at, expires_at, ready_at, buyer_name", { count: "exact" }))
+        .order(column, { ascending, nullsFirst: false })
+        .order("id", { ascending })
+        .range(from, to),
+    head: () => filtered(supabase.from("staff_order_list").select("id", { count: "exact", head: true })),
   });
+  const lines = new Map<string, { name: string; qty: number }[]>();
+  if (rows.length > 0) {
+    const { data, error } = await supabase
+      .from("order_items")
+      .select("order_id, qty, reward_name")
+      .in("order_id", rows.map((r) => r.id))
+      .order("reward_name", { ascending: true });
+    if (error) throw new Error(`listStaffOrdersPage lines: ${error.message}`);
+    for (const l of (data ?? []) as { order_id: string; qty: number; reward_name: string }[]) {
+      lines.set(l.order_id, [...(lines.get(l.order_id) ?? []), { name: l.reward_name, qty: l.qty }]);
+    }
+  }
+  return { total, items: rows.map((r) => ({ ...summary(r), studentName: r.buyer_name ?? "-", lines: lines.get(r.id) ?? [] })) };
 }

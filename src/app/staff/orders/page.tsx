@@ -2,13 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Badge } from "@/app/_components/activity-ui";
+import { isNarrowed, parseListParams } from "@/app/_components/list/list-params";
+import { ListToolbar, ListToolbarSkeleton } from "@/app/_components/list/list-toolbar";
+import { Pagination } from "@/app/_components/list/pagination";
+import { loadClamped } from "@/app/_components/list/paging";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
-import { Button, ButtonLink, Card, PageHeader, inputClass } from "@/components/ui";
+import { ButtonLink, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/dal";
 import { isAdminRole } from "@/lib/auth/routes";
 import { formatBangkok } from "@/lib/datetime";
 import { isOrderOverdue, isOrderReady, orderNumber, orderStatusLabelTh, orderStatusTone } from "@/lib/orders/format";
-import { listStaffOrders, type StaffOrder } from "@/lib/orders/queries";
+import { STAFF_ORDER_CONFIG } from "@/lib/orders/list-config";
+import { listStaffOrdersPage, type StaffOrder } from "@/lib/orders/queries";
 import { ExpireButton } from "./_components/expire-button";
 import { OrderActions } from "./_components/order-actions";
 
@@ -40,43 +45,37 @@ export default function StaffOrdersPage({ searchParams }: { searchParams: Search
 }
 
 async function Orders({ searchParams }: { searchParams: SearchParams }) {
-  const uid = "orders"; // route-prefixed: /staff/users has its own search box (useId repeats across server renders)
   const user = await requireStaff("/staff/orders");
-  const { q } = await searchParams;
-  const query = typeof q === "string" ? q.trim().slice(0, 100) : "";
-  const orders = await listStaffOrders(query);
+  const { params, result } = await loadClamped(STAFF_ORDER_CONFIG, parseListParams(STAFF_ORDER_CONFIG, await searchParams), listStaffOrdersPage);
 
   return (
     <>
       {isAdminRole(user.role) ? <ExpireButton /> : null}
 
-      <form role="search" method="get" className="mb-4 flex gap-2">
-        <label htmlFor={`${uid}-q`} className="sr-only">
-          ค้นหา
-        </label>
-        <input
-          id={`${uid}-q`}
-          name="q"
-          type="search"
-          defaultValue={query}
-          placeholder="ชื่อนักเรียน หรือเลขที่ออเดอร์"
-          className={`${inputClass} min-w-0 flex-1`}
-        />
-        <Button type="submit" variant="primary" className="shrink-0">
-          ค้นหา
-        </Button>
-      </form>
+      <Suspense fallback={<ListToolbarSkeleton views={false} filters={1} />}>
+        <ListToolbar base="/staff/orders" config={STAFF_ORDER_CONFIG} placeholder="ชื่อนักเรียน หรือเลขที่ออเดอร์" />
+      </Suspense>
 
-      {orders.length === 0 ? (
-        <section className="rounded-card border border-dashed border-rule-strong p-6 text-center text-muted">
-          {query ? "ไม่พบออเดอร์ที่ตรงกับคำค้น" : "ยังไม่มีออเดอร์"}
-        </section>
+      {result.items.length === 0 ? (
+        isNarrowed(STAFF_ORDER_CONFIG, params) ? (
+          <EmptyState>
+            <p>ไม่พบรายการที่ตรงกับคำค้น</p>
+            <Link href="/staff/orders" className="mt-2 inline-flex min-h-11 items-center font-medium text-accent underline underline-offset-4">
+              ล้างการค้นหา
+            </Link>
+          </EmptyState>
+        ) : (
+          <EmptyState>ยังไม่มีออเดอร์ที่รอรับ</EmptyState>
+        )
       ) : (
-        <ul className="space-y-3">
-          {orders.map((o) => (
-            <OrderRow key={o.id} order={o} overdue={isOrderOverdue(o.status, o.expiresAt)} />
-          ))}
-        </ul>
+        <>
+          <ul className="space-y-3">
+            {result.items.map((o) => (
+              <OrderRow key={o.id} order={o} overdue={isOrderOverdue(o.status, o.expiresAt)} />
+            ))}
+          </ul>
+          <Pagination base="/staff/orders" config={STAFF_ORDER_CONFIG} state={params} total={result.total} />
+        </>
       )}
     </>
   );

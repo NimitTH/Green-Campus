@@ -340,3 +340,49 @@ test.describe("article list: name sort, category filter", () => {
     }
   });
 });
+
+// Redesign 4 Task 10: /staff/articles search, paging (13 articles), category badge and cover.
+test.describe("staff article list: search, paging, category", () => {
+  let token = "";
+  let seeded: SeededArticle[] = [];
+  let teacher: TestUser | undefined;
+
+  test.beforeAll(async () => {
+    token = `e2estaff${uniqueSuffix(test.info().project.name).replace(/[^a-z0-9]/g, "")}`;
+    teacher = await createConfirmedUser("teacher", `teacher-alist-${token}`);
+    seeded = await seedPublishedArticles(`บทความสตาฟ ${token}`, `${token}`, 13, { cover: true }, { category: "announcement" });
+  });
+
+  test.afterAll(async () => {
+    await deleteArticlesById(seeded.map((a) => a.id));
+    await deleteUsers([teacher]);
+  });
+
+  const items = (page: Page) => page.getByTestId("staff-article");
+
+  test("12 per page, page 2 has the oldest; category badge, cover and back link", async ({ page }) => {
+    await signIn(page, teacher!, "/staff/articles");
+    await expect(page.getByRole("link", { name: "กลับ", exact: true })).toHaveAttribute("href", "/staff");
+    await page.getByRole("searchbox", { name: "ค้นหาบทความ" }).fill(`บทความสตาฟ ${token}`);
+    await page.getByRole("searchbox", { name: "ค้นหาบทความ" }).press("Enter");
+    await expect(page).toHaveURL((url) => url.searchParams.get("q") === `บทความสตาฟ ${token}`);
+    await expect(items(page)).toHaveCount(12);
+    await expect(items(page).first()).toContainText(`บทความสตาฟ ${token} 12`);
+    await expect(items(page).first()).toContainText("ประกาศ");
+    await page.getByRole("navigation", { name: "แบ่งหน้า" }).getByRole("link", { name: "หน้าถัดไป" }).click();
+    await expect(page).toHaveURL((url) => url.searchParams.get("page") === "2");
+    await expect(items(page)).toHaveCount(1);
+    await expect(items(page).first()).toContainText(`บทความสตาฟ ${token} 00`);
+    await expect(items(page).first().locator("img")).toHaveCount(1); // article 00 has a cover
+  });
+
+  test("the category filter and name sort apply; a filter with no match shows the clear link", async ({ page }) => {
+    await signIn(page, teacher!, "/staff/articles");
+    await page.goto(`/staff/articles?q=${encodeURIComponent(`บทความสตาฟ ${token}`)}&category=knowledge`);
+    await expect(page.getByText("ไม่พบรายการที่ตรงกับคำค้น")).toBeVisible();
+    await expect(page.getByRole("link", { name: "ล้างการค้นหา" })).toBeVisible();
+    await page.goto(`/staff/articles?q=${encodeURIComponent(`บทความสตาฟ ${token}`)}&category=announcement&sort=name`);
+    await expect(items(page)).toHaveCount(12);
+    await expect(items(page).first()).toContainText(`บทความสตาฟ ${token} 00`);
+  });
+});

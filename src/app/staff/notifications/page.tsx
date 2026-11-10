@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { NotificationsSection } from "@/app/_components/account-sections";
 import { PageSkeleton } from "@/app/_components/page-skeleton";
-import { PageHeader } from "@/components/ui";
+import { ButtonLink, PageHeader } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/dal";
 
 export const metadata: Metadata = { title: "แจ้งเตือน | Green Campus" };
@@ -14,7 +14,14 @@ export default function StaffNotificationsPage({ searchParams }: { searchParams:
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
       <div className="mb-6">
-        <PageHeader title="แจ้งเตือน" />
+        <PageHeader
+          title="แจ้งเตือน"
+          actions={
+            <ButtonLink href="/staff" variant="quiet">
+              กลับ
+            </ButtonLink>
+          }
+        />
       </div>
       <Suspense fallback={<PageSkeleton />}>
         <Notifications searchParams={searchParams} />

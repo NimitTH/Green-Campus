@@ -3,7 +3,7 @@ import { pageSizeOf, type ListState } from "@/app/_components/list/list-params";
 import { fetchPage } from "@/app/_components/list/paging";
 import { toIlikePattern } from "@/app/_components/list/search-escape";
 import { createServerClient } from "@/lib/supabase/server";
-import { REWARD_CONFIG, REWARD_SORT_COLUMN } from "./list-config";
+import { REWARD_CONFIG, REWARD_SORT_COLUMN, STAFF_REWARD_CONFIG, STAFF_REWARD_SORT_COLUMN, staffRewardActiveFilter } from "./list-config";
 
 // Read helpers for reward and cart pages. They run as the signed-in user, so RLS decides what
 // is visible (students: active rewards and their own cart; staff: every reward). Callers check
@@ -32,12 +32,42 @@ async function withImageUrls(rows: RewardRow[]): Promise<Reward[]> {
   }));
 }
 
-/** Every reward, newest first, including inactive ones (staff manager). */
-export async function listRewardsForStaff(): Promise<Reward[]> {
+type StaffRewardFilterable = {
+  ilike(column: string, pattern: string): StaffRewardFilterable;
+  eq(column: string, value: boolean): StaffRewardFilterable;
+};
+
+/**
+ * One page (pageSizeOf(STAFF_REWARD_CONFIG)) of /staff/rewards: every reward, inactive ones too, with an optional name
+ * search (matched literally) AND the active filter. Sorted by created_at, points_cost, stock or name (nulls last), then
+ * id. A page past the end returns no items with the real total. Throws on failure.
+ */
+export async function listRewardsForStaffPage(
+  p: Pick<ListState, "q" | "sort" | "dir" | "filters" | "page">,
+): Promise<{ items: Reward[]; total: number }> {
   const supabase = await createServerClient();
-  const { data, error } = await supabase.from("rewards").select(COLUMNS).order("created_at", { ascending: false });
-  if (error) throw new Error(`listRewardsForStaff: ${error.message}`);
-  return withImageUrls((data ?? []) as RewardRow[]);
+  const pattern = p.q ? toIlikePattern(p.q) : null;
+  const active = staffRewardActiveFilter(p.filters.active);
+  // the same builder comes back (each method returns `this`), so the cast back to T is exact; the cast through unknown avoids TS2589
+  const filtered = <T,>(query: T): T => {
+    let q = query as unknown as StaffRewardFilterable;
+    if (pattern) q = q.ilike("name", pattern);
+    if (active !== null) q = q.eq("active", active);
+    return q as unknown as T;
+  };
+  const column = Object.hasOwn(STAFF_REWARD_SORT_COLUMN, p.sort) ? STAFF_REWARD_SORT_COLUMN[p.sort as keyof typeof STAFF_REWARD_SORT_COLUMN] : "created_at";
+  const ascending = p.dir === "asc";
+  const { items, total } = await fetchPage<RewardRow>("listRewardsForStaffPage", {
+    page: p.page,
+    size: pageSizeOf(STAFF_REWARD_CONFIG),
+    run: (from, to) =>
+      filtered(supabase.from("rewards").select(COLUMNS, { count: "exact" }))
+        .order(column, { ascending, nullsFirst: false })
+        .order("id", { ascending })
+        .range(from, to),
+    head: () => filtered(supabase.from("rewards").select("id", { count: "exact", head: true })),
+  });
+  return { items: await withImageUrls(items), total };
 }
 
 /** Rewards open for redemption (staff would also see inactive ones through RLS, so filter). */

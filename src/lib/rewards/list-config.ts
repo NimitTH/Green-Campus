@@ -35,3 +35,28 @@ export const CART_CONFIG = {
   },
   defaultSort: "date",
 } satisfies ListConfig;
+
+// DESIGN-4 4.4 (/staff/rewards): the staff list config; the staff see inactive rewards too.
+export const STAFF_REWARD_CONFIG = {
+  sorts: {
+    date: { label: "วันที่เพิ่ม", kind: "date", defaultDir: "desc" },
+    points: { label: "แต้ม", kind: "number", defaultDir: "asc" },
+    stock: { label: "สต็อก", kind: "number", defaultDir: "desc" },
+    name: { label: "ชื่อ", kind: "text", defaultDir: "asc" },
+  },
+  defaultSort: "date",
+  filters: { active: { label: "สถานะ", options: { yes: "เปิดการแลก", no: "ปิดการแลก" } } },
+} satisfies ListConfig;
+
+/** The rewards column behind each staff sort key. */
+export const STAFF_REWARD_SORT_COLUMN: Record<keyof typeof STAFF_REWARD_CONFIG.sorts, string> = {
+  date: "created_at",
+  points: "points_cost",
+  stock: "stock",
+  name: "name",
+};
+
+/** The `active` value of the filter: yes → true, no → false; "all", missing and unknown add no filter (null). */
+export function staffRewardActiveFilter(active: string | undefined): boolean | null {
+  return active === "yes" ? true : active === "no" ? false : null;
+}

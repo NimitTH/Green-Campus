@@ -390,6 +390,15 @@ test("staff activity list: filters, participant sort, view link and back link", 
     // "ดู" on an open activity goes to its public page
     await expect(page.getByRole("link", { name: `ดู ${prefix} เปิด` })).toHaveAttribute("href", `/activities/${openId}`);
     expect(draftId).toBeTruthy();
+
+    // search is title only (DESIGN-4 4.4): a word that is only in a description matches nothing
+    const descWord = `คำในรายละเอียด${suffix.replace(/[^a-z0-9]/gi, "")}`;
+    await createActivityRow(`${prefix} มีคำอธิบาย`, { description: descWord });
+    await page.goto(`/staff/activities?q=${encodeURIComponent(descWord)}`);
+    await expect(page.getByText("ไม่พบรายการที่ตรงกับคำค้น")).toBeVisible();
+    // the sort labels use the spec wording
+    await page.goto(`/staff/activities?q=${q}`);
+    await expect(page.getByLabel("เรียงตาม").locator("option")).toHaveText(["วันที่สร้าง", "จำนวนผู้เข้าร่วม", "ชื่อ"]);
   } finally {
     await deleteActivitiesByPrefix(prefix);
     await deleteUsers([teacher, s1, s2]);

@@ -59,3 +59,6 @@ aria:หน้า ${n}
 aria:หน้าถัดไป
 aria:แบ่งหน้า
 testid:weigh-sort-dir
+# Task 10 (staff orders, rewards, articles): search placeholders, empty states.
+text:ค้นหาบทความ
+text:ยังไม่มีออเดอร์ที่รอรับ
