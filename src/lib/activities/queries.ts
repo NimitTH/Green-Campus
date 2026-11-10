@@ -5,7 +5,7 @@ import { quoteOrValue, toIlikePattern } from "@/app/_components/list/search-esca
 import { getStaffNames } from "@/lib/staff-names";
 import { createServerClient } from "@/lib/supabase/server";
 import { activityCoverUrl } from "./cover";
-import { ACTIVITY_LIST_CONFIG, ACTIVITY_SORT_COLUMN, STAFF_ACTIVITY_CONFIG, STAFF_ACTIVITY_SORT_COLUMN, staffActivityFilters } from "./list-config";
+import { ACTIVITY_LIST_CONFIG, ACTIVITY_SORT_COLUMN, STAFF_ACTIVITY_CONFIG, STAFF_ACTIVITY_SORT_COLUMN, staffActivityFilters, staffActivitySearchFilter } from "./list-config";
 import type { ActivityRecord } from "./validation";
 
 // Read helpers for activity pages. They run as the signed-in user, so RLS decides what
@@ -38,19 +38,19 @@ export type StaffActivityListRow = ActivityRow & { participantCount: number; cov
 
 /**
  * One page (pageSizeOf(STAFF_ACTIVITY_CONFIG)) of /staff/activities from the staff_activity_list view: optional
- * title/description search matched literally, AND the staffActivityFilters columns. Sorted by created_at,
+ * title search matched literally, AND the staffActivityFilters columns. Sorted by created_at,
  * participant_count or title (nulls last), then id. A page past the end returns no items with the real total.
  */
 export async function listActivitiesForStaffPage(
   p: Pick<ListState, "q" | "sort" | "dir" | "filters" | "page">,
 ): Promise<{ items: StaffActivityListRow[]; total: number }> {
   const supabase = await createServerClient();
-  const pattern = p.q ? quoteOrValue(toIlikePattern(p.q)) : null;
+  const search = p.q ? staffActivitySearchFilter(p.q) : null;
   const filters = staffActivityFilters(p.filters);
   // the same builder comes back (each method returns `this`), so the cast back to T is exact
   const filtered = <T,>(query: T): T => {
     let q = query as unknown as StaffFilterable;
-    if (pattern) q = q.or(`title.ilike.${pattern},description.ilike.${pattern}`);
+    if (search) q = q.or(search);
     for (const [column, , value] of filters) q = q.eq(column, value);
     return q as unknown as T;
   };

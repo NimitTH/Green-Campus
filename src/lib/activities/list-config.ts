@@ -1,4 +1,5 @@
 import type { ListConfig } from "@/app/_components/list/list-params";
+import { quoteOrValue, toIlikePattern } from "@/app/_components/list/search-escape";
 
 // DESIGN-4 3 (/activities): the list config, shared by the query (queries.ts) and the toolbar.
 
@@ -24,8 +25,8 @@ export const ACTIVITY_SORT_COLUMN: Record<keyof typeof ACTIVITY_LIST_CONFIG.sort
 // DESIGN-4 3 (/staff/activities): the staff list config, read from the staff_activity_list view.
 export const STAFF_ACTIVITY_CONFIG = {
   sorts: {
-    date: { label: "วันที่", kind: "date", defaultDir: "desc" },
-    participants: { label: "ผู้เข้าร่วม", kind: "number", defaultDir: "desc" },
+    date: { label: "วันที่สร้าง", kind: "date", defaultDir: "desc" },
+    participants: { label: "จำนวนผู้เข้าร่วม", kind: "number", defaultDir: "desc" },
     name: { label: "ชื่อ", kind: "text", defaultDir: "asc" },
   },
   defaultSort: "date",
@@ -54,4 +55,9 @@ export function staffActivityFilters(filters: Record<string, string>): StaffActi
   if (known(status, filters.status)) out.push(["status", "eq", filters.status]);
   if (known(code, filters.code)) out.push(["requires_code", "eq", filters.code === "yes"]);
   return out;
+}
+
+/** The `.or()` filter for the staff search text: the title only (DESIGN-4 4.4), matched literally. */
+export function staffActivitySearchFilter(q: string): string {
+  return `title.ilike.${quoteOrValue(toIlikePattern(q))}`;
 }
