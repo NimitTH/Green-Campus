@@ -14,6 +14,7 @@ import {
 } from "./helpers/supabase-admin";
 
 // Redesign 4 Task 8 (DESIGN-4 4.2, 4.3): the collapsible staff sidebar and the /staff home header and charts.
+// Also run by `npm run test:e2e:prod`.
 
 function uniqueSuffix(projectName: string): string {
   return `${projectName}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -132,6 +133,56 @@ test("a collapsed sidebar is already 64px in the server shell, before streaming 
     await expect(asides).toHaveCount(1);
     await expect(page.locator("html")).not.toHaveAttribute("data-staff-sidebar", /./);
     expect((await asides.boundingBox())!.width).toBeGreaterThan(150);
+  } finally {
+    await deleteUsers([teacher]);
+  }
+});
+
+// Review I1 (task 11, ruling R12): the cookie has path /staff, so on a public page the pre-paint script never sets
+// <html data-staff-sidebar>. Guard: a client navigation into /staff must never show the sidebar wider than 64px; every
+// width it takes from the click on, sampled on each DOM mutation and each animation frame, stays at 64px. Today the
+// router's prefetched App Shell (partialPrefetching: it includes cookies()) and the navigation response both carry the
+// cookie-backed sidebar, so the expanded static shell is never committed (task-11-fix-report.md). Meaningful in prod.
+test("a collapsed sidebar stays 64px when a staff user client-navigates into /staff", async ({ page, context }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "desktop sidebar only (phones keep the drawer)");
+  const suffix = uniqueSuffix(testInfo.project.name);
+  let teacher: TestUser | undefined;
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-softnav-${suffix}`);
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await signIn(page, teacher, "/activities");
+    const origin = new URL(page.url()).origin;
+    await context.addCookies([{ name: "staff-sidebar", value: "collapsed", url: `${origin}/staff`, sameSite: "Lax" }]);
+    // the cookie is not visible here (path /staff), so nothing on this page knows the sidebar is collapsed
+    await expect(page.locator("html")).not.toHaveAttribute("data-staff-sidebar", /./);
+
+    await page.evaluate(() => {
+      const w = window as unknown as { __asideWidths: number[] };
+      w.__asideWidths = [];
+      const sample = () => {
+        for (const a of document.querySelectorAll("aside")) {
+          const width = a.getBoundingClientRect().width;
+          if (width > 0) w.__asideWidths.push(Math.round(width));
+        }
+      };
+      new MutationObserver(sample).observe(document.documentElement, { subtree: true, childList: true, attributes: true });
+      const frame = () => {
+        sample();
+        requestAnimationFrame(frame);
+      };
+      requestAnimationFrame(frame);
+    });
+    await page.locator('a[href="/staff"]').filter({ hasText: "หน้าหลัก", visible: true }).first().click();
+    await expect(page).toHaveURL((url) => url.pathname === "/staff");
+    // the cookie-backed sidebar has streamed in (and the page under it)
+    await expect(page.locator('aside[data-collapsed="true"]:not([data-sidebar-shell])')).toBeVisible();
+    await expect(page.getByTestId("staff-role")).toBeVisible();
+    await expect(page.getByRole("button", { name: "กางเมนู", exact: true })).toHaveAttribute("aria-expanded", "false");
+    // the sampler survived: this was a client navigation, not a document load
+    const widths = await page.evaluate(() => (window as unknown as { __asideWidths?: number[] }).__asideWidths);
+    expect(widths, "a client navigation (the sampler is still installed)").toBeDefined();
+    expect(widths!.length).toBeGreaterThan(0);
+    expect(Math.max(...widths!), `sidebar widths seen: ${[...new Set(widths)].join(", ")}`).toBeLessThanOrEqual(64);
   } finally {
     await deleteUsers([teacher]);
   }
