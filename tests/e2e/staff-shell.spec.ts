@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { greetingFor } from "../../src/lib/greeting";
 import { signIn } from "./helpers/auth";
 import { PNG_1X1 } from "./helpers/images";
+import { openStaffMenu } from "./helpers/staff-menu";
 import {
   createConfirmedUser,
   createJoinedCodeActivity,
@@ -14,7 +15,9 @@ import {
 } from "./helpers/supabase-admin";
 
 // Redesign 4 Task 8 (DESIGN-4 4.2, 4.3): the collapsible staff sidebar and the /staff home header and charts.
-// Also run by `npm run test:e2e:prod`.
+// Also run by `npm run test:e2e:prod` (same detection as playwright.config.ts).
+
+const PROD = process.env.E2E_PROD === "1" || process.env.npm_lifecycle_event === "test:e2e:prod";
 
 function uniqueSuffix(projectName: string): string {
   return `${projectName}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -183,6 +186,47 @@ test("a collapsed sidebar stays 64px when a staff user client-navigates into /st
     expect(widths, "a client navigation (the sampler is still installed)").toBeDefined();
     expect(widths!.length).toBeGreaterThan(0);
     expect(Math.max(...widths!), `sidebar widths seen: ${[...new Set(widths)].join(", ")}`).toBeLessThanOrEqual(64);
+  } finally {
+    await deleteUsers([teacher]);
+  }
+});
+
+// Review I2 (task 11): a server-passed client child that suspends on its route chunks must never flip a stateful client
+// frame's own Suspense boundary (cec031d: after login the drawer closed itself when the /staff charts chunk landed).
+// The race is inside the page (when the charts chunk registers vs when the login navigation commits), so delaying the
+// network cannot pin it: the commit itself waits for that chunk, and holding chunks back only moves both sides together
+// (task-11-fix-report.md). It hits about every other cold login, so this repeats the exact user path several times,
+// each from a full page load with the HTTP cache off (routing on), and fails on the first round whose drawer closes.
+// Prod only: dev chunks differ. RED with the panel <Suspense> in staff-nav.tsx removed.
+const DRAWER_ROUNDS = 8;
+test("the staff drawer stays open after login while the /staff route chunks land", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chrome", "the drawer is the phone menu");
+  test.skip(!PROD, "production chunks only (npm run test:e2e:prod)");
+  test.setTimeout(180_000);
+  const suffix = uniqueSuffix(testInfo.project.name);
+  let teacher: TestUser | undefined;
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-chunk-${suffix}`);
+    // routing turns the HTTP cache off, so every round downloads the /staff chunks again
+    await page.route("**/_next/static/chunks/**/*.js", async (route) => route.fulfill({ response: await route.fetch() }));
+    const toggle = page.getByRole("button", { name: "เมนู", exact: true });
+    const signOut = page.getByRole("navigation", { name: "เมนูผู้ดูแล" }).getByRole("button", { name: "ออกจากระบบ" });
+    for (let round = 1; round <= DRAWER_ROUNDS; round++) {
+      await page.goto("/login?next=%2Fstaff");
+      await page.getByLabel("อีเมล", { exact: true }).fill(teacher.email);
+      await page.getByLabel("รหัสผ่าน", { exact: true }).fill(teacher.password);
+      await page.getByRole("button", { name: "เข้าสู่ระบบ", exact: true }).click();
+      await expect(page).toHaveURL((url) => url.pathname === "/staff");
+      // open the drawer as soon as the toggle works, before the charts have rendered
+      await openStaffMenu(page);
+      // the charts chunk has landed and rendered; give React time to retry whatever was waiting on it
+      await expect(page.getByTestId("carbon-chart").locator(".recharts-responsive-container")).toBeVisible();
+      await page.waitForTimeout(1_000);
+      await expect(toggle, `round ${round}: the drawer is still open`).toHaveAttribute("aria-expanded", "true", { timeout: 1_000 });
+      await expect(signOut).toBeVisible({ timeout: 1_000 });
+      await signOut.click({ timeout: 5_000 });
+      await expect(page).toHaveURL((url) => url.pathname === "/login");
+    }
   } finally {
     await deleteUsers([teacher]);
   }
