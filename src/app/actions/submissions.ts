@@ -46,6 +46,7 @@ export async function submitResult(input: SubmitResultInput): Promise<SubmitResu
 
   const user = await getCurrentUser();
   if (!user) return fail("not_authenticated");
+  if (user.mustChangePassword) return fail("must_change_password");
   if (user.role !== "student") return fail("not_student");
 
   const supabase = await createServerClient();

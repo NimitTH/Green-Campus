@@ -62,6 +62,7 @@ export async function saveActivity(input: SaveActivityInput): Promise<SaveActivi
   if (!isActivityInputShape(input)) return { error: GENERIC_ERROR_TH };
   const user = await getCurrentUser();
   if (!user || !isStaffRole(user.role)) return { error: STAFF_ONLY };
+  if (user.mustChangePassword) return { error: errorMessageTh("must_change_password") };
 
   const result = validateActivity(input);
   if (!result.ok) return { fieldErrors: result.fieldErrors };
@@ -150,6 +151,7 @@ export async function joinActivity(activityId: string): Promise<JoinActivityResu
   if (!isUuid(activityId)) return joinError("activity_not_open");
   const user = await getCurrentUser();
   if (!user) return joinError("not_authenticated");
+  if (user.mustChangePassword) return joinError("must_change_password");
 
   const supabase = await createServerClient();
   const { error } = await supabase.rpc("join_activity", { p_activity_id: activityId });

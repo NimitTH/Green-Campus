@@ -29,7 +29,7 @@ export type AdminActionResult = { ok: true; error?: undefined } | { ok: false; e
 
 async function isAdminCaller(): Promise<boolean> {
   const user = await getCurrentUser();
-  return !!user && isAdminRole(user.role);
+  return !!user && isAdminRole(user.role) && !user.mustChangePassword;
 }
 
 function dbError(name: string, error: { code?: string; message?: string }): string {

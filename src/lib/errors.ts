@@ -5,6 +5,8 @@ export const GENERIC_ERROR_TH = "เกิดข้อผิดพลาด ก�
 
 const MESSAGES: Record<string, string> = {
   not_authenticated: "กรุณาเข้าสู่ระบบก่อน แล้วลองอีกครั้ง",
+  // DESIGN-4 6.4: a staff password reset is pending; every action waits for /change-password
+  must_change_password: "ต้องตั้งรหัสผ่านใหม่ก่อน",
   not_student: "เฉพาะบัญชีนักเรียนเท่านั้นที่เข้าร่วมกิจกรรมได้",
   activity_not_open: "กิจกรรมนี้ยังไม่เปิดรับหรือปิดรับแล้ว เลือกกิจกรรมอื่นที่เปิดอยู่",
   activity_ended: "กิจกรรมนี้สิ้นสุดแล้ว เข้าร่วมไม่ได้",

@@ -685,3 +685,21 @@ export async function clearNotifications(userId: string): Promise<void> {
   const { error } = await admin().from("notifications").delete().eq("user_id", userId);
   if (error) throw new Error(`e2e: clear notifications failed: ${error.message}`);
 }
+
+export type AccountStatusFields = { suspended_until?: string | null; suspend_reason?: string | null; must_change_password?: boolean };
+
+/** Upsert a student's account_status row directly (service role; the app writes it through 0036 functions). */
+export async function setAccountStatus(studentId: string, fields: AccountStatusFields): Promise<void> {
+  const { error } = await admin().from("account_status").upsert({ student_id: studentId, ...fields }, { onConflict: "student_id" });
+  if (error) throw new Error(`e2e: set account_status failed: ${error.message}`);
+}
+
+export async function accountStatus(studentId: string): Promise<{ suspended_until: string | null; must_change_password: boolean } | null> {
+  const { data, error } = await admin()
+    .from("account_status")
+    .select("suspended_until, must_change_password")
+    .eq("student_id", studentId)
+    .maybeSingle();
+  if (error) throw new Error(`e2e: read account_status failed: ${error.message}`);
+  return data as { suspended_until: string | null; must_change_password: boolean } | null;
+}

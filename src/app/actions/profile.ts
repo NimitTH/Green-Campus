@@ -8,7 +8,7 @@ import { emailRedirectUrl, resolveSiteOrigin } from "@/lib/auth/email-links";
 import { authErrorMessage } from "@/lib/auth/messages";
 import { ARTICLES_TAG } from "@/lib/articles/public";
 import { verifyPassword } from "@/lib/auth/verify-password";
-import { GENERIC_ERROR_TH } from "@/lib/errors";
+import { GENERIC_ERROR_TH, errorMessageTh } from "@/lib/errors";
 import { AVATAR_BUCKET, isOwnAvatarPath } from "@/lib/profile/avatar";
 import { isProfileInputShape, validateProfile, type ProfileFieldErrors, type ProfileInput } from "@/lib/profile/validation";
 import { createServerClient } from "@/lib/supabase/server";
@@ -26,6 +26,7 @@ export async function updateProfile(input: ProfileInput): Promise<ProfileResult>
   if (!isProfileInputShape(input)) return { ok: false, error: GENERIC_ERROR_TH };
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "กรุณาเข้าสู่ระบบก่อน แล้วลองอีกครั้ง" };
+  if (user.mustChangePassword) return { ok: false, error: errorMessageTh("must_change_password") };
 
   const result = validateProfile(input);
   if (!result.ok) return { ok: false, fieldErrors: result.fieldErrors };
@@ -81,6 +82,7 @@ async function writeAvatarPath(supabase: Supabase, userId: string, path: string 
 export async function setAvatar(path: string): Promise<AvatarResult> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: SIGN_IN_FIRST };
+  if (user.mustChangePassword) return { ok: false, error: errorMessageTh("must_change_password") };
   if (typeof path !== "string" || !isOwnAvatarPath(path, user.id)) return { ok: false, error: GENERIC_ERROR_TH };
 
   const supabase = await createServerClient();
@@ -94,6 +96,7 @@ export async function setAvatar(path: string): Promise<AvatarResult> {
 export async function removeAvatar(): Promise<AvatarResult> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: SIGN_IN_FIRST };
+  if (user.mustChangePassword) return { ok: false, error: errorMessageTh("must_change_password") };
 
   const supabase = await createServerClient();
   const oldPath = await currentAvatarPath(supabase, user.id);
@@ -139,6 +142,7 @@ export async function changeEmail(input: { newEmail: string; currentPassword: st
   if (!isStringRecord(input, ["newEmail", "currentPassword"])) return { ok: false, error: GENERIC_ERROR_TH };
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: SIGN_IN_FIRST };
+  if (user.mustChangePassword) return { ok: false, error: errorMessageTh("must_change_password") };
   if (!user.email) return { ok: false, error: GENERIC_ERROR_TH };
 
   const newEmail = input.newEmail.trim().toLowerCase();
@@ -166,6 +170,7 @@ export async function changePassword(input: { currentPassword: string; newPasswo
   if (!isStringRecord(input, ["currentPassword", "newPassword"])) return { ok: false, error: GENERIC_ERROR_TH };
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: SIGN_IN_FIRST };
+  if (user.mustChangePassword) return { ok: false, error: errorMessageTh("must_change_password") };
   if (!user.email) return { ok: false, error: GENERIC_ERROR_TH };
 
   const fieldErrors = validatePasswordChange(input);

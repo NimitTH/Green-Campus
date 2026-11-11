@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { isAdminRole, isStaffRole } from "@/lib/auth/routes";
-import { GENERIC_ERROR_TH } from "@/lib/errors";
+import { GENERIC_ERROR_TH, errorMessageTh } from "@/lib/errors";
 import {
   isRewardInputShape,
   validateReward,
@@ -58,6 +58,7 @@ export async function saveReward(
   if (!isSaveInput(input)) return { ok: false, error: GENERIC_ERROR_TH };
   const user = await getCurrentUser();
   if (!user || !isStaffRole(user.role)) return { ok: false, error: STAFF_ONLY };
+  if (user.mustChangePassword) return { ok: false, error: errorMessageTh("must_change_password") };
   if (!isUuid(input.id)) return { ok: false, error: NOT_FOUND };
 
   const result = validateReward(input);
@@ -117,6 +118,7 @@ export async function setRewardActive(rewardId: string, active: boolean): Promis
   if (!isUuid(rewardId) || typeof active !== "boolean") return { ok: false, error: NOT_FOUND };
   const user = await getCurrentUser();
   if (!user || !isStaffRole(user.role)) return { ok: false, error: STAFF_ONLY };
+  if (user.mustChangePassword) return { ok: false, error: errorMessageTh("must_change_password") };
 
   const supabase = await createServerClient();
   const { data, error } = await supabase.from("rewards").update({ active }).eq("id", rewardId).select("id");
@@ -134,6 +136,7 @@ export async function deleteReward(rewardId: string): Promise<RewardActionResult
   if (!isUuid(rewardId)) return { ok: false, error: NOT_FOUND };
   const user = await getCurrentUser();
   if (!user || !isStaffRole(user.role)) return { ok: false, error: STAFF_ONLY };
+  if (user.mustChangePassword) return { ok: false, error: errorMessageTh("must_change_password") };
   if (!isAdminRole(user.role)) return { ok: false, error: ADMIN_ONLY };
 
   const supabase = await createServerClient();

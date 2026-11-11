@@ -30,6 +30,7 @@ type CheckoutRow = { ok: boolean; error_code: string | null; order_id: string | 
 export async function checkoutCart(): Promise<CheckoutResult> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: orderErrorMessageTh("not_authenticated"), blocked: [] };
+  if (user.mustChangePassword) return { ok: false, error: orderErrorMessageTh("must_change_password"), blocked: [] };
   if (user.role !== "student") return { ok: false, error: orderErrorMessageTh("not_student"), blocked: [] };
 
   const supabase = await createServerClient();
@@ -47,6 +48,7 @@ async function staffRpc(fn: "complete_order" | "cancel_order" | "mark_order_read
   if (!isUuid(orderId)) return { ok: false, error: orderErrorMessageTh("order_not_found") };
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: orderErrorMessageTh("not_authenticated") };
+  if (user.mustChangePassword) return { ok: false, error: orderErrorMessageTh("must_change_password") };
   if (!isStaffRole(user.role)) return { ok: false, error: orderErrorMessageTh("not_staff") };
 
   const supabase = await createServerClient();
@@ -75,6 +77,7 @@ export async function cancelOrder(orderId: string): Promise<OrderActionResult> {
 export async function expireDueOrders(): Promise<ExpireResult> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: orderErrorMessageTh("not_authenticated") };
+  if (user.mustChangePassword) return { ok: false, error: orderErrorMessageTh("must_change_password") };
   if (!isAdminRole(user.role)) return { ok: false, error: orderErrorMessageTh("not_admin") };
 
   const supabase = await createServerClient();

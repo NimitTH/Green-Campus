@@ -35,6 +35,7 @@ export async function reviewSubmissionForm(_prev: ReviewFormState, formData: For
 
   const user = await getCurrentUser();
   if (!user) return fail("not_authenticated");
+  if (user.mustChangePassword) return fail("must_change_password");
   if (!isStaffRole(user.role)) return fail("not_staff");
 
   const supabase = await createServerClient();

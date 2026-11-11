@@ -2,7 +2,7 @@
 
 import { refresh } from "next/cache";
 import { getCurrentUser } from "@/lib/auth/dal";
-import { GENERIC_ERROR_TH } from "@/lib/errors";
+import { GENERIC_ERROR_TH, errorMessageTh } from "@/lib/errors";
 import { MAX_CART_QTY, checkCartQty } from "@/lib/rewards/validation";
 import { createServerClient } from "@/lib/supabase/server";
 import { isUuid } from "@/lib/uuid";
@@ -27,6 +27,7 @@ const fail = (error: string): CartResult => ({ ok: false, error });
 async function studentOrError(): Promise<{ id: string } | { error: string }> {
   const user = await getCurrentUser();
   if (!user) return { error: NOT_SIGNED_IN };
+  if (user.mustChangePassword) return { error: errorMessageTh("must_change_password") };
   if (user.role !== "student") return { error: STUDENTS_ONLY };
   return { id: user.id };
 }

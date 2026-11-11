@@ -15,8 +15,12 @@ export const LINK_INVALID_MESSAGE =
 export const RESET_LINK_INVALID_MESSAGE =
   "ลิงก์ตั้งรหัสผ่านใหม่หมดอายุหรือถูกใช้ไปแล้ว กรอกอีเมลด้านล่างเพื่อขอลิงก์ใหม่ แล้วเปิดลิงก์ในเบราว์เซอร์นี้";
 
+export const SUSPENDED_MESSAGE = "บัญชีนี้ถูกระงับ ติดต่อครูหรือผู้ดูแล";
+
 export function authErrorMessage(code: string | null | undefined): string {
   switch (code) {
+    case "user_banned":
+      return SUSPENDED_MESSAGE;
     case "invalid_credentials":
       return "อีเมลหรือรหัสผ่านไม่ถูกต้อง ตรวจสอบแล้วลองอีกครั้ง หรือกด “ลืมรหัสผ่าน”";
     case "email_not_confirmed":
@@ -48,6 +52,13 @@ export function authErrorMessage(code: string | null | undefined): string {
     default:
       return "เกิดข้อผิดพลาด ลองใหม่อีกครั้ง ถ้ายังไม่ได้ให้แจ้งครูผู้ดูแลระบบ";
   }
+}
+
+/** The message for /login?error=... (email-link failures, suspended accounts), or null. */
+export function loginErrorMessage(error: string | null | undefined): string | null {
+  if (error === "link") return LINK_INVALID_MESSAGE;
+  if (error === "suspended") return SUSPENDED_MESSAGE;
+  return null;
 }
 
 export function validateEmail(email: string): string | undefined {

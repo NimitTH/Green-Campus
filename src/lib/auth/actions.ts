@@ -2,9 +2,12 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { GENERIC_ERROR_TH } from "@/lib/errors";
 import { createServerClient } from "@/lib/supabase/server";
+import { isSuspendedAt, requireUser } from "./dal";
 import { emailRedirectUrl, resolveSiteOrigin } from "./email-links";
 import {
+  SUSPENDED_MESSAGE,
   authErrorMessage,
   hasErrors,
   validateEmail,
@@ -13,7 +16,7 @@ import {
   validateSignUp,
   type FieldErrors,
 } from "./messages";
-import { safeNextPath } from "./routes";
+import { isStaffRole, safeNextPath } from "./routes";
 
 export type AuthFormState =
   | {
@@ -54,8 +57,20 @@ export async function signIn(_prev: AuthFormState, formData: FormData): Promise<
   if (hasErrors(fieldErrors)) return { fieldErrors, values: { email } };
 
   const supabase = await createServerClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data: signedIn, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { error: authErrorMessage(error.code), values: { email } };
+
+  // The database is the authority on suspension (DESIGN-4 6.4): even when the Auth ban is missing (its update
+  // failed), a suspended student is signed straight back out with the suspended message.
+  const { data: status } = await supabase
+    .from("account_status")
+    .select("suspended_until")
+    .eq("student_id", signedIn.user.id)
+    .maybeSingle();
+  if (isSuspendedAt((status as { suspended_until: string | null } | null)?.suspended_until ?? null, new Date())) {
+    await supabase.auth.signOut();
+    return { error: SUSPENDED_MESSAGE, values: { email } };
+  }
 
   redirect(next);
 }
@@ -140,6 +155,39 @@ export async function updatePassword(
 
   const { error } = await supabase.auth.updateUser({ password });
   if (error) return { error: authErrorMessage(error.code) };
+  // A password the student chose themselves also satisfies a pending forced change (no-op otherwise).
+  await supabase.rpc("clear_must_change_password");
 
   redirect("/dashboard");
+}
+
+export type ChangePasswordState = { fieldErrors?: FieldErrors; formError?: string } | undefined;
+
+/**
+ * /change-password (DESIGN-4 6.4): after a staff reset the student must replace the temporary password.
+ * Same rules as the reset form; Auth refuses reusing the temporary password (same_password).
+ */
+export async function changeTemporaryPassword(
+  _prev: ChangePasswordState,
+  formData: FormData,
+): Promise<ChangePasswordState> {
+  // Signed in and not suspended (requireUser redirects otherwise); the pending flag itself is allowed here.
+  const user = await requireUser("/change-password");
+
+  const password = rawText(formData, "password");
+  const confirmPassword = rawText(formData, "confirmPassword");
+  const fieldErrors = validateNewPassword({ password, confirmPassword });
+  if (hasErrors(fieldErrors)) return { fieldErrors };
+
+  const supabase = await createServerClient();
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) return { formError: authErrorMessage(error.code) };
+
+  const { error: clearError } = await supabase.rpc("clear_must_change_password");
+  if (clearError) {
+    console.error("clear_must_change_password failed", clearError.code, clearError.message);
+    return { formError: GENERIC_ERROR_TH };
+  }
+
+  redirect(isStaffRole(user.role) ? "/staff" : "/dashboard");
 }

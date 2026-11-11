@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   LINK_INVALID_MESSAGE,
+  SUSPENDED_MESSAGE,
   authErrorMessage,
   hasErrors,
+  loginErrorMessage,
   validateNewPassword,
   validateSignIn,
   validateSignUp,
@@ -52,5 +54,18 @@ describe("validateSignIn / validateNewPassword", () => {
   it("new password must match", () => {
     expect(hasErrors(validateNewPassword({ password: "abcd1234", confirmPassword: "abcd1234" }))).toBe(false);
     expect(validateNewPassword({ password: "abcd1234", confirmPassword: "x" }).confirmPassword).toBeDefined();
+  });
+});
+
+describe("suspended accounts (DESIGN-4 6.4)", () => {
+  it("Auth's user_banned and the ?error=suspended page share one message", () => {
+    expect(SUSPENDED_MESSAGE).toBe("บัญชีนี้ถูกระงับ ติดต่อครูหรือผู้ดูแล");
+    expect(authErrorMessage("user_banned")).toBe(SUSPENDED_MESSAGE);
+    expect(loginErrorMessage("suspended")).toBe(SUSPENDED_MESSAGE);
+  });
+  it("?error=link keeps the link message; anything else shows nothing", () => {
+    expect(loginErrorMessage("link")).toBe(LINK_INVALID_MESSAGE);
+    expect(loginErrorMessage("whatever")).toBeNull();
+    expect(loginErrorMessage(null)).toBeNull();
   });
 });

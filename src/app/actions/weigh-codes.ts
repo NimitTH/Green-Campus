@@ -19,6 +19,7 @@ export async function issueWeighCode(activityId: string, studentId: string): Pro
   if (!isUuid(studentId)) return { ok: false, error: errorMessageTh("not_participant") };
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: errorMessageTh("not_authenticated") };
+  if (user.mustChangePassword) return { ok: false, error: errorMessageTh("must_change_password") };
   if (!isStaffRole(user.role)) return { ok: false, error: errorMessageTh("not_staff") };
 
   const supabase = await createServerClient();
@@ -59,6 +60,7 @@ export async function searchParticipants(activityId: string, query: string): Pro
   if (!isUuid(activityId) || typeof query !== "string") return { students: [] };
   const user = await getCurrentUser();
   if (!user || !isStaffRole(user.role)) return { students: [], error: errorMessageTh("not_staff") };
+  if (user.mustChangePassword) return { students: [], error: errorMessageTh("must_change_password") };
 
   // Strip characters that have meaning in a PostgREST filter / LIKE pattern.
   const term = query.replace(/[%_*,()\\"']/g, " ").trim().slice(0, 60);

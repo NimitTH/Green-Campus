@@ -231,3 +231,13 @@ describe("order errors (Task 13)", () => {
     expect(errorCodeFromDb({ message: "order_expired" })).toBe("order_expired");
   });
 });
+
+describe("pending forced password change (DESIGN-4 6.4)", () => {
+  it("every action family refuses with the spec message", () => {
+    const msg = "ต้องตั้งรหัสผ่านใหม่ก่อน";
+    expect(errorMessageTh("must_change_password")).toBe(msg);
+    expect(submitErrorMessageTh("must_change_password")).toBe(msg);
+    expect(reviewErrorMessageTh("must_change_password")).toBe(msg);
+    expect(orderErrorMessageTh("must_change_password")).toBe(msg);
+  });
+});

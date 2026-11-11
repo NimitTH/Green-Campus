@@ -64,7 +64,7 @@ function isSlugConflict(error: { code?: string; message?: string }): boolean {
 
 async function staffCaller() {
   const user = await getCurrentUser();
-  return user && isStaffRole(user.role) ? user : null;
+  return user && isStaffRole(user.role) && !user.mustChangePassword ? user : null;
 }
 
 function revalidateArticles(id?: string) {

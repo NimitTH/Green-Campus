@@ -15,6 +15,7 @@ export async function markNotificationRead(id: string): Promise<NotificationActi
   if (!isUuid(id)) return { ok: false, error: GENERIC_ERROR_TH };
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: errorMessageTh("not_authenticated") };
+  if (user.mustChangePassword) return { ok: false, error: errorMessageTh("must_change_password") };
 
   const supabase = await createServerClient();
   const { error } = await supabase
@@ -33,6 +34,7 @@ export async function markNotificationRead(id: string): Promise<NotificationActi
 export async function markAllNotificationsRead(): Promise<NotificationActionResult> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: errorMessageTh("not_authenticated") };
+  if (user.mustChangePassword) return { ok: false, error: errorMessageTh("must_change_password") };
 
   const supabase = await createServerClient();
   const { error } = await supabase
@@ -51,6 +53,7 @@ export async function deleteNotification(id: string): Promise<{ ok: boolean; err
   if (!isUuid(id)) return { ok: false, error: GENERIC_ERROR_TH };
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: errorMessageTh("not_authenticated") };
+  if (user.mustChangePassword) return { ok: false, error: errorMessageTh("must_change_password") };
 
   const supabase = await createServerClient();
   const { error } = await supabase.from("notifications").delete().eq("id", id);
@@ -65,6 +68,7 @@ export async function deleteNotification(id: string): Promise<{ ok: boolean; err
 export async function deleteReadNotifications(): Promise<{ ok: boolean; deleted: number; error?: string }> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, deleted: 0, error: errorMessageTh("not_authenticated") };
+  if (user.mustChangePassword) return { ok: false, deleted: 0, error: errorMessageTh("must_change_password") };
 
   const supabase = await createServerClient();
   const { data, error } = await supabase.from("notifications").delete().not("read_at", "is", null).select("id");

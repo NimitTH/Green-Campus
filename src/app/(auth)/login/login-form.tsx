@@ -4,20 +4,21 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useActionState } from "react";
 import { signIn, type AuthFormState } from "@/lib/auth/actions";
-import { LINK_INVALID_MESSAGE } from "@/lib/auth/messages";
+import { loginErrorMessage } from "@/lib/auth/messages";
 import { GoogleButton } from "../_components/google-button";
 import { Alert, Field, FormTitle, OrDivider, SubmitButton } from "../_components/ui";
 
 export function LoginForm() {
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? "";
-  const linkError = searchParams.get("error") === "link";
+  // ?error=link (email link failed) or ?error=suspended (signed out by /auth/signout)
+  const pageError = loginErrorMessage(searchParams.get("error"));
   const [state, action, pending] = useActionState<AuthFormState, FormData>(signIn, undefined);
 
   return (
     <form action={action} noValidate>
       <FormTitle title="เข้าสู่ระบบ" subtitle="เข้าสู่ระบบเพื่อร่วมกิจกรรม ส่งผล และสะสมแต้มแลกรางวัล" />
-      {linkError && !state ? <Alert kind="error">{LINK_INVALID_MESSAGE}</Alert> : null}
+      {pageError && !state ? <Alert kind="error">{pageError}</Alert> : null}
       {state?.error ? <Alert kind="error">{state.error}</Alert> : null}
       <input type="hidden" name="next" value={next} />
       <Field
