@@ -5,7 +5,7 @@ import { ListToolbar, ListToolbarSkeleton } from "@/app/_components/list/list-to
 import { isNarrowed, parseListParams } from "@/app/_components/list/list-params";
 import { Pagination } from "@/app/_components/list/pagination";
 import { loadClamped } from "@/app/_components/list/paging";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { ListSkeleton } from "@/app/_components/skeletons";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/dal";
 import { MY_SUBMISSION_CONFIG } from "@/lib/submissions/list-config";
@@ -22,7 +22,7 @@ export default function MySubmissionsPage({ searchParams }: { searchParams: Sear
       <div className="mb-5">
         <PageHeader title="ผลที่ส่ง" />
       </div>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<ListSkeleton toolbar={false} />}>
         <SubmissionList searchParams={searchParams} />
       </Suspense>
     </main>

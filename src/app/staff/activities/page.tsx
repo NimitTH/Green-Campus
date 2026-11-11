@@ -7,7 +7,7 @@ import { isNarrowed, parseListParams } from "@/app/_components/list/list-params"
 import { ListToolbar, ListToolbarSkeleton } from "@/app/_components/list/list-toolbar";
 import { Pagination } from "@/app/_components/list/pagination";
 import { loadClamped } from "@/app/_components/list/paging";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { ListSkeleton } from "@/app/_components/skeletons";
 import { ButtonLink, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/dal";
 import { statusLabelTh, typeLabelTh } from "@/lib/activities/labels";
@@ -37,7 +37,7 @@ export default function StaffActivitiesPage({ searchParams }: { searchParams: Se
           }
         />
       </div>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<ListSkeleton view="list" toolbar={false} />}>
         <ActivityList searchParams={searchParams} />
       </Suspense>
     </main>

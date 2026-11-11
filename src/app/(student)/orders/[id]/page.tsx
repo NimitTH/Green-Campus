@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Badge } from "@/app/_components/activity-ui";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { DetailSkeleton } from "@/app/_components/skeletons";
 import { buttonClass, Card } from "@/components/ui";
 import { requireUser } from "@/lib/auth/dal";
 import { isStaffRole } from "@/lib/auth/routes";
@@ -20,7 +20,7 @@ const number = new Intl.NumberFormat("th-TH");
 export default function OrderPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<DetailSkeleton />}>
         <Order params={params} />
       </Suspense>
     </main>

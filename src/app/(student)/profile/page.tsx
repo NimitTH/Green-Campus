@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { ProfileDetails } from "@/app/_components/account-sections";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { FormSkeleton } from "@/app/_components/skeletons";
 import { SignOutButton } from "@/app/_components/sign-out-button";
 import { PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/dal";
@@ -36,7 +36,7 @@ export default function ProfilePage({ searchParams }: { searchParams: Search }) 
       <div className="mb-4">
         <PageHeader title="โปรไฟล์ของฉัน" />
       </div>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<FormSkeleton />}>
         <Profile searchParams={searchParams} />
       </Suspense>
     </main>

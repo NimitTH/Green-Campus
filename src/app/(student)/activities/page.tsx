@@ -5,7 +5,7 @@ import { ListToolbar, ListToolbarSkeleton } from "@/app/_components/list/list-to
 import { isNarrowed, parseListParams } from "@/app/_components/list/list-params";
 import { Pagination } from "@/app/_components/list/pagination";
 import { loadClamped } from "@/app/_components/list/paging";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { ListSkeleton } from "@/app/_components/skeletons";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/dal";
 import { ACTIVITY_LIST_CONFIG } from "@/lib/activities/list-config";
@@ -28,7 +28,7 @@ export default function ActivitiesPage({ searchParams }: { searchParams: SearchP
       <Suspense fallback={<ListToolbarSkeleton filters={2} />}>
         <ListToolbar base="/activities" config={ACTIVITY_LIST_CONFIG} placeholder="ค้นหากิจกรรม" />
       </Suspense>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<ListSkeleton toolbar={false} />}>
         <ActivityResults searchParams={searchParams} />
       </Suspense>
     </main>

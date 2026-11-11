@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Badge } from "@/app/_components/activity-ui";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { DetailSkeleton } from "@/app/_components/skeletons";
 import { PageHeader, Mono } from "@/components/ui";
 import { submissionStatusLabelTh, typeLabelTh } from "@/lib/activities/labels";
 import { requireStaff } from "@/lib/auth/dal";
@@ -33,7 +33,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       <Link href="/staff/reviews" className="mb-4 inline-flex min-h-11 items-center text-sm text-accent underline">
         ← ผลที่รอตรวจ
       </Link>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<DetailSkeleton />}>
         <Review params={params} />
       </Suspense>
     </main>

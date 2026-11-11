@@ -6,7 +6,7 @@ import { ListToolbar, ListToolbarSkeleton } from "@/app/_components/list/list-to
 import { isNarrowed, parseListParams, type ListState } from "@/app/_components/list/list-params";
 import { Pagination } from "@/app/_components/list/pagination";
 import { loadClamped } from "@/app/_components/list/paging";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { ListSkeleton } from "@/app/_components/skeletons";
 import { Badge, Card, EmptyState } from "@/components/ui";
 import { ARTICLE_CATEGORY_LABEL_TH } from "@/lib/articles/format";
 import { ARTICLE_LIST_CONFIG } from "@/lib/articles/list-config";
@@ -30,7 +30,7 @@ export default function ArticlesPage({ searchParams }: { searchParams: SearchPar
       <Suspense fallback={<ListToolbarSkeleton filters={1} />}>
         <ListToolbar base="/articles" config={ARTICLE_LIST_CONFIG} placeholder="ค้นหาบทความ" />
       </Suspense>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<ListSkeleton toolbar={false} />}>
         <ArticleResults searchParams={searchParams} />
       </Suspense>
     </main>

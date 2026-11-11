@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Badge } from "@/app/_components/activity-ui";
 import { ButtonLink, Card, CopyLinkButton } from "@/components/ui";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { DetailSkeleton } from "@/app/_components/skeletons";
 import { requireUser } from "@/lib/auth/dal";
 import { splitParagraphs } from "@/lib/articles/format";
 import { activityCoverUrl } from "@/lib/activities/cover";
@@ -25,7 +25,7 @@ export default function ActivityPage({ params }: { params: Promise<{ id: string 
       <Link href="/activities" className="mb-4 inline-flex min-h-11 items-center text-sm text-accent underline">
         ← กิจกรรมทั้งหมด
       </Link>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<DetailSkeleton />}>
         <ActivityDetail params={params} />
       </Suspense>
     </main>

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { NotificationsSection } from "@/app/_components/account-sections";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { ListSkeleton } from "@/app/_components/skeletons";
 import { ButtonLink, PageHeader } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/dal";
 
@@ -23,7 +23,7 @@ export default function StaffNotificationsPage({ searchParams }: { searchParams:
           }
         />
       </div>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<ListSkeleton view="list" toolbar={false} />}>
         <Notifications searchParams={searchParams} />
       </Suspense>
     </main>

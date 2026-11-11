@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Badge } from "@/app/_components/activity-ui";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { ListSkeleton } from "@/app/_components/skeletons";
 import { ButtonLink, Card, PageHeader } from "@/components/ui";
 import { typeLabelTh } from "@/lib/activities/labels";
 import { requireStaff } from "@/lib/auth/dal";
@@ -33,7 +33,7 @@ export default function ReviewsPage({ searchParams }: { searchParams: SearchPara
           }
         />
       </div>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<ListSkeleton view="list" toolbar={false} />}>
         <Queue searchParams={searchParams} />
       </Suspense>
     </main>

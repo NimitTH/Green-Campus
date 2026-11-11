@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { EmptyState } from "@/components/ui";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { FormSkeleton } from "@/app/_components/skeletons";
 import { requireUser } from "@/lib/auth/dal";
 import { getActivity, hasActiveSubmission, hasJoined } from "@/lib/activities/queries";
 import { inSubmitWindow } from "@/lib/activities/status";
@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: "ส่งผล | Green Campus" };
 export default function SubmitPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<FormSkeleton />}>
         <Submit params={params} />
       </Suspense>
     </main>

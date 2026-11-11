@@ -5,7 +5,7 @@ import { requireUser } from "@/lib/auth/dal";
 import { isStaffRole } from "@/lib/auth/routes";
 import { greetingFor, greetingName } from "@/lib/greeting";
 import { Avatar, buttonClass } from "@/components/ui";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { DashboardSkeleton } from "@/app/_components/skeletons";
 import { RankCard } from "./_components/rank-card";
 import { StudentStats } from "./_components/student-stats";
 
@@ -29,7 +29,7 @@ const HUB = [
 export default function DashboardPage() {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<DashboardSkeleton />}>
         <DashboardContent />
       </Suspense>
     </main>

@@ -6,7 +6,7 @@ import { Badge } from "@/app/_components/activity-ui";
 import { getStaffCharts } from "@/lib/admin/queries";
 import { requireStaff } from "@/lib/auth/dal";
 import { greetingFor, greetingName } from "@/lib/greeting";
-import { PageSkeleton } from "../_components/page-skeleton";
+import { DashboardSkeleton } from "@/app/_components/skeletons";
 import { CarbonByMonth } from "./_components/carbon-by-month";
 import { StaffStats } from "./_components/staff-stats";
 
@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: "ครูและผู้ดูแ
 export default function StaffPage() {
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6">
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<DashboardSkeleton />}>
         <StaffHome />
       </Suspense>
     </main>

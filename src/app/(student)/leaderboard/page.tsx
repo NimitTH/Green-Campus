@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Avatar, EmptyState, PageHeader } from "@/components/ui";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { ListSkeleton } from "@/app/_components/skeletons";
 import { requireUser } from "@/lib/auth/dal";
 import { formatKg } from "@/lib/leaderboard/format";
 import { getLeaderboard, parsePeriod, type LeaderboardPeriod, type LeaderboardRow } from "@/lib/leaderboard/queries";
@@ -22,7 +22,7 @@ export default function LeaderboardPage({ searchParams }: { searchParams: Search
       <div className="mb-4">
         <PageHeader title="อันดับคาร์บอน" />
       </div>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<ListSkeleton view="list" toolbar={false} />}>
         <Leaderboard searchParams={searchParams} />
       </Suspense>
     </main>

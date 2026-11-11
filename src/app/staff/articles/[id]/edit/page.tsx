@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { FormSkeleton } from "@/app/_components/skeletons";
 import { PageHeader } from "@/components/ui";
 import { getArticleForStaff } from "@/lib/articles/queries";
 import { requireStaff } from "@/lib/auth/dal";
@@ -19,7 +19,7 @@ export default function EditArticlePage({ params }: { params: Promise<{ id: stri
       <div className="mb-6">
         <PageHeader title="แก้ไขบทความ" />
       </div>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<FormSkeleton />}>
         <EditArticle params={params} />
       </Suspense>
     </main>

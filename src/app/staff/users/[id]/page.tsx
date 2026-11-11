@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Badge } from "@/app/_components/activity-ui";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { DetailSkeleton } from "@/app/_components/skeletons";
 import { ButtonLink, Card, EmptyState, PageHeader, Mono } from "@/components/ui";
 import { getUser, listRecentLedger } from "@/lib/admin/queries";
 import { LEDGER_KIND_LABEL_TH, ROLE_LABEL_TH, signed } from "@/lib/admin/validation";
@@ -29,7 +29,7 @@ export default function StaffUserPage({ params }: { params: Promise<{ id: string
           }
         />
       </div>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<DetailSkeleton />}>
         <UserDetail params={params} />
       </Suspense>
     </main>

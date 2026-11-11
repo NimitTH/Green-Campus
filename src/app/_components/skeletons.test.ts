@@ -1,0 +1,40 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+import { DashboardSkeleton, DetailSkeleton, FormSkeleton, ListSkeleton, TableSkeleton } from "./skeletons";
+
+const cases = [
+  ["list", () => createElement(ListSkeleton)],
+  ["detail", () => createElement(DetailSkeleton)],
+  ["form", () => createElement(FormSkeleton)],
+  ["dashboard", () => createElement(DashboardSkeleton)],
+  ["table", () => createElement(TableSkeleton)],
+] as const;
+
+describe("skeletons", () => {
+  it.each(cases)("%s is busy, announced, tagged and pulses", (name, make) => {
+    const html = renderToStaticMarkup(make());
+    expect(html).toContain('aria-busy="true"');
+    expect(html).toContain("กำลังโหลด...");
+    expect(html).toContain("sr-only");
+    expect(html).toContain(`data-skeleton="${name}"`);
+    expect(html).toContain("motion-safe:animate-pulse");
+  });
+
+  it("ListSkeleton list view renders the requested rows", () => {
+    const html = renderToStaticMarkup(createElement(ListSkeleton, { view: "list", rows: 3 }));
+    expect(html.match(/data-skeleton-row/g)).toHaveLength(3);
+  });
+  it("ListSkeleton card view renders the requested cards", () => {
+    const html = renderToStaticMarkup(createElement(ListSkeleton, { rows: 4 }));
+    expect(html.match(/data-skeleton-row/g)).toHaveLength(4);
+  });
+  it("ListSkeleton can drop the toolbar", () => {
+    expect(renderToStaticMarkup(createElement(ListSkeleton, { toolbar: false }))).not.toContain("data-skeleton-toolbar");
+    expect(renderToStaticMarkup(createElement(ListSkeleton))).toContain("data-skeleton-toolbar");
+  });
+  it("FormSkeleton renders the requested fields; TableSkeleton the rows", () => {
+    expect(renderToStaticMarkup(createElement(FormSkeleton, { fields: 2 })).match(/data-skeleton-field/g)).toHaveLength(2);
+    expect(renderToStaticMarkup(createElement(TableSkeleton, { rows: 5 })).match(/data-skeleton-row/g)).toHaveLength(5);
+  });
+});

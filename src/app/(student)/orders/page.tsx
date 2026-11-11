@@ -6,7 +6,7 @@ import { ListToolbar, ListToolbarSkeleton } from "@/app/_components/list/list-to
 import { isNarrowed, parseListParams } from "@/app/_components/list/list-params";
 import { Pagination } from "@/app/_components/list/pagination";
 import { loadClamped } from "@/app/_components/list/paging";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { ListSkeleton } from "@/app/_components/skeletons";
 import { ButtonLink, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/dal";
 import { formatBangkok } from "@/lib/datetime";
@@ -29,7 +29,7 @@ export default function OrdersPage({ searchParams }: { searchParams: SearchParam
       <Suspense fallback={<ListToolbarSkeleton views={false} />}>
         <ListToolbar base="/orders" config={MY_ORDER_CONFIG} placeholder="ค้นหาสินค้าหรือเลขที่ออเดอร์" />
       </Suspense>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<ListSkeleton view="list" toolbar={false} />}>
         <Orders searchParams={searchParams} />
       </Suspense>
     </main>

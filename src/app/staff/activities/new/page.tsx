@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { FormSkeleton } from "@/app/_components/skeletons";
 import { PageHeader } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/dal";
 import type { ActivityInput } from "@/lib/activities/validation";
@@ -30,7 +30,7 @@ export default function NewActivityPage() {
       <div className="mb-6">
         <PageHeader title="สร้างกิจกรรม" />
       </div>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<FormSkeleton />}>
         <NewActivity />
       </Suspense>
     </main>

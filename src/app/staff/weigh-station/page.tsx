@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { FormSkeleton } from "@/app/_components/skeletons";
 import { ButtonLink, PageHeader } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/dal";
 import { createServerClient } from "@/lib/supabase/server";
@@ -21,7 +21,7 @@ export default function WeighStationPage() {
           }
         />
       </div>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<FormSkeleton />}>
         <Station />
       </Suspense>
     </main>

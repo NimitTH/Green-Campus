@@ -5,7 +5,7 @@ import { paginateRows, sortRows } from "@/app/_components/list/client-list";
 import { ListToolbar, ListToolbarSkeleton } from "@/app/_components/list/list-toolbar";
 import { pageSizeOf, parseListParams } from "@/app/_components/list/list-params";
 import { Pagination } from "@/app/_components/list/pagination";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { ListSkeleton } from "@/app/_components/skeletons";
 import { ButtonLink, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/dal";
 import { cartRemainder } from "@/lib/rewards/cart-summary";
@@ -24,7 +24,7 @@ export default function CartPage({ searchParams }: { searchParams: SearchParams 
       <div className="mb-5">
         <PageHeader title="ตะกร้า" />
       </div>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<ListSkeleton view="list" toolbar={false} />}>
         <Cart searchParams={searchParams} />
       </Suspense>
     </main>

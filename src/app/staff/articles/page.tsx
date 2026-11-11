@@ -7,7 +7,7 @@ import { isNarrowed, parseListParams } from "@/app/_components/list/list-params"
 import { ListToolbar, ListToolbarSkeleton } from "@/app/_components/list/list-toolbar";
 import { Pagination } from "@/app/_components/list/pagination";
 import { loadClamped } from "@/app/_components/list/paging";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { ListSkeleton } from "@/app/_components/skeletons";
 import { ButtonLink, Card, EmptyState, PageHeader, Mono } from "@/components/ui";
 import { ARTICLE_CATEGORY_LABEL_TH } from "@/lib/articles/format";
 import { STAFF_ARTICLE_CONFIG } from "@/lib/articles/list-config";
@@ -39,7 +39,7 @@ export default function StaffArticlesPage({ searchParams }: { searchParams: Sear
           }
         />
       </div>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<ListSkeleton view="list" toolbar={false} />}>
         <ArticleList searchParams={searchParams} />
       </Suspense>
     </main>

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { TableSkeleton } from "@/app/_components/skeletons";
 import { ButtonLink, Card, EmptyState, Field, PageHeader, buttonClass, inputClass, Mono } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/dal";
 import { getActivityReport, getStudentReport } from "@/lib/reports/data";
@@ -39,7 +39,7 @@ export default function StaffReportsPage({ searchParams }: { searchParams: Searc
           }
         />
       </div>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<TableSkeleton />}>
         <Reports searchParams={searchParams} />
       </Suspense>
     </main>

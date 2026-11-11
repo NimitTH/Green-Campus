@@ -6,7 +6,7 @@ import { isNarrowed, parseListParams } from "@/app/_components/list/list-params"
 import { ListToolbar, ListToolbarSkeleton } from "@/app/_components/list/list-toolbar";
 import { Pagination } from "@/app/_components/list/pagination";
 import { loadClamped } from "@/app/_components/list/paging";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { ListSkeleton } from "@/app/_components/skeletons";
 import { RewardImage } from "@/app/_components/reward-image";
 import { ButtonLink, Card, EmptyState, PageHeader, Mono } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/dal";
@@ -36,7 +36,7 @@ export default function StaffRewardsPage({ searchParams }: { searchParams: Searc
           }
         />
       </div>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<ListSkeleton view="list" toolbar={false} />}>
         <RewardList searchParams={searchParams} />
       </Suspense>
     </main>

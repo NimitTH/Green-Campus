@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { FormSkeleton } from "@/app/_components/skeletons";
 import { ButtonLink, EmptyState, PageHeader } from "@/components/ui";
 import { listRates } from "@/lib/admin/queries";
 import { requireAdmin } from "@/lib/auth/dal";
@@ -25,7 +25,7 @@ export default function StaffRatesPage() {
       <p data-testid="rates-note" className="mb-4 rounded-input border border-warn bg-surface p-3 text-sm text-ink">
         การเปลี่ยนอัตราใช้กับผลที่อนุมัติหลังจากนี้เท่านั้น ผลที่อนุมัติไปแล้วไม่เปลี่ยน (แต้มและ carbon ถูกบันทึกไว้ตอนอนุมัติ)
       </p>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<FormSkeleton />}>
         <Rates />
       </Suspense>
     </main>

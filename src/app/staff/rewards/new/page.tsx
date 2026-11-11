@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { FormSkeleton } from "@/app/_components/skeletons";
 import { PageHeader } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/dal";
 import type { RewardInput } from "@/lib/rewards/validation";
@@ -16,7 +16,7 @@ export default function NewRewardPage() {
       <div className="mb-6">
         <PageHeader title="เพิ่มของรางวัล" />
       </div>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<FormSkeleton />}>
         <NewReward />
       </Suspense>
     </main>

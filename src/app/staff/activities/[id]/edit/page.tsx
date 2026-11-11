@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { FormSkeleton } from "@/app/_components/skeletons";
 import { PageHeader } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/dal";
 import { activityCoverUrl } from "@/lib/activities/cover";
@@ -21,7 +21,7 @@ export default function EditActivityPage({ params }: { params: Promise<{ id: str
       <div className="mb-6">
         <PageHeader title="แก้ไขกิจกรรม" />
       </div>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<FormSkeleton />}>
         <EditActivity params={params} />
       </Suspense>
     </main>

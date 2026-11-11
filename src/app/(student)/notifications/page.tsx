@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { NotificationsSection } from "@/app/_components/account-sections";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { ListSkeleton } from "@/app/_components/skeletons";
 import { PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth/dal";
 import { isStaffRole } from "@/lib/auth/routes";
@@ -18,7 +18,7 @@ export default function NotificationsPage({ searchParams }: { searchParams: Sear
       <div className="mb-5">
         <PageHeader title="แจ้งเตือน" />
       </div>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<ListSkeleton view="list" toolbar={false} />}>
         <Notifications searchParams={searchParams} />
       </Suspense>
     </main>

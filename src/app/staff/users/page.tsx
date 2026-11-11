@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Badge } from "@/app/_components/activity-ui";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { ListSkeleton } from "@/app/_components/skeletons";
 import { Button, ButtonLink, Card, EmptyState, PageHeader, inputClass } from "@/components/ui";
 import { listUsers, type AdminUser } from "@/lib/admin/queries";
 import { cleanSearchTerm, ROLE_LABEL_TH, toPage, toRoleFilter, USERS_PAGE_SIZE, type RoleFilter } from "@/lib/admin/validation";
@@ -29,7 +29,7 @@ export default function StaffUsersPage({ searchParams }: { searchParams: SearchP
           }
         />
       </div>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<ListSkeleton view="list" toolbar={false} />}>
         <Users searchParams={searchParams} />
       </Suspense>
     </main>

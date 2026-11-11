@@ -13,7 +13,7 @@ import { isNarrowed, parseListParams, type ListConfig, type ListState } from "./
 import { Pagination } from "./list/pagination";
 import { loadClamped } from "./list/paging";
 import { NotificationList } from "./notification-list";
-import { PageSkeleton } from "./page-skeleton";
+import { ListSkeleton } from "@/app/_components/skeletons";
 import { PasswordForm } from "./password-form";
 import { ProfileForm } from "./profile-form";
 
@@ -82,7 +82,7 @@ export function NotificationsSection({ base, role, searchParams }: { base: strin
       <Suspense fallback={<ListToolbarSkeleton views={false} filters={1} />}>
         <ListToolbar base={base} config={config} placeholder="ค้นหาการแจ้งเตือน" />
       </Suspense>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<ListSkeleton view="list" toolbar={false} />}>
         <NotificationResults base={base} config={config} searchParams={searchParams} />
       </Suspense>
     </>

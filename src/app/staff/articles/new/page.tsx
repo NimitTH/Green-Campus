@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { FormSkeleton } from "@/app/_components/skeletons";
 import { PageHeader } from "@/components/ui";
 import type { ArticleInput } from "@/lib/articles/format";
 import { requireStaff } from "@/lib/auth/dal";
@@ -16,7 +16,7 @@ export default function NewArticlePage() {
       <div className="mb-6">
         <PageHeader title="เขียนบทความ" />
       </div>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<FormSkeleton />}>
         <NewArticle />
       </Suspense>
     </main>

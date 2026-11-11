@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ProfileDetails } from "@/app/_components/account-sections";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { FormSkeleton } from "@/app/_components/skeletons";
 import { PageHeader } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/dal";
 
@@ -16,7 +16,7 @@ export default function StaffProfilePage({ searchParams }: { searchParams: Searc
       <div className="mb-6">
         <PageHeader title="โปรไฟล์ของฉัน" />
       </div>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<FormSkeleton />}>
         <Profile searchParams={searchParams} />
       </Suspense>
     </main>

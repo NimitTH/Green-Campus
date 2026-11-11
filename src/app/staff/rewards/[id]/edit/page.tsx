@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { PageSkeleton } from "@/app/_components/page-skeleton";
+import { FormSkeleton } from "@/app/_components/skeletons";
 import { PageHeader } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/dal";
 import { isAdminRole } from "@/lib/auth/routes";
@@ -20,7 +20,7 @@ export default function EditRewardPage({ params }: { params: Promise<{ id: strin
       <div className="mb-6">
         <PageHeader title="แก้ไขของรางวัล" />
       </div>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<FormSkeleton />}>
         <EditReward params={params} />
       </Suspense>
     </main>
