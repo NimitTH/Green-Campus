@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useId, useRef, useState } from "react";
 import { saveArticle } from "@/app/actions/articles";
 import { Button, ButtonLink, Field, inputClass } from "@/components/ui";
-import { ARTICLE_BUCKET, ARTICLE_LIMITS, type ArticleFieldErrors, type ArticleInput } from "@/lib/articles/format";
+import { ARTICLE_BUCKET, ARTICLE_CATEGORIES, ARTICLE_CATEGORY_LABEL_TH, ARTICLE_LIMITS, type ArticleFieldErrors, type ArticleInput } from "@/lib/articles/format";
 import { errorMessageTh, uploadErrorCode } from "@/lib/errors";
 import { ImageError, resizeToJpeg } from "@/lib/image";
 import { createBrowserClient } from "@/lib/supabase/browser";
@@ -198,6 +198,24 @@ export function ArticleForm({
           ข้อความล้วน เว้นบรรทัดว่างหนึ่งบรรทัดเพื่อขึ้นย่อหน้าใหม่
         </p>
         <FieldError id={f("body-error")} message={fieldErrors.body} />
+      </Field>
+
+      <Field id={f("category")} label="ประเภทบทความ" className="mb-4">
+        <select
+          id={f("category")}
+          value={values.category}
+          onChange={(e) => set("category", e.target.value)}
+          aria-invalid={fieldErrors.category ? true : undefined}
+          aria-describedby={fieldErrors.category ? f("category-error") : undefined}
+          className={inputClass}
+        >
+          {ARTICLE_CATEGORIES.map((c) => (
+            <option key={c} value={c}>
+              {ARTICLE_CATEGORY_LABEL_TH[c]}
+            </option>
+          ))}
+        </select>
+        <FieldError id={f("category-error")} message={fieldErrors.category} />
       </Field>
 
       <Field id={f("cover")} label="รูปปก (ไม่บังคับ)" className="mb-4">

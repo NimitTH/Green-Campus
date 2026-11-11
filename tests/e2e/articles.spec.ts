@@ -105,6 +105,39 @@ test("a teacher writes and publishes an article; anonymous visitors see it, and 
   }
 });
 
+test("a teacher saves an article as an announcement; /articles?category=announcement lists it with the badge, and the detail shows it", async ({ page, browser }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const title = `บทความประกาศ ${suffix}`;
+  const slug = `e2e-ann-${suffix}`;
+  let teacher: TestUser | undefined;
+  const anon = await browser.newContext();
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-cat-${suffix}`);
+    await signIn(page, teacher, "/staff/articles/new");
+    await fillArticle(page, { title, slug, body: "เนื้อหาประกาศ" });
+    await expect(page.getByLabel("ประเภทบทความ").filter({ visible: true })).toHaveValue("knowledge");
+    await page.getByLabel("ประเภทบทความ").filter({ visible: true }).selectOption("announcement");
+    await page.getByLabel(/^เผยแพร่/).filter({ visible: true }).check();
+    await page.getByRole("button", { name: "บันทึกบทความ" }).filter({ visible: true }).click();
+    await expect(page).toHaveURL((url) => url.pathname === "/staff/articles");
+
+    const anonPage = await anon.newPage();
+    await anonPage.goto(`/articles?category=announcement&q=${encodeURIComponent(title)}`);
+    const card = anonPage.getByTestId("article-card").filter({ hasText: title });
+    await expect(card).toHaveCount(1);
+    await expect(card).toContainText("ประกาศ");
+    await expect(card.locator('[data-cover-fallback="article"]')).toHaveCount(1);
+    await card.click();
+    await expect(anonPage).toHaveURL((url) => url.pathname === `/articles/${slug}`);
+    await expect(anonPage.getByTestId("article-category")).toHaveText("ประกาศ");
+    await expect(anonPage.locator("article img")).toHaveCount(0);
+  } finally {
+    await anon.close();
+    await deleteArticlesByTitle([title]);
+    await deleteUsers([teacher]);
+  }
+});
+
 test("a blank slug is generated; an admin deletes the article and its cover", async ({ page, browser }, testInfo) => {
   const suffix = uniqueSuffix(testInfo.project.name);
   const title = `บทความลบ ${suffix}`;

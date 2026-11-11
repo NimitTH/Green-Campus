@@ -119,6 +119,19 @@ describe("redesign 2 tokens", () => {
     });
   });
 
+  describe.each([
+    ["light", light, lightBody],
+    ["dark", dark, darkBody],
+    ["system dark", system, systemBody],
+  ] as const)("%s cover fallback tokens", (name, t, body) => {
+    it.each(["waste", "trees", "fixed", "article"])("--cover-%s and -ink exist; icon vs background >= 3:1", (k) => {
+      expect(decl(body, `cover-${k}`), `--cover-${k}`).toBeDefined();
+      expect(decl(body, `cover-${k}-ink`), `--cover-${k}-ink`).toBeDefined();
+      const r = contrast(t[`cover-${k}-ink`], t[`cover-${k}`]);
+      expect(r, `${name} cover-${k}: ${r.toFixed(2)}`).toBeGreaterThanOrEqual(3);
+    });
+  });
+
   it("paper surfaces live in components layer", () => {
     const comp = blockAfter(css, "@layer components").replace(/\s+/g, " ");
     for (const c of ["paper-ruled", "paper-dots", "paper-grid", "paper-kraft", "paper-torn"]) {

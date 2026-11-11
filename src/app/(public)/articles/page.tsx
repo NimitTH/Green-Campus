@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { LeafMark } from "@/app/_components/leaf-mark";
+import { CoverFallback } from "@/app/_components/cover-fallback";
 import { ListToolbar, ListToolbarSkeleton } from "@/app/_components/list/list-toolbar";
 import { isNarrowed, parseListParams, type ListState } from "@/app/_components/list/list-params";
 import { Pagination } from "@/app/_components/list/pagination";
@@ -85,17 +85,13 @@ async function ArticleResults({ searchParams }: { searchParams: SearchParams }) 
 
 const LINK_FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
-/** Cover image, or kraft paper with the leaf when the article has none. */
+/** Cover image, or the article CoverFallback when the article has none. */
 function Cover({ url, className }: { url: string | null; className: string }) {
   if (url) {
     // eslint-disable-next-line @next/next/no-img-element -- public Supabase Storage URL, already resized in the browser
     return <img src={url} alt="" loading="lazy" className={`${className} object-cover`} />;
   }
-  return (
-    <div aria-hidden="true" className={`${className} paper-kraft grid place-items-center [&>svg]:size-8`}>
-      <LeafMark />
-    </div>
-  );
+  return <CoverFallback kind="article" className={className} />;
 }
 
 function CategoryBadge({ article }: { article: PublicArticleListItem }) {

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Badge } from "@/app/_components/activity-ui";
-import { LeafMark } from "@/app/_components/leaf-mark";
+import { CoverFallback, coverKindForActivity } from "@/app/_components/cover-fallback";
 import { Card } from "@/components/ui";
 import { submissionStatusLabelTh, typeLabelTh } from "@/lib/activities/labels";
 import { formatBangkok } from "@/lib/datetime";
@@ -23,9 +23,7 @@ function Cover({ s, className }: { s: MySubmission; className: string }) {
         // eslint-disable-next-line @next/next/no-img-element -- public Supabase Storage URL, already resized in the browser
         <img src={s.coverUrl} alt="" loading="lazy" className="size-full object-cover" />
       ) : (
-        <span aria-hidden="true" className="paper-kraft grid size-full place-items-center [&>svg]:size-8">
-          <LeafMark />
-        </span>
+        <CoverFallback kind={coverKindForActivity(s.activityType)} className="size-full" />
       )}
     </Link>
   );

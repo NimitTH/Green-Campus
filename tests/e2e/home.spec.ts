@@ -129,6 +129,45 @@ test("anon home shows the cover on a seeded activity's card", async ({ page }, t
   }
 });
 
+// Redesign 4 Task 12 (DESIGN-4 5.2): an activity without a cover shows the per-type fallback (here "trees") on /activities
+// (signed in) and on the cached home page (poll until the feed revalidates, like the cover test above).
+test("a trees activity without a cover shows the trees fallback on /activities and on /", async ({ page, browser }, testInfo) => {
+  test.setTimeout(240_000);
+  const stamp = `${testInfo.project.name}-${Date.now()}`;
+  const title = `กิจกรรมปลูกไม่มีปก ${stamp}`;
+  let student: TestUser | undefined;
+  const anon = await browser.newContext();
+  try {
+    student = await createConfirmedUser("student", `student-fallback-${stamp}`);
+    const id = await createActivityRow(title, { type: "trees", unit_points: 5, ends_at: new Date(Date.now() + 30 * 60_000).toISOString() });
+    await signIn(page, student, "/activities");
+    await page.goto(`/activities?q=${encodeURIComponent(title)}`);
+    const listCard = page.getByRole("link", { name: new RegExp(title) });
+    await expect(listCard).toHaveCount(1);
+    await expect(listCard.locator('[data-cover-fallback="trees"]')).toHaveCount(1);
+    await expect(listCard.locator("img")).toHaveCount(0);
+
+    const home = await anon.newPage();
+    const card = home.getByRole("link", { name: title });
+    await expect
+      .poll(
+        async () => {
+          await home.goto("/");
+          await expect(home.getByRole("heading", { level: 2, name: "กิจกรรมที่เปิดรับอยู่" })).toBeVisible();
+          return card.count();
+        },
+        { timeout: 200_000, intervals: [2_000, 5_000, 10_000] },
+      )
+      .toBe(1);
+    await expect(card.locator('[data-cover-fallback="trees"]')).toHaveCount(1);
+    expect(id).toBeTruthy();
+  } finally {
+    await anon.close();
+    await deleteActivitiesByPrefix("กิจกรรมปลูกไม่มีปก");
+    await deleteUsers([student]);
+  }
+});
+
 // Review fix I1 (DESIGN-3 6.1): a staff save goes through saveActivity, which expires the home feed tag, so "/" shows
 // the saved change at once instead of after cacheLife("minutes"). The cache is primed first, then the save, then a
 // single load of "/" must already show the new title and the cover (no polling).

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CoverFallback, coverKindForActivity } from "@/app/_components/cover-fallback";
 import { Card, Mono } from "@/components/ui";
 import { typeLabelTh } from "@/lib/activities/labels";
 import { formatBangkok } from "@/lib/datetime";
@@ -47,7 +48,9 @@ function ActivityCard({ activity: a, now }: { activity: PublicActivity; now: Dat
         {a.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- public Supabase Storage URL, already resized in the browser
           <img src={a.coverUrl} alt="" loading="lazy" className="mb-3.5 aspect-[16/9] w-full rounded-input object-cover" />
-        ) : null}
+        ) : (
+          <CoverFallback kind={coverKindForActivity(a.type)} className="mb-3.5 aspect-[16/9] w-full rounded-input" />
+        )}
         <span className="self-start rounded-full bg-accent-soft px-2.5 py-1 text-xs font-semibold text-ink">{typeLabelTh(a.type)}</span>
         <h3 id={titleId} className="mt-2.5 line-clamp-3 font-display text-lg leading-[1.4] font-semibold break-words text-ink">{a.title}</h3>
         <p className="mt-1.5 text-sm text-muted">

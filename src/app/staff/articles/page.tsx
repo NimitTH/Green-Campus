@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Badge } from "@/app/_components/activity-ui";
-import { LeafMark } from "@/app/_components/leaf-mark";
+import { CoverFallback } from "@/app/_components/cover-fallback";
 import { isNarrowed, parseListParams } from "@/app/_components/list/list-params";
 import { ListToolbar, ListToolbarSkeleton } from "@/app/_components/list/list-toolbar";
 import { Pagination } from "@/app/_components/list/pagination";
@@ -46,17 +46,13 @@ export default function StaffArticlesPage({ searchParams }: { searchParams: Sear
   );
 }
 
-/** 96x64 cover thumbnail, or kraft paper with the leaf when the article has none (Task 12 swaps in CoverFallback). */
+/** 96x64 cover thumbnail, or the CoverFallback when the article has none. */
 function Thumb({ url }: { url: string | null }) {
   if (url) {
     // eslint-disable-next-line @next/next/no-img-element -- public Supabase Storage URL
     return <img src={url} alt="" loading="lazy" width={96} height={64} className="h-16 w-24 shrink-0 rounded-input object-cover" />;
   }
-  return (
-    <div aria-hidden="true" className="paper-kraft grid h-16 w-24 shrink-0 place-items-center rounded-input [&>svg]:size-8">
-      <LeafMark />
-    </div>
-  );
+  return <CoverFallback kind={"article"} className="h-16 w-24 shrink-0 rounded-input" />;
 }
 
 async function ArticleList({ searchParams }: { searchParams: SearchParams }) {

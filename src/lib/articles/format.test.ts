@@ -76,11 +76,11 @@ describe("excerpt", () => {
 });
 
 describe("validateArticle", () => {
-  const ok = { title: "  ลดขยะ  พลาสติก ", slug: "", body: "ย่อหน้า\n\nสอง", published: false };
+  const ok = { title: "  ลดขยะ  พลาสติก ", slug: "", body: "ย่อหน้า\n\nสอง", published: false, category: "knowledge" };
 
   it("accepts a valid article, collapses the title and leaves a blank slug to be generated", () => {
     const r = validateArticle(ok);
-    expect(r).toEqual({ ok: true, value: { title: "ลดขยะ พลาสติก", slug: null, body: "ย่อหน้า\n\nสอง", published: false } });
+    expect(r).toEqual({ ok: true, value: { title: "ลดขยะ พลาสติก", slug: null, body: "ย่อหน้า\n\nสอง", published: false, category: "knowledge" } });
   });
   it("trims and lowercases a typed slug", () => {
     const r = validateArticle({ ...ok, slug: "  Waste-Tips " });
@@ -107,6 +107,14 @@ describe("validateArticle", () => {
     const r = validateArticle({ ...ok, body: "\r\n a\r\n\r\nb \r\n" });
     expect(r.ok && r.value.body).toBe("a\n\nb");
   });
+  it("accepts the three categories and rejects any other with a field error", () => {
+    for (const category of ["knowledge", "announcement", "other"]) expect(validateArticle({ ...ok, category }).ok).toBe(true);
+    const r = validateArticle({ ...ok, category: "news" });
+    expect(r.ok).toBe(false);
+    expect(!r.ok && r.fieldErrors.category).toBeTruthy();
+    const a = validateArticle({ ...ok, category: "announcement" });
+    expect(a.ok && a.value.category).toBe("announcement");
+  });
   it("has the agreed duplicate-slug wording", () => {
     expect(SLUG_TAKEN_TH).toBe("slug นี้ถูกใช้แล้ว");
   });
@@ -114,9 +122,10 @@ describe("validateArticle", () => {
 
 describe("isArticleInputShape", () => {
   it("accepts the form shape only", () => {
-    expect(isArticleInputShape({ title: "", slug: "", body: "", published: true })).toBe(true);
+    expect(isArticleInputShape({ title: "", slug: "", body: "", published: true, category: "other" })).toBe(true);
+    expect(isArticleInputShape({ title: "", slug: "", body: "", published: true })).toBe(false);
     expect(isArticleInputShape({ title: "", slug: "", body: "" })).toBe(false);
-    expect(isArticleInputShape({ title: 1, slug: "", body: "", published: true })).toBe(false);
+    expect(isArticleInputShape({ title: 1, slug: "", body: "", published: true, category: "other" })).toBe(false);
     expect(isArticleInputShape(null)).toBe(false);
     expect(isArticleInputShape([])).toBe(false);
   });

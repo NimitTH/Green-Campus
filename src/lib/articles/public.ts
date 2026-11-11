@@ -32,6 +32,7 @@ export type PublicArticle = {
   coverUrl: string | null;
   createdAt: string;
   updatedAt: string;
+  category: ArticleCategory;
   /** Teacher/admin display name from staff_names(); null when there is no author or it is not staff. */
   authorName: string | null;
 };
@@ -139,13 +140,13 @@ export async function getPublishedArticle(slug: string): Promise<PublicArticle |
   if (!isValidSlug(slug)) return null;
   const { data, error } = await createAnonClient()
     .from("articles")
-    .select("id, slug, title, body, cover_path, created_at, updated_at, author_id")
+    .select("id, slug, title, body, cover_path, created_at, updated_at, author_id, category")
     .eq("slug", slug)
     .eq("published", true)
     .maybeSingle();
   if (error) throw new Error(`getPublishedArticle: ${error.message}`);
   if (!data) return null;
-  const r = data as Row & { author_id: string | null };
+  const r = data as Row & { author_id: string | null; category: string };
   const names = r.author_id ? await getStaffNames([r.author_id]) : new Map<string, string>();
   return {
     id: r.id,
@@ -155,6 +156,7 @@ export async function getPublishedArticle(slug: string): Promise<PublicArticle |
     coverUrl: coverUrl(r.cover_path),
     createdAt: r.created_at,
     updatedAt: r.updated_at,
+    category: isArticleCategory(r.category) ? r.category : "knowledge",
     authorName: (r.author_id && names.get(r.author_id)) || null,
   };
 }

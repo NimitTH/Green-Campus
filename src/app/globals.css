@@ -58,6 +58,16 @@
   --accent-deep: oklch(40% 0.1 150);
   --margin: color-mix(in oklab, var(--accent) 45%, transparent);
   --line: color-mix(in oklab, var(--accent) 12%, transparent);
+  /* Cover fallback (DESIGN-4 5.2): tinted background + line icon per type. Icon-vs-background contrast (WCAG, >= 3:1), light:
+     waste 6.6:1, trees 6.2:1, fixed 6.1:1, article 6.9:1; dark: waste 8.0:1, trees 7.9:1, fixed 7.8:1, article 7.8:1 (checked in theme-tokens.test.ts). */
+  --cover-waste: oklch(92.5% 0.045 150);
+  --cover-waste-ink: oklch(42% 0.09 152);
+  --cover-trees: oklch(93% 0.06 125);
+  --cover-trees-ink: oklch(44% 0.1 130);
+  --cover-fixed: oklch(93% 0.05 85);
+  --cover-fixed-ink: oklch(45% 0.09 75);
+  --cover-article: oklch(93% 0.02 255);
+  --cover-article-ink: oklch(42% 0.06 255);
   /* Paper grain (DESIGN-2 3.3): one data URI for body and .paper-grain, same in both themes. */
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.2 0 0 0 0 0.25 0 0 0 0 0.2 0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.07'/%3E%3C/svg%3E");
 }
@@ -91,6 +101,14 @@
   --accent-deep: oklch(70% 0.14 150);
   --margin: color-mix(in oklab, var(--accent) 35%, transparent);
   --line: color-mix(in oklab, var(--accent) 8%, transparent);
+  --cover-waste: oklch(30% 0.045 150);
+  --cover-waste-ink: oklch(82% 0.1 150);
+  --cover-trees: oklch(31% 0.055 125);
+  --cover-trees-ink: oklch(83% 0.11 125);
+  --cover-fixed: oklch(32% 0.05 85);
+  --cover-fixed-ink: oklch(84% 0.1 85);
+  --cover-article: oklch(30% 0.03 255);
+  --cover-article-ink: oklch(82% 0.06 255);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -123,6 +141,14 @@
     --accent-deep: oklch(70% 0.14 150);
     --margin: color-mix(in oklab, var(--accent) 35%, transparent);
     --line: color-mix(in oklab, var(--accent) 8%, transparent);
+    --cover-waste: oklch(30% 0.045 150);
+    --cover-waste-ink: oklch(82% 0.1 150);
+    --cover-trees: oklch(31% 0.055 125);
+    --cover-trees-ink: oklch(83% 0.11 125);
+    --cover-fixed: oklch(32% 0.05 85);
+    --cover-fixed-ink: oklch(84% 0.1 85);
+    --cover-article: oklch(30% 0.03 255);
+    --cover-article-ink: oklch(82% 0.06 255);
   }
 }
 
@@ -149,6 +175,14 @@
   --color-sun: var(--sun);
   --color-sea: var(--sea);
   --color-accent-deep: var(--accent-deep);
+  --color-cover-waste: var(--cover-waste);
+  --color-cover-waste-ink: var(--cover-waste-ink);
+  --color-cover-trees: var(--cover-trees);
+  --color-cover-trees-ink: var(--cover-trees-ink);
+  --color-cover-fixed: var(--cover-fixed);
+  --color-cover-fixed-ink: var(--cover-fixed-ink);
+  --color-cover-article: var(--cover-article);
+  --color-cover-article-ink: var(--cover-article-ink);
   --font-sans: var(--font-sarabun), sans-serif;
   --font-display: var(--font-plex-thai), var(--font-sarabun), sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;

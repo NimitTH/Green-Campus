@@ -66,17 +66,17 @@ export function excerpt(body: string, max: number = ARTICLE_LIMITS.excerptMax): 
   return `${chars.slice(0, max).join("").trimEnd()}…`;
 }
 
-export type ArticleInput = { title: string; slug: string; body: string; published: boolean };
+export type ArticleInput = { title: string; slug: string; body: string; published: boolean; category: string };
 export type ArticleFieldErrors = Partial<Record<keyof ArticleInput, string>>;
 /** slug null: generate one on save. */
-export type ArticleRecord = { title: string; slug: string | null; body: string; published: boolean };
+export type ArticleRecord = { title: string; slug: string | null; body: string; published: boolean; category: ArticleCategory };
 
 export function isArticleInputShape(value: unknown): value is ArticleInput {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   const proto = Object.getPrototypeOf(value);
   if (proto !== Object.prototype && proto !== null) return false;
   const v = value as Record<string, unknown>;
-  return typeof v.title === "string" && typeof v.slug === "string" && typeof v.body === "string" && typeof v.published === "boolean";
+  return typeof v.title === "string" && typeof v.slug === "string" && typeof v.body === "string" && typeof v.published === "boolean" && typeof v.category === "string";
 }
 
 export function validateArticle(
@@ -97,6 +97,8 @@ export function validateArticle(
   if (!body) errors.body = "กรอกเนื้อหาบทความ";
   else if (Array.from(body).length > ARTICLE_LIMITS.bodyMax) errors.body = `เนื้อหายาวได้ไม่เกิน ${ARTICLE_LIMITS.bodyMax.toLocaleString("th-TH")} ตัวอักษร`;
 
-  if (Object.keys(errors).length > 0) return { ok: false, fieldErrors: errors };
-  return { ok: true, value: { title, slug: slugText || null, body, published: input.published } };
+  if (!isArticleCategory(input.category)) errors.category = "เลือกประเภทบทความ";
+
+  if (Object.keys(errors).length > 0 || !isArticleCategory(input.category)) return { ok: false, fieldErrors: errors };
+  return { ok: true, value: { title, slug: slugText || null, body, published: input.published, category: input.category } };
 }

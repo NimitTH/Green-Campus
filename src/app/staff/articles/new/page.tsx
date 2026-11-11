@@ -8,7 +8,7 @@ import { ArticleForm } from "../_components/article-form";
 
 export const metadata: Metadata = { title: "เขียนบทความ | Green Campus" };
 
-const EMPTY: ArticleInput = { title: "", slug: "", body: "", published: false };
+const EMPTY: ArticleInput = { title: "", slug: "", body: "", published: false, category: "knowledge" };
 
 export default function NewArticlePage() {
   return (

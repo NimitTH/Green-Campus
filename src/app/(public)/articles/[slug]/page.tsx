@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CopyLinkButton } from "@/components/ui";
-import { excerpt, splitParagraphs } from "@/lib/articles/format";
+import { Badge, CopyLinkButton } from "@/components/ui";
+import { ARTICLE_CATEGORY_LABEL_TH, excerpt, splitParagraphs } from "@/lib/articles/format";
 import { getPublishedArticle } from "@/lib/articles/public";
 import { formatBangkok } from "@/lib/datetime";
 
@@ -41,7 +41,10 @@ export default async function ArticlePage({ params }: { params: Params }) {
           // eslint-disable-next-line @next/next/no-img-element -- public Supabase Storage URL, already resized in the browser
           <img src={article.coverUrl} alt="" className="mt-4 max-h-80 w-full rounded-card object-cover" />
         ) : null}
-        <h1 className="mt-6 font-display text-3xl leading-tight font-semibold break-words text-ink">{article.title}</h1>
+        <p className="mt-6">
+          <Badge data-testid="article-category">{ARTICLE_CATEGORY_LABEL_TH[article.category]}</Badge>
+        </p>
+        <h1 className="mt-3 font-display text-3xl leading-tight font-semibold break-words text-ink">{article.title}</h1>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <p className="text-sm text-muted">
             โดย {article.authorName ?? "-"} · {formatBangkok(article.createdAt)}

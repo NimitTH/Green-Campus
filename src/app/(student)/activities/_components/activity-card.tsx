@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { activityProgress } from "@/app/_components/home/activity-progress";
-import { LeafMark } from "@/app/_components/leaf-mark";
+import { CoverFallback, coverKindForActivity } from "@/app/_components/cover-fallback";
 import { Badge, Card } from "@/components/ui";
 import { statusLabelTh, typeLabelTh } from "@/lib/activities/labels";
 import type { StudentActivityItem } from "@/lib/activities/queries";
@@ -11,17 +11,13 @@ import { isEnded } from "@/lib/activities/status";
 
 const LINK_FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
-/** Cover image, or kraft paper with the leaf when the activity has none. */
-function Cover({ url, className }: { url: string | null; className: string }) {
+/** Cover image, or the per-type CoverFallback when the activity has none. */
+function Cover({ url, type, className }: { url: string | null; type: string; className: string }) {
   if (url) {
     // eslint-disable-next-line @next/next/no-img-element -- public Supabase Storage URL, already resized in the browser
     return <img src={url} alt="" loading="lazy" className={`${className} object-cover`} />;
   }
-  return (
-    <div aria-hidden="true" className={`${className} paper-kraft grid place-items-center [&>svg]:size-8`}>
-      <LeafMark />
-    </div>
-  );
+  return <CoverFallback kind={coverKindForActivity(type)} className={className} />;
 }
 
 function Badges({ activity: a }: { activity: StudentActivityItem }) {
@@ -64,7 +60,7 @@ export function ActivityCard({ activity: a, now }: { activity: StudentActivityIt
   return (
     <Card as="li" flush deco="pin" tilt className="min-w-0 hover:border-accent">
       <Link href={`/activities/${a.id}`} className={`block h-full rounded-card p-2.5 pb-4 ${LINK_FOCUS}`}>
-        <Cover url={a.coverUrl} className="aspect-[4/3] w-full rounded-input" />
+        <Cover url={a.coverUrl} type={a.type} className="aspect-[4/3] w-full rounded-input" />
         <div className="mx-1 mt-3">
           <Badges activity={a} />
           <h2 className="mt-2 line-clamp-3 font-display text-lg leading-snug font-semibold break-words text-ink">{a.title}</h2>
@@ -80,7 +76,7 @@ export function ActivityRow({ activity: a, now }: { activity: StudentActivityIte
   return (
     <li className="min-w-0">
       <Link href={`/activities/${a.id}`} className={`flex gap-3 rounded-card p-3 hover:bg-accent-soft md:p-4 ${LINK_FOCUS}`}>
-        <Cover url={a.coverUrl} className="h-16 w-24 shrink-0 rounded-input" />
+        <Cover url={a.coverUrl} type={a.type} className="h-16 w-24 shrink-0 rounded-input" />
         <div className="min-w-0 flex-1">
           <Badges activity={a} />
           <h2 className="mt-1 font-display text-base leading-snug font-semibold break-words text-ink">{a.title}</h2>

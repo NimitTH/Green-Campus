@@ -42,7 +42,7 @@ async function EditArticle({ params }: { params: Promise<{ id: string }> }) {
         id={article.id}
         coverUrl={article.coverUrl}
         updatedAt={article.updatedAt}
-        initial={{ title: article.title, slug: article.slug, body: article.body, published: article.published }}
+        initial={{ title: article.title, slug: article.slug, body: article.body, published: article.published, category: article.category }}
       />
       {isAdminRole(user.role) ? (
         <section aria-labelledby={deleteHeadingId} className="mt-10 border-t border-rule pt-6">

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ActivityDates, Badge } from "@/app/_components/activity-ui";
-import { LeafMark } from "@/app/_components/leaf-mark";
+import { CoverFallback, coverKindForActivity } from "@/app/_components/cover-fallback";
 import { isNarrowed, parseListParams } from "@/app/_components/list/list-params";
 import { ListToolbar, ListToolbarSkeleton } from "@/app/_components/list/list-toolbar";
 import { Pagination } from "@/app/_components/list/pagination";
@@ -46,17 +46,13 @@ export default function StaffActivitiesPage({ searchParams }: { searchParams: Se
 
 const STATUS_TONE = { draft: "gray", open: "green", closed: "amber" } as const;
 
-/** 96x64 cover thumbnail, or kraft paper with the leaf when the activity has none (Task 12 swaps in CoverFallback). */
-function Thumb({ url }: { url: string | null }) {
+/** 96x64 cover thumbnail, or the CoverFallback when the activity has none. */
+function Thumb({ url, type }: { url: string | null; type: string }) {
   if (url) {
     // eslint-disable-next-line @next/next/no-img-element -- public Supabase Storage URL
     return <img src={url} alt="" loading="lazy" width={96} height={64} className="h-16 w-24 shrink-0 rounded-input object-cover" />;
   }
-  return (
-    <div aria-hidden="true" className="paper-kraft grid h-16 w-24 shrink-0 place-items-center rounded-input [&>svg]:size-8">
-      <LeafMark />
-    </div>
-  );
+  return <CoverFallback kind={coverKindForActivity(type)} className="h-16 w-24 shrink-0 rounded-input" />;
 }
 
 async function ActivityList({ searchParams }: { searchParams: SearchParams }) {
@@ -90,7 +86,7 @@ async function ActivityList({ searchParams }: { searchParams: SearchParams }) {
           <ul className="space-y-3">
             {result.items.map((a) => (
               <Card as="li" key={a.id} className="flex gap-3">
-                <Thumb url={a.coverUrl} />
+                <Thumb url={a.coverUrl} type={a.type} />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
