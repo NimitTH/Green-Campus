@@ -11,7 +11,7 @@ import {
   deleteUsers,
   type TestUser,
 } from "./helpers/supabase-admin";
-import { bangkokInputValue } from "./helpers/time";
+import { bangkokInputValue, fillDateTime } from "./helpers/time";
 
 // Task 20 (R139): the demo-day script of spec 13.3, end to end through the UI, with its own fresh users
 // (it does not depend on the demo seed): register -> join -> the teacher issues a weigh code -> submit
@@ -59,8 +59,8 @@ test("demo script: register, join, weigh code, submit, approve (live bell), rede
     const staff = await staffContext.newPage();
     await signIn(staff, teacher, "/staff/activities/new");
     await staff.getByLabel("ชื่อกิจกรรม", { exact: true }).fill(title);
-    await staff.getByLabel("วันเวลาเริ่ม", { exact: true }).fill(bangkokInputValue(-60));
-    await staff.getByLabel("วันเวลาสิ้นสุด", { exact: true }).fill(bangkokInputValue(24 * 60));
+    await fillDateTime(staff.getByLabel("วันเวลาเริ่ม", { exact: true }), bangkokInputValue(-60));
+    await fillDateTime(staff.getByLabel("วันเวลาสิ้นสุด", { exact: true }), bangkokInputValue(24 * 60));
     await staff.getByRole("radio", { name: "ชั่งน้ำหนักขยะ" }).check();
     await expect(staff.getByLabel("ต้องใช้รหัสยืนยันจากจุดชั่งเมื่อส่งผล")).toBeChecked();
     await staff.getByLabel("สถานะ", { exact: true }).selectOption("open");

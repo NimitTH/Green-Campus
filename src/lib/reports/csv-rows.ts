@@ -1,6 +1,7 @@
 import type { ActivityReportRow, StudentReportRow } from "./data";
+import { formatThaiDate } from "../thai-date";
 
-// Report rows for toCsv (Task 16, R105). Decimal columns are written as 3-decimal strings (so "2.800"
+// Report rows for toCsv (Task 16, R105).  The date column is dd/mm/BE text (DESIGN-4 5.4). Decimal columns are written as 3-decimal strings (so "2.800"
 // is kept, and Excel still reads them as numbers); grams become kg.
 
 const kg = (grams: number) => (grams / 1000).toFixed(3);
@@ -10,7 +11,7 @@ export function activityCsvRows(rows: ActivityReportRow[]): (string | number)[][
     ["กิจกรรม", "วันที่จบ", "ผู้เข้าร่วม", "ผลที่อนุมัติ", "พลาสติก (กก.)", "กระดาษ (กก.)", "โลหะ/แก้ว (กก.)", "ขยะทั่วไป/อื่นๆ (กก.)", "ต้นไม้ (ต้น)", "แต้ม", "carbon (kgCO2e)"],
     ...rows.map((r) => [
       r.title,
-      r.endsOn,
+      formatThaiDate(r.endsOn),
       r.participants,
       r.approvedSubmissions,
       kg(r.gramsPlastic),

@@ -12,7 +12,7 @@ import {
   listSubmissions,
   type TestUser,
 } from "./helpers/supabase-admin";
-import { bangkokInputValue } from "./helpers/time";
+import { bangkokInputValue, fillDateTime } from "./helpers/time";
 
 // Task 18 Part B fix round 2: Cache Components keep visited routes alive in a hidden <Activity>, so a
 // form the user comes back to must not be stuck busy or show the previous visit's values and errors.
@@ -97,8 +97,8 @@ test("staff create two activities in a row; the second form is fresh with the de
       await expect(page.getByRole("alert").filter({ visible: true }).filter({ hasText: "กรุณาแก้ช่อง" })).toBeVisible();
 
       await visibleLabel(page, "ชื่อกิจกรรม").fill(title);
-      await visibleLabel(page, "วันเวลาเริ่ม").fill(bangkokInputValue(-60));
-      await visibleLabel(page, "วันเวลาสิ้นสุด").fill(bangkokInputValue(24 * 60));
+      await fillDateTime(visibleLabel(page, "วันเวลาเริ่ม"), bangkokInputValue(-60));
+      await fillDateTime(visibleLabel(page, "วันเวลาสิ้นสุด"), bangkokInputValue(24 * 60));
       await page.getByRole("radio", { name: "แต้มคงที่ต่อครั้ง" }).filter({ visible: true }).check();
       await visibleLabel(page, "แต้มต่อครั้ง").fill("10");
       await page.getByRole("button", { name: "บันทึกกิจกรรม" }).filter({ visible: true }).click();

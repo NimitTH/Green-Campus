@@ -10,3 +10,4 @@ export { ThemeToggle } from "./theme-toggle";
 export { Mono } from "./mono";
 export { Avatar } from "./avatar";
 export { CopyLinkButton } from "./copy-link-button";
+export { DateInput, DateTimeInput } from "./date-input";

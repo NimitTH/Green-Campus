@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { startTransition, useActionState, useId, useRef, useState } from "react";
 import { saveActivity, saveActivityForm, type ActivityFormState } from "@/app/actions/activities";
-import { Button, ButtonLink, Field, inputClass } from "@/components/ui";
+import { Button, ButtonLink, DateTimeInput, Field, inputClass } from "@/components/ui";
 import { ACTIVITY_BUCKET } from "@/lib/activities/cover";
 import { typeLabelTh } from "@/lib/activities/labels";
 import {
@@ -273,22 +273,12 @@ function ActivityFormFields({ initial, id, hasParticipants = false, coverUrl = n
       </div>
 
       <div className="grid gap-x-4 sm:grid-cols-2">
-        <TextField
-          label="วันเวลาเริ่ม"
-          name="startsAt"
-          type="datetime-local"
-          defaultValue={values.startsAt}
-          errors={errors}
-          hint="เวลาประเทศไทย"
-        />
-        <TextField
-          label="วันเวลาสิ้นสุด"
-          name="endsAt"
-          type="datetime-local"
-          defaultValue={values.endsAt}
-          errors={errors}
-          hint="ส่งผลได้ถึง 3 วันหลังเวลาสิ้นสุด"
-        />
+        <Field id={f("startsAt")} label="วันเวลาเริ่ม" hint={errors?.startsAt ? undefined : "เวลาประเทศไทย"} className="mb-4">
+          <DateTimeInput id={f("startsAt")} name="startsAt" defaultValue={values.startsAt} error={errors?.startsAt} />
+        </Field>
+        <Field id={f("endsAt")} label="วันเวลาสิ้นสุด" hint={errors?.endsAt ? undefined : "ส่งผลได้ถึง 3 วันหลังเวลาสิ้นสุด"} className="mb-4">
+          <DateTimeInput id={f("endsAt")} name="endsAt" defaultValue={values.endsAt} error={errors?.endsAt} />
+        </Field>
       </div>
 
       <fieldset className="mb-4" aria-describedby={errors?.type ? f("type-error") : undefined}>

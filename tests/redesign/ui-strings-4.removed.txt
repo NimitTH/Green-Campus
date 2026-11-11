@@ -23,3 +23,5 @@ text:เปลี่ยนบทบาท และปรับแต้มน�
 text:แก้ชื่อกลุ่มขยะ แต้มต่อกิโลกรัม และค่า carbon
 # Task 10: /staff/orders uses the shared no-match copy "ไม่พบรายการที่ตรงกับคำค้น" (ruling R5).
 text:ไม่พบออเดอร์ที่ตรงกับคำค้น
+# Task 14: the CSV date note now describes dd/mm/BE dates (DESIGN-4 5.4).
+text:วันที่ในไฟล์ CSV เป็นรูปแบบ ISO ปี ค.ศ. (เช่น 2026-10-22) เพื่อให้ Excel / Google Sheets เรียงและกรองได้ถูก

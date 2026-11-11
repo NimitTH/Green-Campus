@@ -16,7 +16,7 @@ import {
   updateActivity,
   type TestUser,
 } from "./helpers/supabase-admin";
-import { bangkokInputValue } from "./helpers/time";
+import { bangkokInputValue, fillDateTime } from "./helpers/time";
 
 /** On /staff/activities/new: fill a "fixed" activity (started 1 h ago, ends in 1 day) and save. */
 async function fillAndSaveActivity(
@@ -29,8 +29,8 @@ async function fillAndSaveActivity(
   if (extra.details !== undefined) await page.getByLabel("รายละเอียดกิจกรรม", { exact: true }).fill(extra.details);
   if (extra.cover) await page.getByLabel("ภาพปก", { exact: true }).setInputFiles({ name: "cover.png", mimeType: "image/png", buffer: PNG_1X1 });
   await page.getByLabel("สถานที่ (ไม่บังคับ)", { exact: true }).fill("ลานกิจกรรม");
-  await page.getByLabel("วันเวลาเริ่ม", { exact: true }).fill(bangkokInputValue(-60));
-  await page.getByLabel("วันเวลาสิ้นสุด", { exact: true }).fill(bangkokInputValue(24 * 60));
+  await fillDateTime(page.getByLabel("วันเวลาเริ่ม", { exact: true }), bangkokInputValue(-60));
+  await fillDateTime(page.getByLabel("วันเวลาสิ้นสุด", { exact: true }), bangkokInputValue(24 * 60));
   await page.getByRole("radio", { name: "แต้มคงที่ต่อครั้ง" }).check();
   await page.getByLabel("แต้มต่อครั้ง", { exact: true }).fill("10");
   await page.getByLabel("สถานะ", { exact: true }).selectOption(status);
@@ -402,5 +402,36 @@ test("staff activity list: filters, participant sort, view link and back link", 
   } finally {
     await deleteActivitiesByPrefix(prefix);
     await deleteUsers([teacher, s1, s2]);
+  }
+});
+
+// DESIGN-4 5.4: the DateTimeInput posts the same Bangkok wall time the datetime-local field did.
+test("activity form: Thai date and time inputs round-trip to the edit page", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const title = `กิจกรรมวันที่ ${suffix}`;
+  let teacher: TestUser | undefined;
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-dt-${suffix}`);
+    await signIn(page, teacher, "/staff/activities/new");
+    await page.getByLabel("ชื่อกิจกรรม", { exact: true }).fill(title);
+    const starts = page.getByLabel("วันเวลาเริ่ม", { exact: true });
+    const ends = page.getByLabel("วันเวลาสิ้นสุด", { exact: true });
+    await fillDateTime(starts, "2036-05-10T08:05");
+    await fillDateTime(ends, "2036-05-11T23:30");
+    await page.getByRole("radio", { name: "แต้มคงที่ต่อครั้ง" }).check();
+    await page.getByLabel("แต้มต่อครั้ง", { exact: true }).fill("10");
+    await page.getByLabel("สถานะ", { exact: true }).selectOption("draft");
+    await page.getByRole("button", { name: "บันทึกกิจกรรม" }).click();
+    await expect(page).toHaveURL((url) => url.pathname === "/staff/activities");
+
+    await page.getByRole("link", { name: `แก้ไข ${title}` }).click();
+    await expect(page).toHaveURL(/\/staff\/activities\/[^/]+\/edit/);
+    await expect(page.getByLabel("วันเวลาเริ่ม", { exact: true }).filter({ visible: true })).toHaveValue("10/05/2579");
+    await expect(page.locator('[id$="-startsAt-time"]:visible')).toHaveValue("08:05");
+    await expect(page.getByLabel("วันเวลาสิ้นสุด", { exact: true }).filter({ visible: true })).toHaveValue("11/05/2579");
+    await expect(page.locator('[id$="-endsAt-time"]:visible')).toHaveValue("23:30");
+  } finally {
+    await deleteActivitiesByTitle(title);
+    await deleteUsers([teacher]);
   }
 });

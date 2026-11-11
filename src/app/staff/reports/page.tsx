@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { TableSkeleton } from "@/app/_components/skeletons";
-import { ButtonLink, Card, EmptyState, Field, PageHeader, buttonClass, inputClass, Mono } from "@/components/ui";
+import { ButtonLink, Card, DateInput, EmptyState, Field, PageHeader, buttonClass, Mono } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/dal";
 import { getActivityReport, getStudentReport } from "@/lib/reports/data";
 import { bangkokMonthRange, parseDateRange } from "@/lib/reports/range";
@@ -63,10 +63,10 @@ async function Reports({ searchParams }: { searchParams: SearchParams }) {
     <>
       <form method="get" className="mb-4 flex flex-wrap items-end gap-3">
         <Field id={`${uid}-from`} label="ตั้งแต่วันที่จบ" className="min-w-40 flex-1">
-          <input id={`${uid}-from`} name="from" type="date" required defaultValue={range.from} className={inputClass} />
+          <DateInput key={range.from} id={`${uid}-from`} name="from" required defaultValue={range.from} />
         </Field>
         <Field id={`${uid}-to`} label="ถึงวันที่จบ" className="min-w-40 flex-1">
-          <input id={`${uid}-to`} name="to" type="date" required defaultValue={range.to} className={inputClass} />
+          <DateInput key={range.to} id={`${uid}-to`} name="to" required defaultValue={range.to} />
         </Field>
         <button type="submit" className={buttonClass({ variant: "primary" })}>
           ดูรายงาน
@@ -84,7 +84,7 @@ async function Reports({ searchParams }: { searchParams: SearchParams }) {
         <ul className="mt-1 list-disc space-y-1 pl-5">
           <li>นับเฉพาะผลที่อนุมัติแล้ว ของกิจกรรมที่จบแล้ว (ปิดกิจกรรมหรือเลยเวลาสิ้นสุด) ไม่นับกิจกรรมฉบับร่าง</li>
           <li>เลือกช่วงตามวันที่กิจกรรมจบ (เวลาประเทศไทย) ผลที่อนุมัติหลังกิจกรรมจบแล้วจึงยังนับในช่วงของกิจกรรมนั้น</li>
-          <li data-testid="csv-date-note">วันที่ในไฟล์ CSV เป็นรูปแบบ ISO ปี ค.ศ. (เช่น 2026-10-22) เพื่อให้ Excel / Google Sheets เรียงและกรองได้ถูก</li>
+          <li data-testid="csv-date-note">วันที่ในไฟล์ CSV เป็นรูปแบบ วว/ดด/ปปปป ปี พ.ศ. (เช่น 22/10/2569) เป็นข้อความ ตรงกับที่แสดงในหน้านี้</li>
           <li>แต้มและ carbon นับจากรายการที่ระบบบันทึกตอนอนุมัติ ไม่รวมการปรับแต้ม การแลกของรางวัล และการคืนแต้ม</li>
           <li data-testid="dashboard-note">
             แดชบอร์ดและอันดับนับทันทีที่ผลได้รับอนุมัติ แม้กิจกรรมยังไม่จบ และรวมการปรับแต้มด้วย ตัวเลขจึงอาจสูงกว่ารายงานชั่วคราว

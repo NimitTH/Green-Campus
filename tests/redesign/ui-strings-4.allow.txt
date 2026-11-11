@@ -65,3 +65,25 @@ text:ยังไม่มีออเดอร์ที่รอรับ
 # Task 12 (article category): form select label and the detail badge test id.
 text:ประเภทบทความ
 testid:article-category
+# Task 14 (DESIGN-4 5.4): DateInput / DateTimeInput, calendar popover, CSV date note on /staff/reports.
+aria:${Number(day.slice(8))} ${THAI_MONTHS_LONG[vm]} ${vy + BE_OFFSET}
+aria:เลือกวันที่
+aria:เลือกวันที่จากปฏิทิน
+aria:เวลา
+text:จ.
+text:ชช:นน
+text:พ.
+text:พฤ.
+text:วว/ดด/ปปปป
+text:วันที่ในไฟล์ CSV เป็นรูปแบบ วว/ดด/ปปปป ปี พ.ศ. (เช่น 22/10/2569) เป็นข้อความ ตรงกับที่แสดงในหน้านี้
+text:วันที่ไม่ถูกต้อง (วว/ดด/ปปปป พ.ศ.)
+text:ศ.
+text:ส.
+text:อ.
+text:อา.
+text:เดือนก่อน
+text:เดือนถัดไป
+text:เลือกวันที่
+text:เลือกวันที่จากปฏิทิน
+text:เวลา
+text:เวลาไม่ถูกต้อง (ชช:นน 24 ชั่วโมง)

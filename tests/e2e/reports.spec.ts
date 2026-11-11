@@ -85,7 +85,7 @@ test("reports: staff previews and downloads both CSVs; student 403, anonymous 40
     expect([...bytes.subarray(0, 3)]).toEqual(BOM);
     const text = bytes.toString("utf8").slice(1);
     expect(text.split("\r\n")[0]).toBe(ACTIVITY_HEADER);
-    expect(text).toContain(`${title},${year}-05-10,1,0,0.000,0.000,0.000,0.000,0,0,0.000\r\n`);
+    expect(text).toContain(`${title},10/05/${year + 543},1,0,0.000,0.000,0.000,0.000,0,0,0.000\r\n`);
 
     // students CSV: header only (no approved results), BOM first
     const sres = await page.request.get(`/api/reports/csv?kind=students&from=${from}&to=${to}`);
@@ -219,3 +219,56 @@ async function pdfText(bytes: Buffer): Promise<string> {
   await task.destroy();
   return text.replace(/\s/g, "");
 }
+
+// DESIGN-4 5.4: Thai dd/mm/BE date fields on the report form. The hidden value (and so the CSV link) stays ISO.
+test("reports: Thai date inputs post ISO, the calendar works from the keyboard, an impossible date shows an error", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  let teacher: TestUser | undefined;
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-rd-${suffix}`);
+    await signIn(page, teacher, "/staff/reports");
+    const from = page.getByLabel("ตั้งแต่วันที่จบ", { exact: true });
+    const to = page.getByLabel("ถึงวันที่จบ", { exact: true });
+    const csv = page.getByRole("link", { name: "ดาวน์โหลด CSV รายกิจกรรม" });
+
+    await from.fill("01/10/2569");
+    await to.fill("31/10/2569");
+    await page.getByRole("button", { name: "ดูรายงาน" }).click();
+    await expect(page).toHaveURL(/from=2026-10-01&to=2026-10-31/);
+    await expect(csv).toHaveAttribute("href", "/api/reports/csv?kind=activities&from=2026-10-01&to=2026-10-31");
+    await expect(from).toHaveValue("01/10/2569");
+
+    // calendar: open, move with the keyboard, Enter picks, Esc returns focus to the button
+    const open = page.getByRole("button", { name: "เลือกวันที่จากปฏิทิน" }).first();
+    await open.click();
+    const dialog = page.getByRole("dialog", { name: "เลือกวันที่" });
+    await expect(dialog.getByRole("grid")).toBeVisible();
+    await expect(dialog).toContainText("ตุลาคม 2569");
+    await expect(dialog.getByRole("gridcell", { name: "1 ตุลาคม 2569", exact: true })).toBeFocused();
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("PageDown");
+    await expect(dialog).toContainText("พฤศจิกายน 2569");
+    await page.keyboard.press("Enter");
+    await expect(dialog).toHaveCount(0);
+    await expect(open).toBeFocused();
+    await expect(from).toHaveValue("09/11/2569");
+    await open.click();
+    await expect(page.getByRole("dialog", { name: "เลือกวันที่" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog", { name: "เลือกวันที่" })).toHaveCount(0);
+    await expect(open).toBeFocused();
+
+    // an impossible date: the Thai error (linked by aria-describedby), no navigation
+    const url = page.url();
+    await from.fill("31/04/2569");
+    await expect(page.getByText("วันที่ไม่ถูกต้อง (วว/ดด/ปปปป พ.ศ.)")).toBeVisible();
+    await expect(from).toHaveAttribute("aria-invalid", "true");
+    const describedBy = await from.getAttribute("aria-describedby");
+    await expect(page.locator(`[id="${describedBy}"]`)).toContainText("วันที่ไม่ถูกต้อง");
+    await page.getByRole("button", { name: "ดูรายงาน" }).click();
+    await expect(page).toHaveURL(url);
+  } finally {
+    await deleteUsers([teacher]);
+  }
+});
