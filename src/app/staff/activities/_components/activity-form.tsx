@@ -274,10 +274,10 @@ function ActivityFormFields({ initial, id, hasParticipants = false, coverUrl = n
 
       <div className="grid gap-x-4 sm:grid-cols-2">
         <Field id={f("startsAt")} label="วันเวลาเริ่ม" hint={errors?.startsAt ? undefined : "เวลาประเทศไทย"} className="mb-4">
-          <DateTimeInput id={f("startsAt")} name="startsAt" defaultValue={values.startsAt} error={errors?.startsAt} />
+          <DateTimeInput id={f("startsAt")} name="startsAt" timeLabel="เวลาเริ่ม" defaultValue={values.startsAt} error={errors?.startsAt} />
         </Field>
         <Field id={f("endsAt")} label="วันเวลาสิ้นสุด" hint={errors?.endsAt ? undefined : "ส่งผลได้ถึง 3 วันหลังเวลาสิ้นสุด"} className="mb-4">
-          <DateTimeInput id={f("endsAt")} name="endsAt" defaultValue={values.endsAt} error={errors?.endsAt} />
+          <DateTimeInput id={f("endsAt")} name="endsAt" timeLabel="เวลาสิ้นสุด" defaultValue={values.endsAt} error={errors?.endsAt} />
         </Field>
       </div>
 

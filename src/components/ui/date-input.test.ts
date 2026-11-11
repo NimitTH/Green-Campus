@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { DateInput, DateTimeInput } from "./index";
-import { calendarGrid, moveDay, parseThaiTime } from "./date-input";
+import { CalendarGrid, calendarGrid, moveDay, parseThaiTime } from "./date-input";
 
 const html = (el: React.ReactElement) => renderToStaticMarkup(el);
 
@@ -35,6 +35,28 @@ describe("DateTimeInput", () => {
     const out = html(createElement(DateTimeInput, { name: "startsAt", id: "s", error: "เลือกวันและเวลาเริ่มกิจกรรม" }));
     expect(out).toContain('aria-describedby="s-error"');
     expect(out).toContain('id="s-error"');
+  });
+});
+
+describe("CalendarGrid", () => {
+  const grid = (extra: object) =>
+    html(createElement(CalendarGrid, { year: 2026, month: 10, label: "พฤศจิกายน 2569", focusDay: "2026-11-10", value: "", onPick: () => {}, onKeyDown: () => {}, cellRef: () => {}, ...extra }));
+  it("marks days outside min/max with aria-disabled", () => {
+    const out = grid({ min: "2026-11-05", max: "2026-11-20" });
+    const cell = (d: number) => new RegExp(`<td[^>]*aria-label="${d} พฤศจิกายน 2569"[^>]*>`).exec(out)?.[0] ?? "";
+    expect(cell(4)).toContain('aria-disabled="true"');
+    expect(cell(5)).not.toContain("aria-disabled");
+    expect(cell(20)).not.toContain("aria-disabled");
+    expect(cell(21)).toContain('aria-disabled="true"');
+    expect(out).toContain('role="grid"');
+  });
+});
+
+describe("DateTimeInput a11y", () => {
+  it("uses a distinct time label and marks a server error invalid", () => {
+    const out = html(createElement(DateTimeInput, { name: "n", id: "s", timeLabel: "เวลาเริ่ม", error: "ผิด" }));
+    expect(out).toContain('aria-label="เวลาเริ่ม"');
+    expect(out).toMatch(/<input[^>]*id="s"[^>]*aria-invalid="true"/);
   });
 });
 

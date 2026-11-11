@@ -259,6 +259,17 @@ test("reports: Thai date inputs post ISO, the calendar works from the keyboard, 
     await expect(page.getByRole("dialog", { name: "เลือกวันที่" })).toHaveCount(0);
     await expect(open).toBeFocused();
 
+    // month buttons keep focus (repeatable); focus leaving the dialog closes it
+    await open.click();
+    const next = page.getByRole("button", { name: "เดือนถัดไป" });
+    await next.click();
+    await expect(next).toBeFocused();
+    await next.click();
+    await expect(next).toBeFocused();
+    await expect(page.getByRole("dialog", { name: "เลือกวันที่" })).toBeVisible();
+    await page.getByRole("button", { name: "ดูรายงาน" }).focus();
+    await expect(page.getByRole("dialog", { name: "เลือกวันที่" })).toHaveCount(0);
+
     // an impossible date: the Thai error (linked by aria-describedby), no navigation
     const url = page.url();
     await from.fill("31/04/2569");

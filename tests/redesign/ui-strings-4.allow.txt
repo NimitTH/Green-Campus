@@ -75,7 +75,7 @@ text:ชช:นน
 text:พ.
 text:พฤ.
 text:วว/ดด/ปปปป
-text:วันที่ในไฟล์ CSV เป็นรูปแบบ วว/ดด/ปปปป ปี พ.ศ. (เช่น 22/10/2569) เป็นข้อความ ตรงกับที่แสดงในหน้านี้
+text:วันที่ในไฟล์ CSV เป็นรูปแบบ วว/ดด/ปปปป ปี พ.ศ. (เช่น 22/10/2569)
 text:วันที่ไม่ถูกต้อง (วว/ดด/ปปปป พ.ศ.)
 text:ศ.
 text:ส.
@@ -87,3 +87,7 @@ text:เลือกวันที่
 text:เลือกวันที่จากปฏิทิน
 text:เวลา
 text:เวลาไม่ถูกต้อง (ชช:นน 24 ชั่วโมง)
+# Task 14 fix round: distinct time field names, calendar grid extracted.
+aria:${Number(day.slice(8))} ${THAI_MONTHS_LONG[month]} ${year + BE_OFFSET}
+text:เวลาสิ้นสุด
+text:เวลาเริ่ม

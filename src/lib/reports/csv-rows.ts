@@ -1,8 +1,9 @@
 import type { ActivityReportRow, StudentReportRow } from "./data";
 import { formatThaiDate } from "../thai-date";
 
-// Report rows for toCsv (Task 16, R105).  The date column is dd/mm/BE text (DESIGN-4 5.4). Decimal columns are written as 3-decimal strings (so "2.800"
-// is kept, and Excel still reads them as numbers); grams become kg.
+// Report rows for toCsv (Task 16, R105). Decimal columns are written as 3-decimal strings (so "2.800"
+// is kept, and Excel still reads them as numbers); grams become kg. The date column is dd/mm/BE text
+// (DESIGN-4 5.4).
 
 const kg = (grams: number) => (grams / 1000).toFixed(3);
 

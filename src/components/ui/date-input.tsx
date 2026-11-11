@@ -72,6 +72,65 @@ function inRange(value: string, min?: string, max?: string): boolean {
 const iconButton =
   "inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-input border border-rule-strong bg-surface text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
+type CalendarGridProps = {
+  year: number;
+  month: number;
+  label: string;
+  focusDay: string;
+  value: string;
+  min?: string;
+  max?: string;
+  onPick: (day: string) => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+  cellRef: (day: string, el: HTMLElement | null) => void;
+};
+
+/** The month table: a role=grid with a roving tabindex; days outside min/max are aria-disabled. */
+export function CalendarGrid({ year, month, label, focusDay, value, min, max, onPick, onKeyDown, cellRef }: CalendarGridProps) {
+  return (
+    <table role="grid" aria-label={label} onKeyDown={onKeyDown} className="w-full table-fixed text-center text-sm">
+      <thead>
+        <tr>
+          {WEEKDAYS.map((w) => (
+            <th key={w} scope="col" className="py-1 text-xs font-medium text-muted">
+              {w}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {calendarGrid(year, month).map((week, i) => (
+          <tr key={i}>
+            {week.map((day, j) => {
+              if (day === "") return <td key={j} />;
+              const enabled = inRange(day, min, max);
+              return (
+                <td
+                  key={j}
+                  ref={(el) => cellRef(day, el)}
+                  role="gridcell"
+                  tabIndex={day === focusDay ? 0 : -1}
+                  aria-selected={day === value}
+                  aria-disabled={enabled ? undefined : true}
+                  aria-label={`${Number(day.slice(8))} ${THAI_MONTHS_LONG[month]} ${year + BE_OFFSET}`}
+                  onClick={() => onPick(day)}
+                  className={[
+                    "h-10 rounded-input p-0 font-mono focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
+                    day === value ? "bg-accent text-white" : "hover:bg-accent-soft",
+                    enabled ? "cursor-pointer" : "cursor-not-allowed opacity-40",
+                  ].join(" ")}
+                >
+                  {Number(day.slice(8))}
+                </td>
+              );
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 type DateFieldProps = {
   id: string;
   initialIso: string;
@@ -80,11 +139,13 @@ type DateFieldProps = {
   max?: string;
   errorId: string;
   describedBy?: string;
+  /** A server-side error on this field. */
+  externalInvalid?: boolean;
   onChange: (iso: string, invalid: boolean) => void;
 };
 
 /** The text field, the calendar button and the popover. Reports its ISO value ("" when empty or invalid) upward. */
-function DateField({ id, initialIso, required, min, max, errorId, describedBy, onChange }: DateFieldProps) {
+function DateField({ id, initialIso, required, min, max, errorId, describedBy, externalInvalid, onChange }: DateFieldProps) {
   const [text, setText] = useState(formatThaiDate(initialIso));
   const [touched, setTouched] = useState(false);
   const [open, setOpen] = useState(false);
@@ -94,6 +155,7 @@ function DateField({ id, initialIso, required, min, max, errorId, describedBy, o
   const buttonRef = useRef<HTMLButtonElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const cellRefs = useRef(new Map<string, HTMLElement>());
+  const focusGrid = useRef(true); // false after a month button press: focus stays on that button
   const dialogId = `${id}-calendar`;
 
   const parsed = text.trim() === "" ? null : parseThaiDate(text);
@@ -109,7 +171,7 @@ function DateField({ id, initialIso, required, min, max, errorId, describedBy, o
 
   // Focus the roving day after it moves or the popover opens.
   useEffect(() => {
-    if (open) cellRefs.current.get(focusDay)?.focus();
+    if (open && focusGrid.current) cellRefs.current.get(focusDay)?.focus();
   }, [open, focusDay, view]);
 
   // A press outside closes the popover.
@@ -131,6 +193,7 @@ function DateField({ id, initialIso, required, min, max, errorId, describedBy, o
     const [y, m] = split(start);
     setView([y, m]);
     setFocusDay(start);
+    focusGrid.current = true;
     setOpen(true);
   }
 
@@ -146,7 +209,8 @@ function DateField({ id, initialIso, required, min, max, errorId, describedBy, o
     close();
   }
 
-  function goTo(day: string) {
+  function goTo(day: string, moveFocus = true) {
+    focusGrid.current = moveFocus;
     const [y, m] = split(day);
     setView([y, m]);
     setFocusDay(day);
@@ -186,7 +250,7 @@ function DateField({ id, initialIso, required, min, max, errorId, describedBy, o
           placeholder="วว/ดด/ปปปป"
           required={required}
           value={text}
-          aria-invalid={showError ? true : undefined}
+          aria-invalid={showError || externalInvalid ? true : undefined}
           aria-describedby={describedIds}
           onChange={(e) => setText(autoFormat(e.target.value, isDeleting(e), "/"))}
           onBlur={() => setTouched(true)}
@@ -218,6 +282,11 @@ function DateField({ id, initialIso, required, min, max, errorId, describedBy, o
           id={dialogId}
           role="dialog"
           aria-label="เลือกวันที่"
+          onBlur={(e) => {
+            // Tab (or a click) out of the dialog closes it; the toggle button handles its own click.
+            const next = e.relatedTarget as Node | null;
+            if (next && !e.currentTarget.contains(next) && next !== buttonRef.current) setOpen(false);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Escape") {
               e.preventDefault();
@@ -228,61 +297,33 @@ function DateField({ id, initialIso, required, min, max, errorId, describedBy, o
           className="absolute left-0 top-full z-30 mt-1 w-72 max-w-[calc(100vw-2rem)] rounded-card border border-rule bg-surface p-3 shadow-sheet"
         >
           <div className="mb-2 flex items-center justify-between gap-2">
-            <button type="button" onClick={() => goTo(moveDay(focusDay, 0, -1))} className={iconButton}>
+            <button type="button" onClick={() => goTo(moveDay(focusDay, 0, -1), false)} className={iconButton}>
               <span className="sr-only">เดือนก่อน</span>
               <span aria-hidden="true">‹</span>
             </button>
             <div aria-live="polite" className="font-display text-base font-semibold">
               {monthLabel}
             </div>
-            <button type="button" onClick={() => goTo(moveDay(focusDay, 0, 1))} className={iconButton}>
+            <button type="button" onClick={() => goTo(moveDay(focusDay, 0, 1), false)} className={iconButton}>
               <span className="sr-only">เดือนถัดไป</span>
               <span aria-hidden="true">›</span>
             </button>
           </div>
-          <table role="grid" aria-label={monthLabel} onKeyDown={onGridKeyDown} className="w-full table-fixed text-center text-sm">
-            <thead>
-              <tr>
-                {WEEKDAYS.map((w) => (
-                  <th key={w} scope="col" className="py-1 text-xs font-medium text-muted">
-                    {w}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {calendarGrid(vy, vm).map((week, i) => (
-                <tr key={i}>
-                  {week.map((day, j) => {
-                    if (day === "") return <td key={j} />;
-                    const enabled = inRange(day, min, max);
-                    return (
-                      <td
-                        key={j}
-                        ref={(el) => {
-                          if (el) cellRefs.current.set(day, el);
-                          else cellRefs.current.delete(day);
-                        }}
-                        role="gridcell"
-                        tabIndex={day === focusDay ? 0 : -1}
-                        aria-selected={day === value}
-                        aria-disabled={enabled ? undefined : true}
-                        aria-label={`${Number(day.slice(8))} ${THAI_MONTHS_LONG[vm]} ${vy + BE_OFFSET}`}
-                        onClick={() => pick(day)}
-                        className={[
-                          "h-10 rounded-input p-0 font-mono focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
-                          day === value ? "bg-accent text-white" : "hover:bg-accent-soft",
-                          enabled ? "cursor-pointer" : "cursor-not-allowed opacity-40",
-                        ].join(" ")}
-                      >
-                        {Number(day.slice(8))}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <CalendarGrid
+            year={vy}
+            month={vm}
+            label={monthLabel}
+            focusDay={focusDay}
+            value={value}
+            min={min}
+            max={max}
+            onPick={pick}
+            onKeyDown={onGridKeyDown}
+            cellRef={(day, el) => {
+              if (el) cellRefs.current.set(day, el);
+              else cellRefs.current.delete(day);
+            }}
+          />
         </div>
       ) : null}
     </div>
@@ -309,7 +350,7 @@ export function DateInput({
   const [value, setValue] = useState(formatThaiDate(defaultValue) ? defaultValue : "");
   return (
     <>
-      <DateField id={fid} initialIso={defaultValue} required={required} min={min} max={max} errorId={`${fid}-error`} onChange={(v) => setValue(v)} />
+      <DateField id={fid} initialIso={defaultValue} required={required} min={min} max={max} errorId={`${fid}-error`} onChange={setValue} />
       <input type="hidden" name={name} value={value} />
     </>
   );
@@ -321,11 +362,14 @@ export function DateTimeInput({
   defaultValue = "",
   required,
   error,
+  timeLabel = "เวลา",
 }: {
   name: string;
   id?: string;
   defaultValue?: string;
   required?: boolean;
+  /** Accessible name of the time field (distinct per field on a form). */
+  timeLabel?: string;
   /** A server-side message for this field, linked with aria-describedby. */
   error?: string;
 }) {
@@ -343,6 +387,11 @@ export function DateTimeInput({
   const posted = date && timeIso ? `${date}T${timeIso}` : "";
   const showServerError = Boolean(error) && !dateInvalid && !showTimeError;
   const errorId = `${fid}-error`;
+  // (the React Compiler memoizes this; a manual useCallback is rejected by the lint rule)
+  const onDate = (v: string, invalid: boolean) => {
+    setDate(v);
+    setDateInvalid(invalid);
+  };
 
   useEffect(() => {
     timeRef.current?.setCustomValidity(timeInvalid ? TIME_ERROR : "");
@@ -357,10 +406,8 @@ export function DateTimeInput({
           required={required}
           errorId={`${fid}-date-error`}
           describedBy={showServerError ? errorId : undefined}
-          onChange={(v, invalid) => {
-            setDate(v);
-            setDateInvalid(invalid);
-          }}
+          externalInvalid={showServerError}
+          onChange={onDate}
         />
         <input
           ref={timeRef}
@@ -368,7 +415,7 @@ export function DateTimeInput({
           type="text"
           inputMode="numeric"
           autoComplete="off"
-          aria-label="เวลา"
+          aria-label={timeLabel}
           placeholder="ชช:นน"
           required={required}
           value={time}
