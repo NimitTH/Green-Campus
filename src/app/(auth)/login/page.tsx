@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { FormSkeleton } from "../_components/ui";
+import { FormSkeleton } from "@/app/_components/skeletons";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "เข้าสู่ระบบ | Green Campus" };

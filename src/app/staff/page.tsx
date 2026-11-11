@@ -46,7 +46,7 @@ async function StaffHome() {
           </div>
         </div>
       </div>
-      <Suspense fallback={<div aria-hidden="true" className="mb-6 h-40 animate-pulse rounded-card bg-paper-2" />}>
+      <Suspense fallback={<div aria-hidden="true" className="mb-6 h-40 motion-safe:animate-pulse rounded-card bg-paper-2" />}>
         <StaffStats />
       </Suspense>
       <div className="grid gap-4 md:grid-cols-2">
@@ -91,7 +91,7 @@ async function WasteChart() {
 }
 
 function ChartSkeleton() {
-  return <div aria-hidden="true" className="h-64 animate-pulse rounded-card bg-paper-2" />;
+  return <div aria-hidden="true" className="h-64 motion-safe:animate-pulse rounded-card bg-paper-2" />;
 }
 
 function ChartEmpty() {

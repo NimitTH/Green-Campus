@@ -97,8 +97,9 @@ export function validateArticle(
   if (!body) errors.body = "กรอกเนื้อหาบทความ";
   else if (Array.from(body).length > ARTICLE_LIMITS.bodyMax) errors.body = `เนื้อหายาวได้ไม่เกิน ${ARTICLE_LIMITS.bodyMax.toLocaleString("th-TH")} ตัวอักษร`;
 
-  if (!isArticleCategory(input.category)) errors.category = "เลือกประเภทบทความ";
+  const category = input.category;
+  if (!isArticleCategory(category)) errors.category = "เลือกประเภทบทความ";
 
-  if (Object.keys(errors).length > 0 || !isArticleCategory(input.category)) return { ok: false, fieldErrors: errors };
-  return { ok: true, value: { title, slug: slugText || null, body, published: input.published, category: input.category } };
+  if (Object.keys(errors).length > 0 || !isArticleCategory(category)) return { ok: false, fieldErrors: errors };
+  return { ok: true, value: { title, slug: slugText || null, body, published: input.published, category } };
 }

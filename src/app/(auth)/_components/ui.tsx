@@ -98,17 +98,6 @@ export function Alert({ kind, children }: { kind: "error" | "success"; children:
   );
 }
 
-export function FormSkeleton() {
-  return (
-    <div aria-busy="true" className="animate-pulse space-y-4">
-      <div className="h-6 w-1/2 rounded bg-paper-2" />
-      <div className="h-12 rounded bg-paper-2" />
-      <div className="h-12 rounded bg-paper-2" />
-      <div className="h-12 rounded bg-paper-2" />
-    </div>
-  );
-}
-
 export function OrDivider() {
   return (
     <div className="my-4 flex items-center gap-3 text-sm text-muted">

@@ -1,5 +1,5 @@
 // Asia/Bangkok is UTC+7 all year (no daylight saving), so a fixed offset is exact.
-// Forms use <input type="datetime-local"> whose value has no time zone: we always
+// Forms submit the DateTimeInput hidden value (the former datetime-local format, no time zone): we always
 // read it as Bangkok wall time and store UTC (timestamptz).
 
 export const BANGKOK_TIME_ZONE = "Asia/Bangkok";
@@ -25,7 +25,7 @@ export function bangkokLocalToUtcIso(local: string): string | null {
   return new Date(wall - BANGKOK_OFFSET_MS).toISOString();
 }
 
-/** UTC instant -> "YYYY-MM-DDTHH:mm" Bangkok wall time (for datetime-local inputs); "" if invalid. */
+/** UTC instant -> "YYYY-MM-DDTHH:mm" Bangkok wall time (for the DateTimeInput default value); "" if invalid. */
 export function utcToBangkokLocal(iso: string): string {
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return "";

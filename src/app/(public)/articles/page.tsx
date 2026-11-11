@@ -30,7 +30,7 @@ export default function ArticlesPage({ searchParams }: { searchParams: SearchPar
       <Suspense fallback={<ListToolbarSkeleton filters={1} />}>
         <ListToolbar base="/articles" config={ARTICLE_LIST_CONFIG} placeholder="ค้นหาบทความ" />
       </Suspense>
-      <Suspense fallback={<ListSkeleton toolbar={false} />}>
+      <Suspense fallback={<ListSkeleton toolbar={false} gridClassName="gap-6 pt-2 sm:grid-cols-2 md:grid-cols-3" />}>
         <ArticleResults searchParams={searchParams} />
       </Suspense>
     </main>

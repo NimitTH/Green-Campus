@@ -28,7 +28,7 @@ export default function ActivitiesPage({ searchParams }: { searchParams: SearchP
       <Suspense fallback={<ListToolbarSkeleton filters={2} />}>
         <ListToolbar base="/activities" config={ACTIVITY_LIST_CONFIG} placeholder="ค้นหากิจกรรม" />
       </Suspense>
-      <Suspense fallback={<ListSkeleton toolbar={false} />}>
+      <Suspense fallback={<ListSkeleton toolbar={false} gridClassName="gap-6 pt-2 sm:grid-cols-2 md:grid-cols-3" />}>
         <ActivityResults searchParams={searchParams} />
       </Suspense>
     </main>

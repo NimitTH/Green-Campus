@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { FormSkeleton } from "../_components/ui";
+import { FormSkeleton } from "@/app/_components/skeletons";
 import { ForgotPasswordForm } from "./forgot-password-form";
 
 export const metadata: Metadata = { title: "ลืมรหัสผ่าน | Green Campus" };

@@ -33,6 +33,16 @@ describe("skeletons", () => {
     expect(renderToStaticMarkup(createElement(ListSkeleton, { toolbar: false }))).not.toContain("data-skeleton-toolbar");
     expect(renderToStaticMarkup(createElement(ListSkeleton))).toContain("data-skeleton-toolbar");
   });
+  it("ListSkeleton shapes match the real covers and grids", () => {
+    const card = renderToStaticMarkup(createElement(ListSkeleton, { gridClassName: "gap-6 md:grid-cols-3" }));
+    expect(card).toContain("aspect-[4/3]");
+    expect(card).toContain("md:grid-cols-3");
+    expect(renderToStaticMarkup(createElement(ListSkeleton, { view: "list" }))).toContain("h-16 w-24");
+  });
+  it("TableSkeleton has a single space-y class", () => {
+    const html = renderToStaticMarkup(createElement(TableSkeleton));
+    expect(html.match(/space-y-/g)).toHaveLength(1);
+  });
   it("FormSkeleton renders the requested fields; TableSkeleton the rows", () => {
     expect(renderToStaticMarkup(createElement(FormSkeleton, { fields: 2 })).match(/data-skeleton-field/g)).toHaveLength(2);
     expect(renderToStaticMarkup(createElement(TableSkeleton, { rows: 5 })).match(/data-skeleton-row/g)).toHaveLength(5);

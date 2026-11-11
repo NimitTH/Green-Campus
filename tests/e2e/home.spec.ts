@@ -139,7 +139,7 @@ test("a trees activity without a cover shows the trees fallback on /activities a
   const anon = await browser.newContext();
   try {
     student = await createConfirmedUser("student", `student-fallback-${stamp}`);
-    const id = await createActivityRow(title, { type: "trees", unit_points: 5, ends_at: new Date(Date.now() + 30 * 60_000).toISOString() });
+    await createActivityRow(title, { type: "trees", unit_points: 5, ends_at: new Date(Date.now() + 30 * 60_000).toISOString() });
     await signIn(page, student, "/activities");
     await page.goto(`/activities?q=${encodeURIComponent(title)}`);
     const listCard = page.getByRole("link", { name: new RegExp(title) });
@@ -160,7 +160,6 @@ test("a trees activity without a cover shows the trees fallback on /activities a
       )
       .toBe(1);
     await expect(card.locator('[data-cover-fallback="trees"]')).toHaveCount(1);
-    expect(id).toBeTruthy();
   } finally {
     await anon.close();
     await deleteActivitiesByPrefix("กิจกรรมปลูกไม่มีปก");

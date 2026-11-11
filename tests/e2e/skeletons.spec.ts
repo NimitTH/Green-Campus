@@ -50,7 +50,6 @@ test("skeletons show the page's shape while the data is held back, then the cont
     await expect(page.locator('[data-skeleton="dashboard"]')).toBeVisible();
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 15_000 });
     await expect(page.locator('[data-skeleton="dashboard"]')).toHaveCount(0);
-
   } finally {
     await deleteActivitiesByTitle(title);
     await deleteUsers([teacher]);
