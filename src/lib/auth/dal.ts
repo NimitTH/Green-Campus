@@ -141,6 +141,23 @@ export async function assertActiveUser(nextPath = "/dashboard"): Promise<Current
   return user;
 }
 
+export type ActiveUserResult =
+  | { ok: true; user: CurrentUser }
+  | { ok: false; code: "not_authenticated" | "must_change_password" };
+
+/**
+ * Server actions that answer with an error instead of navigating (review M5): the signed-in, active user, or the
+ * error code to show. Suspended callers (status row or Auth ban) are not signed in (getCurrentUser is null), and a
+ * pending forced password change refuses with must_change_password ("ต้องตั้งรหัสผ่านใหม่ก่อน"). New actions use
+ * this instead of copying the two checks.
+ */
+export async function getActiveUser(): Promise<ActiveUserResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, code: "not_authenticated" };
+  if (user.mustChangePassword) return { ok: false, code: "must_change_password" };
+  return { ok: true, user };
+}
+
 /** Teachers and admins; everyone else goes to /dashboard. */
 export async function requireStaff(nextPath = "/staff"): Promise<CurrentUser> {
   const user = await requireUser(nextPath);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   GENERIC_ERROR_TH,
+  accountErrorMessageTh,
   errorCodeFromDb,
   errorMessageTh,
   orderErrorMessageTh,
@@ -239,5 +240,24 @@ describe("pending forced password change (DESIGN-4 6.4)", () => {
     expect(submitErrorMessageTh("must_change_password")).toBe(msg);
     expect(reviewErrorMessageTh("must_change_password")).toBe(msg);
     expect(orderErrorMessageTh("must_change_password")).toBe(msg);
+  });
+});
+
+describe("student account commands (DESIGN-4 6.3, 0036 codes)", () => {
+  it("maps the 0036 rule codes to account wording", () => {
+    expect(accountErrorMessageTh({ message: "demo_scope" })).toBe("บัญชีสาธิตจัดการได้เฉพาะนักเรียนสาธิต");
+    expect(accountErrorMessageTh({ message: "self_target" })).toBe("จัดการบัญชีของตัวเองไม่ได้");
+    expect(accountErrorMessageTh({ message: "not_student" })).toBe("จัดการได้เฉพาะบัญชีนักเรียน");
+    expect(accountErrorMessageTh({ message: "not_staff" })).toBe("เฉพาะครูและผู้ดูแลเท่านั้นที่จัดการบัญชีนักเรียนได้");
+    expect(accountErrorMessageTh({ message: "invalid_input" })).toBe("ข้อมูลไม่ถูกต้อง ตรวจแล้วลองอีกครั้ง");
+  });
+  it("falls back to the shared messages, then the generic one", () => {
+    expect(accountErrorMessageTh({ message: "not_admin" })).toBe(errorMessageTh("not_admin"));
+    expect(accountErrorMessageTh({ message: " must_change_password " })).toBe("ต้องตั้งรหัสผ่านใหม่ก่อน");
+    expect(accountErrorMessageTh({ message: "connection reset" })).toBe(GENERIC_ERROR_TH);
+    expect(accountErrorMessageTh(null)).toBe(GENERIC_ERROR_TH);
+  });
+  it("takes a bare code too", () => {
+    expect(accountErrorMessageTh("demo_scope")).toBe("บัญชีสาธิตจัดการได้เฉพาะนักเรียนสาธิต");
   });
 });

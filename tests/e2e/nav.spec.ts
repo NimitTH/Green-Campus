@@ -139,7 +139,8 @@ test("staff drawer on mobile lists admin items only for admins and closes after 
   try {
     teacher = await createConfirmedUser("teacher", `teacher-nav-${suffix}`);
     admin = await createConfirmedUser("admin", `admin-nav-${suffix}`);
-    const common = ["หน้าหลัก", "ตรวจผล", "กิจกรรม", "จุดชั่ง", "ออเดอร์", "ของรางวัล", "บทความ", "รายงาน", "โปรไฟล์", "แจ้งเตือน"];
+    // DESIGN-4 4.2: "บัญชีนักเรียน" for teachers and admins (added with /staff/students in Task 17, ruling R1)
+    const common = ["หน้าหลัก", "ตรวจผล", "กิจกรรม", "จุดชั่ง", "ออเดอร์", "ของรางวัล", "บทความ", "รายงาน", "บัญชีนักเรียน", "โปรไฟล์", "แจ้งเตือน"];
 
     for (const user of [teacher, admin]) {
       const page = await context.newPage();

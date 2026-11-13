@@ -88,6 +88,22 @@ const ORDER_MESSAGES: Record<string, string> = {
   not_staff: "เฉพาะครูและผู้ดูแลเท่านั้นที่จัดการออเดอร์ได้",
 };
 
+// Student account commands (DESIGN-4 6.3, 0036): the rule codes and the wording for /staff/students.
+const ACCOUNT_MESSAGES: Record<string, string> = {
+  not_staff: "เฉพาะครูและผู้ดูแลเท่านั้นที่จัดการบัญชีนักเรียนได้",
+  not_student: "จัดการได้เฉพาะบัญชีนักเรียน",
+  demo_scope: "บัญชีสาธิตจัดการได้เฉพาะนักเรียนสาธิต",
+  self_target: "จัดการบัญชีของตัวเองไม่ได้",
+  invalid_input: "ข้อมูลไม่ถูกต้อง ตรวจแล้วลองอีกครั้ง",
+};
+
+/** Thai text for a student account command error: a database error (message = code) or a bare code. */
+export function accountErrorMessageTh(error: { message?: string | null } | string | null | undefined): string {
+  const code = (typeof error === "string" ? error : error?.message)?.trim();
+  if (code && Object.prototype.hasOwnProperty.call(ACCOUNT_MESSAGES, code)) return ACCOUNT_MESSAGES[code];
+  return errorMessageTh(code);
+}
+
 function isKnownCode(code: string): boolean {
   return Object.prototype.hasOwnProperty.call(MESSAGES, code);
 }

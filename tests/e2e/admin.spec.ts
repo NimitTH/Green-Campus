@@ -81,7 +81,8 @@ test("admin adjusts points with a note; the student sees the balance and a notif
     adminUser = await createConfirmedUser("admin", `admin-ad-adj-${suffix}`);
     student = await createConfirmedUser("student", `student-ad-adj-${suffix}`);
 
-    await signIn(page, adminUser, `/staff/users/${student.id}`);
+    // DESIGN-4 6.1: the adjust form moved from /staff/users/[id] to /staff/students/[id]
+    await signIn(page, adminUser, `/staff/students/${student.id}`);
     await expect(page.getByTestId("detail-points")).toHaveText("0");
 
     // a missing reason is caught before the database
@@ -93,7 +94,6 @@ test("admin adjusts points with a note; the student sees the balance and a notif
     await page.getByRole("button", { name: "บันทึกการปรับแต้ม" }).click();
     await expect(page.getByRole("status").filter({ hasText: "ปรับแต้มเรียบร้อยแล้ว" })).toBeVisible();
     await expect(page.getByTestId("detail-points")).toHaveText("25");
-    await expect(page.getByTestId("ledger-row").filter({ hasText: note })).toContainText("+25 แต้ม");
     expect(await ledgerBalance(student.id)).toBe(25);
 
     // deducting more than the balance: the Thai refusal, nothing written
@@ -102,6 +102,12 @@ test("admin adjusts points with a note; the student sees the balance and a notif
     await page.getByRole("button", { name: "บันทึกการปรับแต้ม" }).click();
     await expect(page.getByRole("alert").filter({ hasText: "แต้มคงเหลือไม่พอ" })).toBeVisible();
     expect(await ledgerBalance(student.id)).toBe(25);
+
+    // the user page keeps the ledger list and links to the student account page instead of the form
+    await page.goto(`/staff/users/${student.id}`);
+    await expect(page.getByTestId("ledger-row").filter({ hasText: note })).toContainText("+25 แต้ม");
+    await expect(page.getByRole("button", { name: "บันทึกการปรับแต้ม" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "จัดการบัญชีนักเรียน" })).toHaveAttribute("href", `/staff/students/${student.id}`);
 
     const ctx = await browser.newContext();
     try {

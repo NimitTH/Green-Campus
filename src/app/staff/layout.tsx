@@ -61,7 +61,7 @@ async function StaffGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// "บัญชีนักเรียน" (/staff/students) joins MAIN_ITEMS in Task 17 together with its page (controller ruling R1).
+// DESIGN-4 4.2: "บัญชีนักเรียน" (/staff/students) is in the main group for teachers and admins (added with its page, ruling R1).
 const MAIN_ITEMS: StaffNavItem[] = [
   { href: "/staff", label: "หน้าหลัก", icon: "home" },
   { href: "/staff/reviews", label: "ตรวจผล", icon: "reviews" },
@@ -71,6 +71,7 @@ const MAIN_ITEMS: StaffNavItem[] = [
   { href: "/staff/rewards", label: "ของรางวัล", icon: "rewards" },
   { href: "/staff/articles", label: "บทความ", icon: "articles" },
   { href: "/staff/reports", label: "รายงาน", icon: "reports" },
+  { href: "/staff/students", label: "บัญชีนักเรียน", icon: "students" },
 ];
 
 const ADMIN_ITEMS: StaffNavItem[] = [

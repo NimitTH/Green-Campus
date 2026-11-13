@@ -10,6 +10,7 @@ export type StaffIconName =
   | "rewards"
   | "articles"
   | "reports"
+  | "students"
   | "users"
   | "rates"
   | "profile"
@@ -70,6 +71,13 @@ const PATHS: Record<StaffIconName, React.ReactNode> = {
     <>
       <path d="M4 20h16" />
       <path d="M7 16v-5M12 16V6M17 16v-8" />
+    </>
+  ),
+  students: (
+    <>
+      <path d="M2 9 12 4l10 5-10 5Z" />
+      <path d="M6 11v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5" />
+      <path d="M22 9v6" />
     </>
   ),
   users: (

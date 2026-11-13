@@ -703,3 +703,26 @@ export async function accountStatus(studentId: string): Promise<{ suspended_unti
   if (error) throw new Error(`e2e: read account_status failed: ${error.message}`);
   return data as { suspended_until: string | null; must_change_password: boolean } | null;
 }
+
+/** Mark a profile as a demo account (DESIGN-4 6.3: demo staff manage demo students only). Service role. */
+export async function setDemo(userId: string, isDemo: boolean): Promise<void> {
+  const { error } = await admin().from("profiles").update({ is_demo: isDemo }).eq("id", userId);
+  if (error) throw new Error(`e2e: set is_demo failed: ${error.message}`);
+}
+
+/** account_events of one student id, newest first (service role; the rows outlive a deleted account). */
+export async function accountEventsFor(studentId: string): Promise<{ action: string; student_name: string; actor_name: string; detail: string | null }[]> {
+  const { data, error } = await admin()
+    .from("account_events")
+    .select("action, student_name, actor_name, detail")
+    .eq("student_id", studentId)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(`e2e: read account_events failed: ${error.message}`);
+  return (data ?? []) as { action: string; student_name: string; actor_name: string; detail: string | null }[];
+}
+
+/** Set a profile's role directly (service context; skips the set_user_role rules). */
+export async function setRole(userId: string, role: Role): Promise<void> {
+  const { error } = await admin().from("profiles").update({ role }).eq("id", userId);
+  if (error) throw new Error(`e2e: set role failed: ${error.message}`);
+}

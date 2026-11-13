@@ -23,7 +23,7 @@ vi.mock("@/lib/supabase/server", () => ({
   })),
 }));
 
-const { accessDecision, assertActiveUser, getCurrentUser, requireUser } = await import("./dal");
+const { accessDecision, assertActiveUser, getActiveUser, getCurrentUser, requireUser } = await import("./dal");
 
 const NOW = new Date("2026-11-11T10:00:00Z");
 const active = { suspendedUntil: null, mustChangePassword: false };
@@ -115,5 +115,36 @@ describe("getCurrentUser / requireUser / assertActiveUser", () => {
     state.user = null;
     await expect(requireUser("/cart")).rejects.toThrow("REDIRECT:/login?next=%2Fcart");
     await expect(assertActiveUser("/staff/students")).rejects.toThrow("REDIRECT:/login?next=%2Fstaff%2Fstudents");
+  });
+});
+
+// Review M5 (Task 16): the non-throwing gate for new server actions, so the suspended / must-change checks are not copied.
+describe("getActiveUser", () => {
+  beforeEach(() => {
+    state.user = { id: "22222222-2222-4222-8222-222222222222", email: "t@example.test" };
+    state.error = null;
+    state.row = { ...profile(null), role: "teacher" };
+  });
+
+  it("an active user -> ok with the user", async () => {
+    await expect(getActiveUser()).resolves.toMatchObject({ ok: true, user: { id: state.user!.id, role: "teacher" } });
+  });
+
+  it("anonymous -> not_authenticated (no redirect, no throw)", async () => {
+    state.user = null;
+    await expect(getActiveUser()).resolves.toEqual({ ok: false, code: "not_authenticated" });
+  });
+
+  it("suspended (status row or Auth ban) -> not_authenticated", async () => {
+    state.row = { ...profile({ suspended_until: "infinity", must_change_password: false }), role: "teacher" };
+    await expect(getActiveUser()).resolves.toEqual({ ok: false, code: "not_authenticated" });
+    state.user = null;
+    state.error = { code: "user_banned" };
+    await expect(getActiveUser()).resolves.toEqual({ ok: false, code: "not_authenticated" });
+  });
+
+  it("a pending password change -> must_change_password", async () => {
+    state.row = { ...profile({ suspended_until: null, must_change_password: true }), role: "teacher" };
+    await expect(getActiveUser()).resolves.toEqual({ ok: false, code: "must_change_password" });
   });
 });

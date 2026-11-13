@@ -10,7 +10,8 @@ import {
   type RateFieldErrors,
   type RateInput,
 } from "@/lib/admin/validation";
-import { getCurrentUser } from "@/lib/auth/dal";
+import { getAccountStatusRow } from "@/lib/accounts/queries";
+import { getCurrentUser, isSuspendedAt } from "@/lib/auth/dal";
 import { isAdminRole, toRole } from "@/lib/auth/routes";
 import { errorCodeFromDb, errorMessageTh, GENERIC_ERROR_TH } from "@/lib/errors";
 import { createServerClient } from "@/lib/supabase/server";
@@ -24,6 +25,9 @@ const ADMIN_ONLY = errorMessageTh("not_admin");
 const RATE_NOT_FOUND = "ไม่พบกลุ่มขยะนี้ รีเฟรชหน้าเพื่อดูรายการล่าสุด";
 const RATE_CHANGED = "อัตรานี้ถูกแก้ไขไปแล้วระหว่างที่คุณแก้ กรุณาโหลดหน้าใหม่แล้วแก้อีกครั้ง";
 const RATE_NAME_TAKEN = "ชื่อนี้ซ้ำกับกลุ่มขยะอื่น ใช้ชื่ออื่น";
+// Review M4 (Task 16): account_status locks out whoever holds the row, whatever the role, and only students can be
+// unsuspended (0036). Promoting a suspended student would lock out the new teacher/admin, so it is refused here.
+const SUSPENDED_PROMOTION = "นักเรียนคนนี้ถูกระงับอยู่ ยกเลิกระงับที่หน้าบัญชีนักเรียนก่อนเปลี่ยนบทบาท";
 
 export type AdminActionResult = { ok: true; error?: undefined } | { ok: false; error: string };
 
@@ -44,6 +48,11 @@ export async function changeUserRole(userId: string, role: string): Promise<Admi
   const newRole = toRole(role);
   if (!newRole) return { ok: false, error: errorMessageTh("invalid_role") };
   if (!(await isAdminCaller())) return { ok: false, error: ADMIN_ONLY };
+
+  if (newRole !== "student") {
+    const status = await getAccountStatusRow(userId);
+    if (status && isSuspendedAt(status.suspendedUntil, new Date())) return { ok: false, error: SUSPENDED_PROMOTION };
+  }
 
   const supabase = await createServerClient();
   const { error } = await supabase.rpc("set_user_role", { p_user: userId, p_role: newRole });
@@ -76,6 +85,8 @@ export async function adjustStudentLedger(studentId: string, input: AdjustInput)
   if (error) return { ok: false, error: dbError("adjust_ledger", error) };
   revalidatePath("/staff/users");
   revalidatePath(`/staff/users/${studentId}`);
+  revalidatePath("/staff/students");
+  revalidatePath(`/staff/students/${studentId}`);
   return { ok: true };
 }
 

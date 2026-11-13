@@ -6,11 +6,11 @@ import { DetailSkeleton } from "@/app/_components/skeletons";
 import { ButtonLink, Card, EmptyState, PageHeader, Mono } from "@/components/ui";
 import { getUser, listRecentLedger } from "@/lib/admin/queries";
 import { LEDGER_KIND_LABEL_TH, ROLE_LABEL_TH, signed } from "@/lib/admin/validation";
-import { requireAdmin } from "@/lib/auth/dal";
+import { getAccountStatusRow } from "@/lib/accounts/queries";
+import { isSuspendedAt, requireAdmin } from "@/lib/auth/dal";
 import { formatBangkok } from "@/lib/datetime";
 import { formatCount, formatKg } from "@/lib/leaderboard/format";
 import { isUuid } from "@/lib/uuid";
-import { AdjustForm } from "../_components/adjust-form";
 import { RoleForm } from "../_components/role-form";
 
 export const metadata: Metadata = { title: "ผู้ใช้ | Green Campus" };
@@ -44,6 +44,10 @@ async function UserDetail({ params }: { params: Promise<{ id: string }> }) {
   const user = await getUser(id);
   if (!user) notFound();
   const ledger = user.role === "student" ? await listRecentLedger(user.id) : [];
+  // Review M4: a student suspended and then promoted keeps the account_status row, which still locks them out, and
+  // only students can be unsuspended (0036). changeUserRole refuses such a promotion; this covers rows from before that.
+  const status = user.role === "student" ? null : await getAccountStatusRow(user.id);
+  const lockedOut = status !== null && isSuspendedAt(status.suspendedUntil, new Date());
 
   return (
     <div className="space-y-6">
@@ -79,17 +83,20 @@ async function UserDetail({ params }: { params: Promise<{ id: string }> }) {
         <RoleForm userId={user.id} name={user.fullName} role={user.role} />
       </section>
 
+      {lockedOut ? (
+        <p role="note" data-testid="promoted-suspended" className="rounded-card border border-warn bg-surface p-4 text-sm text-ink">
+          บัญชีนี้ยังถูกระงับอยู่ตั้งแต่ตอนเป็นนักเรียน จึงเข้าสู่ระบบไม่ได้ เปลี่ยนบทบาทกลับเป็นนักเรียน แล้วยกเลิกระงับที่หน้าบัญชีนักเรียน
+        </p>
+      ) : null}
+
       {user.role === "student" ? (
         <>
-          <Card as="section" aria-labelledby={`${uid}-adjust-heading`}>
-            <h2 id={`${uid}-adjust-heading`} className="mb-1 font-display text-lg font-semibold">
-              ปรับแต้ม
-            </h2>
-            <p className="mb-3 text-sm text-muted">
-              ใช้แก้ยอดที่ผิดพลาดหรือให้แต้มพิเศษ หักได้ไม่เกินแต้มคงเหลือและ carbon สะสม ทุกครั้งต้องระบุเหตุผล
-            </p>
-            <AdjustForm studentId={user.id} />
-          </Card>
+          {/* DESIGN-4 6.1: points adjustment and the other account commands live on /staff/students/[id] */}
+          <div>
+            <ButtonLink href={`/staff/students/${user.id}`} variant="primary">
+              จัดการบัญชีนักเรียน
+            </ButtonLink>
+          </div>
 
           <section aria-labelledby={`${uid}-ledger-heading`}>
             <h2 id={`${uid}-ledger-heading`} className="mb-2 font-display text-lg font-semibold">
