@@ -46,13 +46,7 @@ text:ค้นหากิจกรรม
 text:เรียงตาม
 text:วันที่เข้าร่วม
 text:เข้าร่วม
-text:ไม่ใช้
-text:ร่าง
 text:เปิดรับ
-text:ปิดรับ
-text:ชั่งน้ำหนัก
-text:ปลูกต้นไม้
-text:แต้มคงที่
 aria:ดู ${a.title}
 aria:หน้าก่อน
 aria:หน้า ${n}
@@ -68,7 +62,6 @@ testid:article-category
 # Task 14 (DESIGN-4 5.4): DateInput / DateTimeInput, calendar popover, CSV date note on /staff/reports.
 aria:เลือกวันที่
 aria:เลือกวันที่จากปฏิทิน
-aria:เวลา
 text:จ.
 text:ชช:นน
 text:พ.

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ListToolbarSkeleton } from "./list/list-toolbar";
 
 // DESIGN-4 5.3: loading placeholders shaped like the pages they stand in for. Each is a <Suspense> fallback.
 // They carry no per-user data and read nothing dynamic, so they are safe in the prerendered shell. The list
@@ -15,32 +16,38 @@ function Shell({ name, children, className = "space-y-4" }: { name: string; chil
 
 const bar = (cls: string) => <div className={`rounded-input bg-paper-2 ${cls}`} />;
 
+/** The toolbar a list page renders: `true` = search + view toggle + sort; or its exact shape (Task 18 review M1). */
+export type ListSkeletonToolbar = boolean | { views?: boolean; filters?: number };
+
 export function ListSkeleton({
   view = "card",
   rows = 6,
   toolbar = true,
+  thumb = true,
   gridClassName = "gap-4 sm:grid-cols-2 lg:grid-cols-3",
 }: {
   view?: "card" | "list";
   rows?: number;
-  toolbar?: boolean;
+  /** false only where the page renders its toolbar outside this boundary (it is already on screen). */
+  toolbar?: ListSkeletonToolbar;
+  /** list view: false for lists whose rows have no thumbnail (notifications, staff orders). */
+  thumb?: boolean;
   gridClassName?: string;
 }) {
   const items = Array.from({ length: rows }, (_, i) => i);
+  const toolbarShape = toolbar === true ? {} : toolbar;
   return (
     <Shell name="list">
-      {toolbar ? (
-        <div data-skeleton-toolbar className="flex flex-wrap gap-2">
-          {bar("h-11 min-w-0 flex-1 basis-48")}
-          {bar("h-11 w-32")}
-          {bar("h-11 w-24")}
+      {toolbarShape ? (
+        <div data-skeleton-toolbar>
+          <ListToolbarSkeleton views={toolbarShape.views} filters={toolbarShape.filters} />
         </div>
       ) : null}
       {view === "list" ? (
         <div className="space-y-2">
           {items.map((i) => (
             <div key={i} data-skeleton-row className="flex items-center gap-3 rounded-card bg-paper-2 p-3">
-              <div className="h-16 w-24 shrink-0 rounded-input bg-paper" />
+              {thumb ? <div data-skeleton-thumb className="h-16 w-24 shrink-0 rounded-input bg-paper" /> : null}
               <div className="flex-1 space-y-2">
                 <div className="h-4 w-2/3 rounded-input bg-paper" />
                 <div className="h-3 w-1/3 rounded-input bg-paper" />

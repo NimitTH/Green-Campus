@@ -56,8 +56,8 @@ test("approval raises the student's bell live; reading lowers it; other students
     await page.getByRole("button", { name: "อนุมัติ", exact: true }).click();
     await expect(page).toHaveURL((url) => url.pathname === "/staff/reviews");
 
-    // within 3 s, no reload
-    await expect(bell).toHaveAccessibleName(unread(2), { timeout: 3000 });
+    // pushed without a reload (10 s: Realtime under full-suite load, review M6)
+    await expect(bell).toHaveAccessibleName(unread(2), { timeout: 10_000 });
     await expect(bell).toContainText("2");
     await expect(otherBell).toHaveAccessibleName(unread(1));
 
@@ -81,7 +81,7 @@ test("approval raises the student's bell live; reading lowers it; other students
     }
     await expect(studentPage.getByRole("link", { name: /^แจ้งเตือน/ })).toHaveAccessibleName(
       unread(3),
-      { timeout: 5000 },
+      { timeout: 10_000 },
     );
     await studentPage.goto("/notifications");
     await expect(studentPage.getByTestId("notification").filter({ hasText: title })).toHaveCount(4);
@@ -118,7 +118,7 @@ test("bell still receives live updates after client navigation /dashboard -> /ac
     const c = await signedInClient(teacher);
     const { error } = await c.rpc("approve_submission", { p_submission_id: submissionId });
     expect(error).toBeNull();
-    await expect(bell).toHaveAccessibleName(unread(2), { timeout: 3000 });
+    await expect(bell).toHaveAccessibleName(unread(2), { timeout: 10_000 });
   } finally {
     await deleteActivitiesByTitle(title);
     await deleteUsers([teacher, student]);

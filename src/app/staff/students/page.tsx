@@ -31,7 +31,7 @@ export default function StaffStudentsPage({ searchParams }: { searchParams: Sear
           }
         />
       </div>
-      <Suspense fallback={<ListSkeleton view="list" />}>
+      <Suspense fallback={<ListSkeleton view="list" toolbar={{ views: false, filters: 1 }} thumb={false} />}>
         <StudentList searchParams={searchParams} />
       </Suspense>
     </main>

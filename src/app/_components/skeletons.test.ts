@@ -33,6 +33,21 @@ describe("skeletons", () => {
     expect(renderToStaticMarkup(createElement(ListSkeleton, { toolbar: false }))).not.toContain("data-skeleton-toolbar");
     expect(renderToStaticMarkup(createElement(ListSkeleton))).toContain("data-skeleton-toolbar");
   });
+  it("ListSkeleton draws the page's toolbar shape (ListToolbarSkeleton): view toggle and filter count", () => {
+    const withViews = renderToStaticMarkup(createElement(ListSkeleton));
+    expect(withViews).toContain("w-[87px]"); // the view toggle
+    const staff = renderToStaticMarkup(createElement(ListSkeleton, { view: "list", toolbar: { views: false, filters: 3 } }));
+    expect(staff).not.toContain("w-[87px]");
+    // sort + direction + 3 filters on the second row
+    expect(staff.match(/h-11 w-36/g)).toHaveLength(4);
+    expect(staff).toContain("mb-6"); // same gap below the toolbar as the page
+  });
+  it("ListSkeleton list rows can drop the thumbnail", () => {
+    expect(renderToStaticMarkup(createElement(ListSkeleton, { view: "list", rows: 3 })).match(/data-skeleton-thumb/g)).toHaveLength(3);
+    const noThumb = renderToStaticMarkup(createElement(ListSkeleton, { view: "list", rows: 3, thumb: false }));
+    expect(noThumb).not.toContain("data-skeleton-thumb");
+    expect(noThumb.match(/data-skeleton-row/g)).toHaveLength(3);
+  });
   it("ListSkeleton shapes match the real covers and grids", () => {
     const card = renderToStaticMarkup(createElement(ListSkeleton, { gridClassName: "gap-6 md:grid-cols-3" }));
     expect(card).toContain("aspect-[4/3]");

@@ -259,6 +259,9 @@ test("/cart: 13 lines page to 2, search and sort run in the app, the points line
     await page.goto(`/cart?q=${encodeURIComponent(prefix + " zzz")}`);
     await expect(page.getByText("ไม่พบรายการที่ตรงกับคำค้น")).toBeVisible();
     await expect(page.getByRole("link", { name: "ล้างการค้นหา" })).toHaveAttribute("href", "/cart");
+    // no empty list beside the no-match message (review M4); the summary still totals every line
+    await expect(page.getByRole("main").getByRole("list")).toHaveCount(0);
+    await expect(page.getByTestId("cart-total")).toHaveText("910 แต้ม");
 
     // more points: the line turns into "เหลือ"
     await grantPoints(student.id, 100);

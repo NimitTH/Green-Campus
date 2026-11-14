@@ -70,19 +70,6 @@ export async function listRewardsForStaffPage(
   return { items: await withImageUrls(items), total };
 }
 
-/** Rewards open for redemption (staff would also see inactive ones through RLS, so filter). */
-export async function listActiveRewards(): Promise<Reward[]> {
-  const supabase = await createServerClient();
-  const { data, error } = await supabase
-    .from("rewards")
-    .select(COLUMNS)
-    .eq("active", true)
-    .order("points_cost", { ascending: true })
-    .order("name", { ascending: true });
-  if (error) throw new Error(`listActiveRewards: ${error.message}`);
-  return withImageUrls((data ?? []) as RewardRow[]);
-}
-
 /**
  * One page of the active rewards for /rewards: optional name search (matched literally), sorted by REWARD_CONFIG
  * (date, price, stock or name, then id, nulls last). A page past the end returns no items with the real total, so

@@ -37,7 +37,7 @@ export default function StaffOrdersPage({ searchParams }: { searchParams: Search
           }
         />
       </div>
-      <Suspense fallback={<ListSkeleton view="list" toolbar={false} />}>
+      <Suspense fallback={<ListSkeleton view="list" toolbar={{ views: false, filters: 1 }} thumb={false} />}>
         <Orders searchParams={searchParams} />
       </Suspense>
     </main>

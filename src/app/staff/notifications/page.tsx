@@ -23,7 +23,7 @@ export default function StaffNotificationsPage({ searchParams }: { searchParams:
           }
         />
       </div>
-      <Suspense fallback={<ListSkeleton view="list" toolbar={false} />}>
+      <Suspense fallback={<ListSkeleton view="list" toolbar={{ views: false, filters: 1 }} thumb={false} />}>
         <Notifications searchParams={searchParams} />
       </Suspense>
     </main>

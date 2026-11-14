@@ -1,10 +1,8 @@
 # Redesign 4: baseline UI strings (text:... / aria:...) allowed to DISAPPEAR from src/**/*.tsx. Later tasks append here.
 # Task 2 (DESIGN-4 1.3): the round-3 "เรียง" label and its ใหม่ → เก่า / เก่า → ใหม่ options (now the direction button).
 text:เรียง
-text:ใหม่
 text:เก่า
 # Task 5: "เข้าร่วม" moved into src/lib/submissions/queries.ts (amountText, same text on screen); the cart's "แต้มไม่พอ ขาดอีก" alert is replaced by the DESIGN-4 3.3 points line.
-text:เข้าร่วม
 text:แต้มไม่พอ ขาดอีก
 # Task 6 fix M1 (DESIGN-4 1.3/3, ruling R5): /articles and /activities use the shared no-match copy "ไม่พบรายการที่ตรงกับคำค้น".
 text:ไม่พบบทความที่ตรงกับคำค้น

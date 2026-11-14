@@ -36,7 +36,7 @@ export default function StaffRewardsPage({ searchParams }: { searchParams: Searc
           }
         />
       </div>
-      <Suspense fallback={<ListSkeleton view="list" toolbar={false} />}>
+      <Suspense fallback={<ListSkeleton view="list" toolbar={{ views: false, filters: 1 }} />}>
         <RewardList searchParams={searchParams} />
       </Suspense>
     </main>

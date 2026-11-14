@@ -22,7 +22,7 @@ export default function RewardsPage({ searchParams }: { searchParams: SearchPara
       <div className="mb-5">
         <PageHeader title="ของรางวัล" />
       </div>
-      <Suspense fallback={<ListSkeleton toolbar={false} />}>
+      <Suspense fallback={<ListSkeleton />}>
         <RewardGrid searchParams={searchParams} />
       </Suspense>
     </main>

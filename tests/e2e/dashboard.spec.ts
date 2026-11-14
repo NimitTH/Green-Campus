@@ -93,10 +93,15 @@ test("waste chart bars use theme chart tokens and follow the theme", async ({ pa
     const { error } = await teacherClient.rpc("approve_submission", { p_submission_id: submissionId });
     expect(error).toBeNull();
 
+    // Review M5 (flake): the system scheme and the explicit theme agree from the start, and the page is hydrated
+    // (ThemeToggle re-applies the stored choice on mount, which used to undo a theme set too early).
+    await page.emulateMedia({ colorScheme: "light" });
     await signIn(page, student, "/dashboard");
     const bars = page.getByTestId("waste-chart").locator("path.recharts-rectangle");
     await expect(bars).toHaveCount(2);
+    await expect(page.locator('[data-realtime="subscribed"]').first()).toBeAttached(); // a client-only marker
 
+    const html = page.locator("html");
     const fills = async () => bars.evaluateAll((els) => els.map((el) => getComputedStyle(el).fill));
     const tickFill = () =>
       page
@@ -104,8 +109,18 @@ test("waste chart bars use theme chart tokens and follow the theme", async ({ pa
         .locator("svg text", { hasText: "พลาสติก" })
         .first()
         .evaluate((el) => getComputedStyle(el).fill);
-    const setTheme = (t: "light" | "dark") =>
-      page.evaluate((v) => document.documentElement.setAttribute("data-theme", v), t);
+    // stored as well, like the toggle does, so a re-apply from storage keeps it
+    const setTheme = async (t: "light" | "dark") => {
+      await page.evaluate((v) => {
+        try {
+          localStorage.setItem("theme", v);
+        } catch {
+          // storage blocked: the attribute alone still applies
+        }
+        document.documentElement.setAttribute("data-theme", v);
+      }, t);
+      await expect(html).toHaveAttribute("data-theme", t);
+    };
 
     await setTheme("light");
     const light = await fills();
@@ -114,17 +129,17 @@ test("waste chart bars use theme chart tokens and follow the theme", async ({ pa
     expect(light[0]).not.toBe(light[1]);
 
     await setTheme("dark");
+    await expect.poll(fills).not.toEqual(light);
+    await expect.poll(tickFill).not.toBe(lightTick);
     const dark = await fills();
-    const darkTick = await tickFill();
     expect(dark[0]).not.toBe(light[0]);
-    expect(darkTick).not.toBe(lightTick);
 
     const dir = "test-results/screens/chart";
     for (const theme of ["light", "dark"] as const) {
       for (const width of [360, 1280]) {
         await setTheme(theme);
         await page.setViewportSize({ width, height: 900 });
-        await page.waitForTimeout(200);
+        await expect(html).toHaveAttribute("data-theme", theme);
         await page.screenshot({ path: `${dir}/dashboard-${width}-${theme}-${testInfo.project.name}.png`, fullPage: true });
       }
     }

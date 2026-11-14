@@ -37,7 +37,7 @@ export default function StaffActivitiesPage({ searchParams }: { searchParams: Se
           }
         />
       </div>
-      <Suspense fallback={<ListSkeleton view="list" toolbar={false} />}>
+      <Suspense fallback={<ListSkeleton view="list" toolbar={{ views: false, filters: 3 }} />}>
         <ActivityList searchParams={searchParams} />
       </Suspense>
     </main>

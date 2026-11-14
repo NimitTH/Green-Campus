@@ -24,7 +24,7 @@ export default function CartPage({ searchParams }: { searchParams: SearchParams 
       <div className="mb-5">
         <PageHeader title="ตะกร้า" />
       </div>
-      <Suspense fallback={<ListSkeleton view="list" toolbar={false} />}>
+      <Suspense fallback={<ListSkeleton view="list" toolbar={{ views: false }} />}>
         <Cart searchParams={searchParams} />
       </Suspense>
     </main>
@@ -87,23 +87,27 @@ async function Cart({ searchParams }: { searchParams: SearchParams }) {
             ล้างการค้นหา
           </Link>
         </EmptyState>
-      ) : null}
-      <ul className="space-y-3">
-        {pageData.items.map((l) => (
-          <CartLine
-            key={l.rewardId}
-            line={{
-              rewardId: l.rewardId,
-              qty: l.qty,
-              reward:
-                l.reward && l.reward.active
-                  ? { name: l.reward.name, pointsCost: l.reward.points_cost, stock: l.reward.stock, imageUrl: l.reward.imageUrl }
-                  : null,
-            }}
-          />
-        ))}
-      </ul>
-      <Pagination base="/cart" config={CART_CONFIG} state={state} total={matched.length} />
+      ) : (
+        <>
+          <ul className="space-y-3">
+            {pageData.items.map((l) => (
+              <CartLine
+                key={l.rewardId}
+                line={{
+                  rewardId: l.rewardId,
+                  qty: l.qty,
+                  reward:
+                    l.reward && l.reward.active
+                      ? { name: l.reward.name, pointsCost: l.reward.points_cost, stock: l.reward.stock, imageUrl: l.reward.imageUrl }
+                      : null,
+                }}
+              />
+            ))}
+          </ul>
+          <Pagination base="/cart" config={CART_CONFIG} state={state} total={matched.length} />
+        </>
+      )}
+      {/* the summary and checkout use every line (DESIGN-4 3.3), so they stay on a no-match search */}
       <Card as="section" tone="accent" aria-label="สรุปตะกร้า" className="mt-5 space-y-1">
         <p className="flex justify-between">
           <span>รวมทั้งหมด</span>

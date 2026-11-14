@@ -82,7 +82,7 @@ export function NotificationsSection({ base, role, searchParams }: { base: strin
       <Suspense fallback={<ListToolbarSkeleton views={false} filters={1} />}>
         <ListToolbar base={base} config={config} placeholder="ค้นหาการแจ้งเตือน" />
       </Suspense>
-      <Suspense fallback={<ListSkeleton view="list" toolbar={false} />}>
+      <Suspense fallback={<ListSkeleton view="list" toolbar={false} thumb={false} />}>
         <NotificationResults base={base} config={config} searchParams={searchParams} />
       </Suspense>
     </>

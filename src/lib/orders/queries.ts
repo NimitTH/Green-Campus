@@ -47,18 +47,6 @@ function summary(r: OrderRow): OrderSummary {
   return { id: r.id, status: r.status, totalPoints: r.total_points, createdAt: r.created_at, expiresAt: r.expires_at, readyAt: r.ready_at };
 }
 
-/** The student's orders, newest first. */
-export async function listMyOrders(studentId: string): Promise<OrderSummary[]> {
-  const supabase = await createServerClient();
-  const { data, error } = await supabase
-    .from("orders")
-    .select("id, status, total_points, created_at, expires_at, ready_at")
-    .eq("student_id", studentId)
-    .order("created_at", { ascending: false });
-  if (error) throw new Error(`listMyOrders: ${error.message}`);
-  return ((data ?? []) as OrderRow[]).map(summary);
-}
-
 /**
  * One page of the student's orders for /orders, from my_order_list (their session; the view is security_invoker).
  * Optional search on the item names or the order number, sorted by date then id. A page past the end returns no

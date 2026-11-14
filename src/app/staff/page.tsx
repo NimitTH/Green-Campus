@@ -98,10 +98,13 @@ function ChartEmpty() {
   return <EmptyState className="grid h-64 place-items-center">ยังไม่มีข้อมูล</EmptyState>;
 }
 
+// chart height, like ChartSkeleton and ChartEmpty, so the card does not jump (Task 18 review M7)
 function ChartError() {
   return (
-    <p role="alert" className="rounded-input border border-warn p-3 text-sm text-warn">
-      ยังโหลดสถิติรวมไม่ได้ในขณะนี้
-    </p>
+    <div className="grid h-64 place-items-center">
+      <p role="alert" className="rounded-input border border-warn p-3 text-sm text-warn">
+        ยังโหลดสถิติรวมไม่ได้ในขณะนี้
+      </p>
+    </div>
   );
 }

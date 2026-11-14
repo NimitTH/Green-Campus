@@ -22,7 +22,7 @@ export default function MySubmissionsPage({ searchParams }: { searchParams: Sear
       <div className="mb-5">
         <PageHeader title="ผลที่ส่ง" />
       </div>
-      <Suspense fallback={<ListSkeleton toolbar={false} />}>
+      <Suspense fallback={<ListSkeleton />}>
         <SubmissionList searchParams={searchParams} />
       </Suspense>
     </main>

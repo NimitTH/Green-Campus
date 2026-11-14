@@ -18,7 +18,7 @@ export default function NotificationsPage({ searchParams }: { searchParams: Sear
       <div className="mb-5">
         <PageHeader title="แจ้งเตือน" />
       </div>
-      <Suspense fallback={<ListSkeleton view="list" toolbar={false} />}>
+      <Suspense fallback={<ListSkeleton view="list" toolbar={{ views: false, filters: 1 }} thumb={false} />}>
         <Notifications searchParams={searchParams} />
       </Suspense>
     </main>
