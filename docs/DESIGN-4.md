@@ -260,6 +260,7 @@ type ListConfig = {
 - เป้าหมายต้องมี `role = 'student'` · ห้ามทำกับตัวเอง
 - ครู: รีเซ็ตรหัส, ระงับ, ยกเลิกระงับ · admin: ทุกคำสั่ง
 - ผู้ทำที่ `is_demo = true` ทำได้เฉพาะนักเรียนที่ `is_demo = true`
+- การอ่านของบัญชีสาธิต (ครูหรือ admin ที่ `is_demo = true`, เจ้าของตัดสิน 14 พ.ย. 2026): `/staff/students` แสดงเฉพาะนักเรียนสาธิต (total นับเฉพาะนักเรียนสาธิต) · หน้ารายละเอียดของนักเรียนจริงไม่แสดงอีเมล เหตุผลการระงับ และผู้ระงับ (ฐานข้อมูลคืน null) · "ประวัติการจัดการบัญชี" ของนักเรียนจริงว่าง · ครูและ admin จริงเห็นเหมือนเดิม
 - `account_events` อ่านได้เฉพาะ staff · ไม่มีใครแก้/ลบได้ (ไม่มี policy update/delete, เขียนผ่านฟังก์ชันเท่านั้น) · student_id ไม่เป็น FK (ประวัติยังอยู่หลังลบ)
 
 ### 6.4 การบังคับใช้
@@ -312,6 +313,7 @@ type ListConfig = {
 - ฟังก์ชัน (ทุกตัวตรวจกฎ §6.3 · error code: `not_staff`, `not_admin`, `not_student`, `demo_scope`, `self_target`, `invalid_input`):
   - `staff_list_students(p_q text, p_sort text, p_dir text, p_status text, p_limit int, p_offset int) returns table (..., total bigint)` · join `auth.users` (email, created_at) + `student_balance` + `account_status` · sort/dir/status ตรวจจาก whitelist · ค้นหา ilike ชื่อ/ชื่อที่แสดง/อีเมล (escape) · `stable`
   - `staff_get_student(p_student)` · `staff_list_account_events(p_student, p_limit)`
+  - ผู้เรียกที่เป็นบัญชีสาธิต (§6.3): `staff_list_students` กรองเฉพาะ `is_demo` · `staff_get_student` ของนักเรียนจริงคืน `email`, `suspend_reason`, `suspended_by_name` เป็น null · `staff_list_account_events` ของนักเรียนจริง (หรือที่ลบแล้ว) ไม่คืนแถว
   - `staff_begin_password_reset(p_student)` · `staff_suspend_student(p_student, p_days int, p_reason text)` (`p_days` null หรือ 1–365) · `staff_unsuspend_student(p_student)`
   - `admin_set_student_name(p_student, p_full_name, p_display_name)` (กฎเดียวกับ profile เดิม)
   - `admin_check_student_delete(p_student) returns text` (ชื่อ) · `admin_record_student_deleted(p_student, p_name)` (ต้องไม่มี profile id นี้แล้ว)

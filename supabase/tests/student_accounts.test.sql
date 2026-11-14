@@ -4,7 +4,7 @@
 -- fixtures), demo student ds 5a03; teacher t 5a11, admin a 5a12, demo teacher dt 5a13, demo admin da 5a14,
 -- teacher target t2 5a15.
 begin;
-select plan(94);
+select plan(107);
 
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-000000005a01', 'sa-s1@example.test', '{"full_name":"SA นักเรียนหนึ่ง"}'::jsonb),
@@ -184,10 +184,43 @@ select is(pg_temp.try_as('00000000-0000-0000-0000-000000005a12',
 select is(pg_temp.try_as('00000000-0000-0000-0000-000000005a01',
   $$select * from public.staff_list_students(null, 'date', 'desc', 'all', 12, 0)$$), 'not_staff', 'student -> staff_list_students = not_staff');
 
+select is(pg_temp.try_as('00000000-0000-0000-0000-000000005a01',
+  $$select public.admin_record_student_deleted('00000000-0000-0000-0000-000000005a99', 'x')$$), 'not_admin', 'student -> admin_record_student_deleted = not_admin');
+select is(pg_temp.try_as('00000000-0000-0000-0000-000000005a13',
+  $$select * from public.staff_list_students(null, 'date', 'desc', 'all', 12, 0)$$), 'ok', 'demo teacher -> staff_list_students = ok');
+
 set local role anon;
 select throws_ok($$select public.staff_begin_password_reset('00000000-0000-0000-0000-000000005a01')$$, '42501', null, 'anon cannot call the commands');
 select throws_ok($$select public.clear_must_change_password()$$, '42501', null, 'anon cannot clear the flag');
 reset role;
+
+-- Refused commands write nothing (review M8): no account_status row and no account_events row for any target the
+-- matrix and the spot checks only ever refused (the teacher target, every self target, the student caller who was
+-- refused as demo_scope above, an unknown id), and no row written by a refused actor (student, demo staff) for a
+-- real student.
+select is_empty($$
+  select 'status', s.student_id from public.account_status s
+  where s.student_id in ('00000000-0000-0000-0000-000000005a01', '00000000-0000-0000-0000-000000005a11',
+                         '00000000-0000-0000-0000-000000005a12', '00000000-0000-0000-0000-000000005a13',
+                         '00000000-0000-0000-0000-000000005a14', '00000000-0000-0000-0000-000000005a15',
+                         '00000000-0000-0000-0000-0000000fffff')
+  union all
+  select 'event', e.student_id from public.account_events e
+  where e.student_id in ('00000000-0000-0000-0000-000000005a01', '00000000-0000-0000-0000-000000005a11',
+                         '00000000-0000-0000-0000-000000005a12', '00000000-0000-0000-0000-000000005a13',
+                         '00000000-0000-0000-0000-000000005a14', '00000000-0000-0000-0000-000000005a15',
+                         '00000000-0000-0000-0000-0000000fffff')
+$$, 'refused commands (not_staff, not_student, self_target, demo_scope) wrote no account_status and no account_events row');
+select is_empty($$
+  select e.id from public.account_events e
+  where e.actor_id in ('00000000-0000-0000-0000-000000005a01', '00000000-0000-0000-0000-000000005a13', '00000000-0000-0000-0000-000000005a14')
+    and e.student_id <> '00000000-0000-0000-0000-000000005a03'
+$$, 'a refused actor (student, demo staff on a real student) wrote no event');
+select is_empty($$
+  select s.student_id from public.account_status s
+  where s.suspended_by in ('00000000-0000-0000-0000-000000005a01', '00000000-0000-0000-0000-000000005a13', '00000000-0000-0000-0000-000000005a14')
+    and s.student_id <> '00000000-0000-0000-0000-000000005a03'
+$$, 'a refused actor suspended no real student');
 
 -- ---------------------------------------------------------------------------------------------------------
 -- 3. Input rules
@@ -356,6 +389,21 @@ select ok((select bool_and(ok) from (
   select coalesce(e.created_at <= lag(e.created_at) over (order by e.ord), true) as ok
   from public.staff_list_account_events('00000000-0000-0000-0000-000000005a02') with ordinality e(id, student_id, student_name, actor_id, actor_name, action, detail, created_at, ord)) x),
   'history is newest first');
+
+-- Demo staff and real students (review I1, ruling R16): no email, reason, suspender or history
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000005a13","role":"authenticated"}', true);
+select is((select concat_ws('|', full_name, coalesce(email, '<null>'), suspended_until::text, coalesce(suspend_reason, '<null>'),
+                            coalesce(suspended_by_name, '<null>'), is_demo)
+           from public.staff_get_student('00000000-0000-0000-0000-000000005a01')),
+  'SA ชื่อ จริง|<null>|infinity|<null>|<null>|f', 'demo staff get no email, reason or suspender for a real student');
+select is((select email || '|' || is_demo from public.staff_get_student('00000000-0000-0000-0000-000000005a03')),
+  'sa-ds@example.test|true', 'demo staff still get a demo student''s email');
+select is((select count(*) from public.staff_list_account_events('00000000-0000-0000-0000-000000005a02')), 0::bigint,
+  'demo staff see no history of a real student');
+select is((select count(*) from public.staff_list_account_events('00000000-0000-0000-0000-000000005a99')), 0::bigint,
+  'demo staff see no history of a deleted student');
+select ok((select count(*) from public.staff_list_account_events('00000000-0000-0000-0000-000000005a03')) > 0,
+  'demo staff see the history of a demo student');
 reset role;
 
 -- ---------------------------------------------------------------------------------------------------------
@@ -382,6 +430,7 @@ insert into public.ledger_entries (student_id, kind, points, carbon_kg) values
   ('00000000-0000-0000-0000-000000005a05', 'earn', 2000000000, 0);
 -- independent recomputes, as the table owner
 select set_config('t.all', (select count(*)::text from public.profiles where role = 'student'), true);
+select set_config('t.demo', (select count(*)::text from public.profiles where role = 'student' and is_demo), true);
 select set_config('t.susp', (select count(*)::text from public.profiles p join public.account_status s on s.student_id = p.id
                              where p.role = 'student' and s.suspended_until > now()), true);
 select set_config('t.must', (select count(*)::text from public.profiles p join public.account_status s on s.student_id = p.id
@@ -424,6 +473,16 @@ select is((select max(total) from public.staff_list_students(null, 'date', 'desc
   'active total matches an independent count');
 select throws_ok($$select * from public.staff_list_students(null, 'price', 'desc', 'all', 12, 0)$$, 'P0001', 'invalid_input', 'unknown sort = invalid_input');
 select throws_ok($$select * from public.staff_list_students(null, 'date', 'desc', 'banned', 12, 0)$$, 'P0001', 'invalid_input', 'unknown status = invalid_input');
+
+-- a demo caller lists demo students only, and total counts only those (ruling R16)
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000005a14","role":"authenticated"}', true);
+select is((select array[bool_and(is_demo), bool_or(id = '00000000-0000-0000-0000-000000005a03')]
+           from public.staff_list_students(null, 'date', 'desc', 'all', 100, 0)),
+  array[true, true], 'demo staff list only demo students (the demo fixture included)');
+select is((select max(total) from public.staff_list_students(null, 'date', 'desc', 'all', 1, 0)), current_setting('t.demo')::bigint,
+  'demo staff total counts only demo students');
+select is((select array_agg(id) from public.staff_list_students('FINDME-q7x', 'date', 'desc', 'all', 12, 0)),
+  null::uuid[], 'demo staff cannot find a real student by email');
 reset role;
 
 -- ---------------------------------------------------------------------------------------------------------

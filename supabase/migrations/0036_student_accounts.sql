@@ -108,6 +108,11 @@ revoke execute on function public.account_target(public.profiles, uuid) from pub
 
 -- Reads ----------------------------------------------------------------------------------------------------
 
+-- Demo staff and real students' data (Task 18 review I1, ruling R16; owner decision 14 Nov 2026): demo accounts
+-- are handed out at demos, so a demo caller (teacher or admin) sees demo students only in the list (total counts
+-- only those), gets email / suspend_reason / suspended_by_name as null for a real student's detail, and no history
+-- rows for a real (or deleted) student. Non-demo staff are unaffected.
+
 -- /staff/students: search (full name, display name, email; % and _ are literal), sort date|name|points,
 -- dir asc|desc, status all|active|suspended|must_change; id breaks ties in the same direction.
 create function public.staff_list_students(
@@ -132,8 +137,9 @@ declare
   v_pattern text;
   v_limit int := least(greatest(coalesce(p_limit, 12), 1), 100);
   v_offset int := greatest(coalesce(p_offset, 0), 0);
+  v_demo boolean;
 begin
-  perform public.account_caller(false);
+  v_demo := (public.account_caller(false)).is_demo;
   if v_sort not in ('date', 'name', 'points') or v_dir not in ('asc', 'desc')
      or v_status not in ('all', 'active', 'suspended', 'must_change') then
     raise exception 'invalid_input';
@@ -152,6 +158,7 @@ begin
     left join public.student_balance b on b.student_id = p.id
     left join public.account_status s on s.student_id = p.id
     where p.role = 'student'
+      and (not v_demo or p.is_demo)
       and (v_pattern is null
            or p.full_name ilike v_pattern
            or p.display_name ilike v_pattern
@@ -183,7 +190,8 @@ end
 $$;
 
 -- /staff/students/[id]. Any staff member may look at any student (demo staff included: the page shows the
--- demo notice instead of the command panel); a non-student id is not_student (the page answers 404).
+-- demo notice instead of the command panel, and a demo caller gets no email, reason or suspender for a real
+-- student, ruling R16); a non-student id is not_student (the page answers 404).
 create function public.staff_get_student(p_student uuid)
 returns table (
   id uuid, full_name text, display_name text, email text, avatar_path text, created_at timestamptz,
@@ -196,17 +204,22 @@ security definer
 set search_path = ''
 as $$
 #variable_conflict use_column
+declare
+  v_demo boolean;
 begin
-  perform public.account_caller(false);
+  v_demo := (public.account_caller(false)).is_demo;
   if not exists (select 1 from public.profiles p where p.id = p_student and p.role = 'student') then
     raise exception 'not_student';
   end if;
 
   return query
-  select p.id, p.full_name, p.display_name, u.email::text, p.avatar_path, u.created_at,
+  select p.id, p.full_name, p.display_name,
+         case when v_demo and not p.is_demo then null else u.email::text end,
+         p.avatar_path, u.created_at,
          coalesce(b.points, 0)::bigint, coalesce(b.carbon_kg, 0)::numeric,
          s.suspended_until, coalesce(s.must_change_password, false), p.is_demo,
-         s.suspend_reason, sb.full_name
+         case when v_demo and not p.is_demo then null else s.suspend_reason end,
+         case when v_demo and not p.is_demo then null else sb.full_name end
   from public.profiles p
   join auth.users u on u.id = p.id
   left join public.student_balance b on b.student_id = p.id
@@ -216,7 +229,8 @@ begin
 end
 $$;
 
--- Newest first; p_limit clamped to 1..100. Works for deleted students too (no profile needed).
+-- Newest first; p_limit clamped to 1..100. Works for deleted students too (no profile needed). A demo caller
+-- sees the history of a demo student only (ruling R16): nothing for a real or deleted student.
 create function public.staff_list_account_events(p_student uuid, p_limit int default 20)
 returns setof public.account_events
 language plpgsql
@@ -224,11 +238,14 @@ stable
 security definer
 set search_path = ''
 as $$
+declare
+  v_demo boolean;
 begin
-  perform public.account_caller(false);
+  v_demo := (public.account_caller(false)).is_demo;
   return query
   select e.* from public.account_events e
   where e.student_id = p_student
+    and (not v_demo or exists (select 1 from public.profiles p where p.id = p_student and p.is_demo))
   order by e.created_at desc, e.id desc
   limit least(greatest(coalesce(p_limit, 20), 1), 100);
 end

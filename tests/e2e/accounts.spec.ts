@@ -375,6 +375,48 @@ test("@accounts a demo admin sees the demo notice on a real student, and the dat
   }
 });
 
+// Review I1, ruling R16 (owner 14 Nov 2026): demo staff see demo students only, and no real student's e-mail or reason.
+test("@accounts a demo admin lists only demo students and sees no real student's e-mail or reason", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const reason = `เหตุผลลับ ${suffix}`;
+  let admin: TestUser | undefined;
+  let real: TestUser | undefined;
+  let demo: TestUser | undefined;
+  try {
+    admin = await createConfirmedUser("admin", `acct-dl-${suffix}`);
+    real = await createConfirmedUser("student", `acct-dl-real-${suffix}`);
+    demo = await createConfirmedUser("student", `acct-dl-demo-${suffix}`);
+    await setDemo(admin.id, true);
+    await setDemo(demo.id, true);
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    await setAccountStatus(real.id, { suspended_until: tomorrow, suspend_reason: reason });
+
+    // both students' e-mails contain the suffix; the demo admin finds only the demo one
+    await signIn(page, admin, "/staff/students");
+    await page.goto(`/staff/students?q=${encodeURIComponent(suffix)}`);
+    const rows = page.getByTestId("student-row");
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toHaveAttribute("data-student-id", demo.id);
+    await expect(rows.first()).toContainText(demo.email);
+    await expect(page.getByText(real.email)).toHaveCount(0);
+
+    // the real student's page: name and suspension, but no e-mail and no reason
+    await page.goto(`/staff/students/${real.id}`);
+    await expect(page.getByText("บัญชีสาธิตจัดการได้เฉพาะนักเรียนสาธิต")).toBeVisible();
+    await expect(page.getByTestId("account-status")).toContainText("ถูกระงับ");
+    await expect(page.getByText(real.email)).toHaveCount(0);
+    await expect(page.getByText(reason)).toHaveCount(0);
+
+    // a non-demo admin still sees both
+    await setDemo(admin.id, false);
+    await page.goto(`/staff/students/${real.id}`);
+    await expect(page.getByText(real.email)).toBeVisible();
+    await expect(page.getByText(`เหตุผล: ${reason}`)).toBeVisible();
+  } finally {
+    await deleteUsers([real, demo, admin]);
+  }
+});
+
 test("@accounts admin renames a student and adjusts points there", async ({ page }, testInfo) => {
   const suffix = uniqueSuffix(testInfo.project.name);
   const newName = `ชื่อใหม่ ${suffix}`.slice(0, 100);
