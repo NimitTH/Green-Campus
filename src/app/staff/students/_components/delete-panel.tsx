@@ -51,7 +51,7 @@ export function DeletePanel({ studentId, fullName }: { studentId: string; fullNa
       <Button type="button" variant="danger" onClick={() => setOpen(true)}>
         ลบบัญชี
       </Button>
-      <Modal open={open} onClose={close} labelledBy={titleId}>
+      <Modal open={open} onClose={close} labelledBy={titleId} busy={busy}>
         <div className="space-y-4">
           <h2 id={titleId} className="font-display text-lg font-semibold break-words">
             ลบบัญชีของ {fullName}?

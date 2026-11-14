@@ -4,7 +4,7 @@
 -- fixtures), demo student ds 5a03; teacher t 5a11, admin a 5a12, demo teacher dt 5a13, demo admin da 5a14,
 -- teacher target t2 5a15.
 begin;
-select plan(86);
+select plan(94);
 
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-000000005a01', 'sa-s1@example.test', '{"full_name":"SA นักเรียนหนึ่ง"}'::jsonb),
@@ -89,6 +89,11 @@ $$, 'clients have no insert/update/delete/truncate on the new tables');
 select ok(not has_function_privilege('authenticated', 'public.account_caller(boolean)', 'execute')
           and not has_function_privilege('authenticated', 'public.account_target(public.profiles,uuid)', 'execute'),
   'the internal rule helpers are not callable by clients');
+select ok(not has_function_privilege('authenticated', 'public.account_end_sessions(uuid)', 'execute')
+          and not has_function_privilege('anon', 'public.account_end_sessions(uuid)', 'execute')
+          and (select prosecdef and coalesce(proconfig @> array['search_path=""'], false) from pg_proc
+               where oid = 'public.account_end_sessions(uuid)'::regprocedure),
+  'account_end_sessions is an internal definer helper no client can call');
 select ok(has_table_privilege('service_role', 'public.account_status', 'select,insert,update'),
   'service_role (admin client) can maintain account_status');
 select ok(not has_table_privilege('anon', 'public.account_status', 'select')
@@ -420,6 +425,41 @@ select is((select max(total) from public.staff_list_students(null, 'date', 'desc
 select throws_ok($$select * from public.staff_list_students(null, 'price', 'desc', 'all', 12, 0)$$, 'P0001', 'invalid_input', 'unknown sort = invalid_input');
 select throws_ok($$select * from public.staff_list_students(null, 'date', 'desc', 'banned', 12, 0)$$, 'P0001', 'invalid_input', 'unknown status = invalid_input');
 reset role;
+
+-- ---------------------------------------------------------------------------------------------------------
+-- 8. Session revocation (review I2, ruling R15): reset and suspend end the target's Auth sessions (refresh tokens
+--    cascade); other users' sessions and refused commands are untouched.
+-- ---------------------------------------------------------------------------------------------------------
+insert into auth.sessions (id, user_id) values
+  ('00000000-0000-0000-0000-00000005e501', '00000000-0000-0000-0000-000000005a04'),
+  ('00000000-0000-0000-0000-00000005e502', '00000000-0000-0000-0000-000000005a04'),
+  ('00000000-0000-0000-0000-00000005e503', '00000000-0000-0000-0000-000000005a05'),
+  ('00000000-0000-0000-0000-00000005e504', '00000000-0000-0000-0000-000000005a01'),
+  ('00000000-0000-0000-0000-00000005e505', '00000000-0000-0000-0000-000000005a01'),
+  ('00000000-0000-0000-0000-00000005e506', '00000000-0000-0000-0000-000000005a11');
+insert into auth.refresh_tokens (token, user_id, session_id, revoked) values
+  ('sa-rt-5a04', '00000000-0000-0000-0000-000000005a04', '00000000-0000-0000-0000-00000005e501', false),
+  ('sa-rt-5a01', '00000000-0000-0000-0000-000000005a01', '00000000-0000-0000-0000-00000005e504', false);
+
+select pg_temp.run_as('00000000-0000-0000-0000-000000005a11', $$select public.staff_begin_password_reset('00000000-0000-0000-0000-000000005a04')$$);
+select is((select count(*) from auth.sessions where user_id = '00000000-0000-0000-0000-000000005a04'), 0::bigint,
+  'a password reset ends every session of the student');
+select is((select count(*) from auth.refresh_tokens where token = 'sa-rt-5a04'), 0::bigint,
+  'the refresh tokens of those sessions go with them');
+
+select pg_temp.run_as('00000000-0000-0000-0000-000000005a11', $$select public.staff_suspend_student('00000000-0000-0000-0000-000000005a05', 1, 'ทดสอบเซสชัน')$$);
+select is((select count(*) from auth.sessions where user_id = '00000000-0000-0000-0000-000000005a05'), 0::bigint,
+  'a suspension ends every session of the student');
+
+select is((select count(*) from auth.sessions where user_id = '00000000-0000-0000-0000-000000005a01'), 2::bigint,
+  'another student''s sessions are untouched');
+select is((select count(*) from auth.sessions where user_id = '00000000-0000-0000-0000-000000005a11'), 1::bigint,
+  'the acting teacher''s own session is untouched');
+
+select is(pg_temp.try_as('00000000-0000-0000-0000-000000005a14',
+  $$select public.staff_begin_password_reset('00000000-0000-0000-0000-000000005a01')$$), 'demo_scope', 'a refused reset (demo_scope) ...');
+select is((select count(*) from auth.refresh_tokens where token = 'sa-rt-5a01') + (select count(*) from auth.sessions where user_id = '00000000-0000-0000-0000-000000005a01'),
+  3::bigint, '... ends no session');
 
 select * from finish();
 rollback;

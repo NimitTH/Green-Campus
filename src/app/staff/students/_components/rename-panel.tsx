@@ -35,6 +35,9 @@ export function RenamePanel({ studentId, fullName, displayName }: { studentId: s
         if (result.error) setError(result.error);
         return;
       }
+      // show the names as saved (whitespace collapsed), like the heading (review M6)
+      setFull(result.fullName);
+      setDisplay(result.displayName ?? "");
       setSaved(true);
       router.refresh();
     } catch {

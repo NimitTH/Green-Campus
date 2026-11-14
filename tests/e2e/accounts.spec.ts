@@ -194,6 +194,11 @@ test("@accounts reset password: shown once, the student must set a new one, the 
     teacher = await createConfirmedUser("teacher", `acct-rt-${suffix}`);
     student = await createConfirmedUser("student", `acct-rs-${suffix}`);
 
+    // someone is still signed in as the student (a shared lab PC): the reset must end that session (review I2)
+    const open = await freshPage(browser);
+    pages.push(open);
+    await signIn(open, student, "/dashboard");
+
     await signIn(page, teacher, `/staff/students/${student.id}`);
     await page.getByRole("button", { name: "รีเซ็ตรหัสผ่าน", exact: true }).click();
     const dialog = page.getByRole("dialog");
@@ -210,6 +215,12 @@ test("@accounts reset password: shown once, the student must set a new one, the 
     await expect(page.getByTestId("temp-password")).toHaveCount(0); // shown once: gone after closing
     await expect(page.getByTestId("account-status")).toContainText("ต้องเปลี่ยนรหัสผ่าน");
     await expect(page.getByTestId("account-event").first()).toHaveAttribute("data-action", "password_reset");
+
+    // the old session is gone: its next page asks to sign in instead of offering /change-password
+    await open.goto("/dashboard");
+    await expect(open).toHaveURL((url) => url.pathname === "/login");
+    await open.goto("/change-password");
+    await expect(open).toHaveURL((url) => url.pathname === "/login");
 
     // the student signs in with the temporary password and must choose a new one
     const sp = await freshPage(browser);
@@ -381,6 +392,7 @@ test("@accounts admin renames a student and adjusts points there", async ({ page
     await expect(page.getByRole("status").filter({ hasText: "บันทึกชื่อแล้ว" })).toBeVisible();
     await expect(page.getByRole("heading", { level: 2, name: newName })).toBeVisible();
     await expect(page.getByText("ชื่อที่แสดง: ชื่อเล่นใหม่")).toBeVisible();
+    await expect(rename.getByLabel("ชื่อ-นามสกุลจริง")).toHaveValue(newName); // the saved, trimmed name (review M6)
     await expect(page.getByTestId("account-event").first()).toHaveAttribute("data-action", "rename");
 
     await page.getByLabel("แต้ม (ใส่ลบเพื่อหัก)").fill("7");

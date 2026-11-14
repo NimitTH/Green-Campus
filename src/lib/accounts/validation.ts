@@ -58,3 +58,16 @@ export function confirmNameMatches(typed: string, fullName: string): boolean {
   const t = typed.trim();
   return t.length > 0 && t === fullName;
 }
+
+/**
+ * Review I1: an unsuspend whose database step succeeded but whose Auth step failed (`retry: true`) must keep offering
+ * "ยกเลิกระงับ", because the page now shows "ปกติ" while the Auth ban still stands. staff_unsuspend_student is
+ * idempotent, so pressing it again is safe.
+ */
+export function needsUnsuspendRetry(result: { ok: boolean; error?: string; retry?: boolean }): boolean {
+  return !result.ok && result.retry === true;
+}
+
+export function showUnsuspendButton(suspended: boolean, retryPending: boolean): boolean {
+  return suspended || retryPending;
+}

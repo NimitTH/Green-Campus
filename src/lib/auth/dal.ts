@@ -64,6 +64,46 @@ type ProfileRow = {
 
 type Session = { user: CurrentUser | null; suspended: boolean };
 
+type ServerClient = Awaited<ReturnType<typeof createServerClient>>;
+
+/** The `sub` of a JWT, unverified (used only as the filter of a query that sends the same token to PostgREST). */
+function tokenSubject(token: string): string | null {
+  const payload = token.split(".")[1];
+  if (!payload) return null;
+  try {
+    const sub = (JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { sub?: unknown }).sub;
+    return typeof sub === "string" && sub ? sub : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A reset or a suspension deletes the student's auth.sessions (ruling R15). Auth then answers the open tab with
+ * session_not_found, which supabase-js turns into AuthSessionMissingError and drops the stored session, instead of
+ * user_banned. Which message to show then comes from the caller's own account_status row, read with the cookie's access
+ * token (captured before getUser): PostgREST still verifies its signature and expiry (at most 1 h, spec 6.4) and RLS
+ * returns only the caller's own row for a student. The answer only picks "suspended" over "signed out"; the user is
+ * signed out either way, so a missing or expired token or any read error falls back to plain "signed out".
+ */
+async function revokedSessionSuspended(supabase: ServerClient, token: string | undefined): Promise<boolean> {
+  if (!token) return false;
+  try {
+    const uid = tokenSubject(token);
+    if (!uid) return false;
+    const { data: row, error } = await supabase
+      .from("account_status")
+      .select("suspended_until")
+      .eq("student_id", uid)
+      .setHeader("Authorization", `Bearer ${token}`)
+      .maybeSingle();
+    if (error || !row) return false;
+    return isSuspendedAt((row as { suspended_until: string | null }).suspended_until, new Date());
+  } catch {
+    return false;
+  }
+}
+
 // One read per request: Auth user + profile with the caller's own account_status row (RLS: own row only).
 const getSession = cache(async (): Promise<Session> => {
   // Supabase reads the clock (token expiry) after cookies are available. With
@@ -71,9 +111,14 @@ const getSession = cache(async (): Promise<Session> => {
   // Date.now() is not allowed; connection() makes everything below request-time only.
   await connection();
   const supabase = await createServerClient();
+  // the cookie's access token, unverified: kept only for revokedSessionSuspended (getUser may drop the session)
+  const cookieToken = (await supabase.auth.getSession()).data.session?.access_token;
   const { data, error } = await supabase.auth.getUser();
   // A ban set through the Auth admin API (Task 17) makes Auth refuse the session itself.
   if (error?.code === "user_banned") return { user: null, suspended: true };
+  if (error && (error.name === "AuthSessionMissingError" || error.code === "session_not_found")) {
+    return { user: null, suspended: await revokedSessionSuspended(supabase, cookieToken) };
+  }
   if (error || !data.user) return { user: null, suspended: false };
 
   const { data: profile } = await supabase

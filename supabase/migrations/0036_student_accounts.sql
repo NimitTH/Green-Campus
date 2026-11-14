@@ -236,7 +236,30 @@ $$;
 
 -- Commands -------------------------------------------------------------------------------------------------
 
--- Sets the forced-change flag; the app then sets a temporary password through the Auth admin API.
+-- Ends every Auth session of a student (refresh tokens cascade from auth.sessions), in the command's transaction
+-- (Task 17 review I2, ruling R15): after a reset nobody can keep using an old session to set a password of their
+-- own, and after a suspension an old refresh token does not come back to life when the suspension is lifted.
+-- Where the function owner lacks the privilege on auth.sessions (a hosted project could differ), the command still
+-- succeeds with a warning; DESIGN-4 11 has the owner check this on Supabase Cloud.
+create function public.account_end_sessions(p_user uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  begin
+    delete from auth.sessions where user_id = p_user;
+  exception when insufficient_privilege then
+    raise warning 'account_end_sessions: no privilege on auth.sessions, sessions of % kept', p_user;
+  end;
+end
+$$;
+
+revoke execute on function public.account_end_sessions(uuid) from public, anon, authenticated;
+
+-- Sets the forced-change flag and ends the student's sessions; the app then sets a temporary password through the
+-- Auth admin API.
 create function public.staff_begin_password_reset(p_student uuid)
 returns void
 language plpgsql
@@ -253,6 +276,8 @@ begin
 
   insert into public.account_events (student_id, student_name, actor_id, actor_name, action)
   values (v_target.id, v_target.full_name, v_caller.id, v_caller.full_name, 'password_reset');
+
+  perform public.account_end_sessions(v_target.id);
 end
 $$;
 
@@ -288,6 +313,7 @@ begin
   values (v_target.id, v_target.full_name, v_caller.id, v_caller.full_name, 'suspend',
           case when p_days is null then 'จนกว่าจะปลด' else p_days || ' วัน' end || ' · ' || v_reason);
 
+  perform public.account_end_sessions(v_target.id);
   return v_until;
 end
 $$;

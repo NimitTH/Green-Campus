@@ -7,6 +7,7 @@ import { banDurationFor, confirmNameMatches, isSuspendInput, validateSuspend, ty
 import { getActiveUser, type CurrentUser } from "@/lib/auth/dal";
 import { isAdminRole, isStaffRole } from "@/lib/auth/routes";
 import { accountErrorMessageTh, errorMessageTh, GENERIC_ERROR_TH } from "@/lib/errors";
+import { AVATAR_BUCKET } from "@/lib/profile/avatar";
 import { isProfileInputShape, validateProfile, type ProfileFieldErrors } from "@/lib/profile/validation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerClient } from "@/lib/supabase/server";
@@ -24,10 +25,13 @@ import { isUuid } from "@/lib/uuid";
 // be repeated safely. The temporary password is returned to the acting staff member only; it is never stored,
 // logged or put in a URL, and error logs carry Auth error codes only.
 
-export type AccountActionResult = { ok: true } | { ok: false; error: string };
+export type AccountActionResult = { ok: true } | { ok: false; error: string; retry?: boolean };
 export type ResetPasswordResult = { ok: true; password: string } | { ok: false; error: string };
-export type SuspendActionResult = { ok: true } | { ok: false; error?: string; fieldErrors?: SuspendFieldErrors };
-export type RenameActionResult = { ok: true } | { ok: false; error?: string; fieldErrors?: ProfileFieldErrors };
+export type SuspendActionResult = { ok: true } | { ok: false; error?: string; fieldErrors?: SuspendFieldErrors; retry?: boolean };
+/** On success: the names as saved (whitespace collapsed, blank display name = null), for the form to show. */
+export type RenameActionResult =
+  | { ok: true; fullName: string; displayName: string | null }
+  | { ok: false; error?: string; fieldErrors?: ProfileFieldErrors };
 
 const AUTH_STEP_FAILED = "บันทึกแล้ว แต่ระบบเข้าสู่ระบบยังไม่อัปเดต กดอีกครั้ง";
 const RESET_FAILED = "รีเซ็ตรหัสผ่านไม่สำเร็จ ลองอีกครั้ง";
@@ -55,6 +59,22 @@ function logDb(name: string, error: { code?: string; message?: string }): void {
 function logAuth(name: string, error: { code?: string; status?: number }): void {
   // never the request body: for a reset it carries the temporary password
   console.error(`${name}: auth admin step failed`, error.code, error.status);
+}
+
+/** Removes everything under avatars/{id}/. Best effort after the account is gone: a failure is logged (id only). */
+async function removeAvatarFiles(studentId: string): Promise<void> {
+  try {
+    const bucket = createAdminClient().storage.from(AVATAR_BUCKET);
+    const { data, error } = await bucket.list(studentId, { limit: 100 });
+    if (error) throw error;
+    const paths = (data ?? []).map((f) => `${studentId}/${f.name}`);
+    if (paths.length > 0) {
+      const { error: removeError } = await bucket.remove(paths);
+      if (removeError) throw removeError;
+    }
+  } catch (e) {
+    console.error("deleteStudent: avatar cleanup failed", studentId, e instanceof Error ? e.message : "unknown");
+  }
 }
 
 function revalidateStudent(studentId: string): void {
@@ -108,7 +128,7 @@ export async function suspendStudent(studentId: string, input: unknown): Promise
   const { error: authError } = await createAdminClient().auth.admin.updateUserById(studentId, { ban_duration: banDurationFor(valid.days) });
   if (authError) {
     logAuth("suspendStudent", authError);
-    return { ok: false, error: AUTH_STEP_FAILED };
+    return { ok: false, error: AUTH_STEP_FAILED, retry: true };
   }
   return { ok: true };
 }
@@ -130,7 +150,8 @@ export async function unsuspendStudent(studentId: string): Promise<AccountAction
   const { error: authError } = await createAdminClient().auth.admin.updateUserById(studentId, { ban_duration: "none" });
   if (authError) {
     logAuth("unsuspendStudent", authError);
-    return { ok: false, error: AUTH_STEP_FAILED };
+    // retry: the page now reads "ปกติ" while the Auth ban stands; the panel keeps the button (review I1)
+    return { ok: false, error: AUTH_STEP_FAILED, retry: true };
   }
   return { ok: true };
 }
@@ -157,7 +178,7 @@ export async function renameStudent(studentId: string, input: unknown): Promise<
   }
   revalidateStudent(studentId);
   revalidatePath("/staff/users");
-  return { ok: true };
+  return { ok: true, fullName: valid.value.full_name, displayName: valid.value.display_name };
 }
 
 /**
@@ -184,6 +205,9 @@ export async function deleteStudent(studentId: string, confirmName: unknown): Pr
     logAuth("deleteStudent", authError);
     return { ok: false, error: DELETE_FAILED };
   }
+
+  // A deleted student's picture would stay public in the avatars bucket (no orphan sweep covers it, review M3).
+  await removeAvatarFiles(studentId);
 
   // The account is gone; a failure here loses only the history line (logged), never the delete itself.
   const { error: recordError } = await supabase.rpc("admin_record_student_deleted", { p_student: studentId, p_name: fullName });

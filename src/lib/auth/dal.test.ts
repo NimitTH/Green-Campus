@@ -9,16 +9,41 @@ vi.mock("next/navigation", () => ({
 }));
 
 type Row = Record<string, unknown> | null;
-const state: { user: { id: string; email: string } | null; error: { code?: string } | null; row: Row } = {
+const state: {
+  user: { id: string; email: string } | null;
+  error: { code?: string; name?: string } | null;
+  row: Row;
+  // the cookie session (unverified) and the caller's own account_status row, for a revoked session
+  cookieUserId: string | null;
+  statusRow: Row;
+} = {
   user: null,
   error: null,
   row: null,
+  cookieUserId: null,
+  statusRow: null,
 };
+/** A JWT-shaped token with only a payload (the DAL reads sub; PostgREST would verify it). */
+function fakeJwt(sub: string): string {
+  return ["h", Buffer.from(JSON.stringify({ sub })).toString("base64url"), "s"].join(".");
+}
+
 vi.mock("@/lib/supabase/server", () => ({
   createServerClient: vi.fn(async () => ({
-    auth: { getUser: async () => ({ data: { user: state.user }, error: state.error }) },
-    from: () => ({
-      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: state.row, error: null }) }) }),
+    auth: {
+      getUser: async () => ({ data: { user: state.user }, error: state.error }),
+      getSession: async () => ({ data: { session: state.cookieUserId ? { access_token: fakeJwt(state.cookieUserId) } : null }, error: null }),
+    },
+    from: (table: string) => ({
+      select: () => ({
+        eq: () => {
+          const query = {
+            maybeSingle: async () => ({ data: table === "account_status" ? state.statusRow : state.row, error: null }),
+            setHeader: () => query,
+          };
+          return query;
+        },
+      }),
     }),
   })),
 }));
@@ -146,5 +171,53 @@ describe("getActiveUser", () => {
   it("a pending password change -> must_change_password", async () => {
     state.row = { ...profile({ suspended_until: null, must_change_password: true }), role: "teacher" };
     await expect(getActiveUser()).resolves.toEqual({ ok: false, code: "must_change_password" });
+  });
+});
+
+// Review I2 / ruling R15: reset and suspend delete the student's auth.sessions, so Auth answers session_not_found
+// for the open tab instead of user_banned. The page must still say "suspended" (spec 6.4), not just "sign in".
+describe("a revoked session (session_not_found)", () => {
+  beforeEach(() => {
+    state.user = null;
+    state.error = { code: "session_not_found" };
+    state.row = null;
+    state.cookieUserId = "33333333-3333-4333-8333-333333333333";
+    state.statusRow = null;
+  });
+
+  it("of a suspended student -> suspended: requireUser goes to /auth/signout", async () => {
+    state.statusRow = { suspended_until: "infinity" };
+    expect(await getCurrentUser()).toBeNull();
+    await expect(requireUser("/notifications")).rejects.toThrow("REDIRECT:/auth/signout?reason=suspended");
+  });
+
+  it("as supabase-js reports it (AuthSessionMissingError, no code) -> still suspended", async () => {
+    state.error = { name: "AuthSessionMissingError" };
+    state.statusRow = { suspended_until: "infinity" };
+    await expect(requireUser("/notifications")).rejects.toThrow("REDIRECT:/auth/signout?reason=suspended");
+  });
+
+  it("after a reset (not suspended) -> just signed out: /login with next", async () => {
+    state.statusRow = { suspended_until: null };
+    await expect(requireUser("/dashboard")).rejects.toThrow("REDIRECT:/login?next=%2Fdashboard");
+  });
+
+  it("an expired suspension or no status row -> signed out, not suspended", async () => {
+    state.statusRow = { suspended_until: "2000-01-01T00:00:00+00:00" };
+    await expect(requireUser("/dashboard")).rejects.toThrow("REDIRECT:/login?next=%2Fdashboard");
+    state.statusRow = null;
+    await expect(requireUser("/dashboard")).rejects.toThrow("REDIRECT:/login?next=%2Fdashboard");
+  });
+
+  it("no cookie session -> signed out", async () => {
+    state.cookieUserId = null;
+    state.statusRow = { suspended_until: "infinity" };
+    await expect(requireUser("/dashboard")).rejects.toThrow("REDIRECT:/login?next=%2Fdashboard");
+  });
+
+  it("other Auth errors are not looked up", async () => {
+    state.error = { code: "bad_jwt" };
+    state.statusRow = { suspended_until: "infinity" };
+    await expect(requireUser("/dashboard")).rejects.toThrow("REDIRECT:/login?next=%2Fdashboard");
   });
 });

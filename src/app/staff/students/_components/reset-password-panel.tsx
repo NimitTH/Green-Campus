@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { resetStudentPassword } from "@/app/actions/accounts";
 import { Button, CopyLinkButton } from "@/components/ui";
 import { GENERIC_ERROR_TH } from "@/lib/errors";
@@ -9,7 +9,9 @@ import { Modal } from "./modal";
 
 /**
  * "รีเซ็ตรหัสผ่าน" (DESIGN-4 6.2): confirm, then show the temporary password ONCE in the same dialog. The password lives
- * only in this component's state while the dialog is open; closing the dialog forgets it.
+ * only in this component's state while the dialog is open; closing the dialog forgets it. Escape is ignored while the
+ * command runs, and a result that arrives after the dialog was closed is dropped, so a later open always starts at the
+ * confirmation (review M1). The password view takes focus on its heading (review M2).
  */
 export function ResetPasswordPanel({ studentId, name }: { studentId: string; name: string }) {
   const router = useRouter();
@@ -18,9 +20,17 @@ export function ResetPasswordPanel({ studentId, name }: { studentId: string; nam
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
+  // bumped by every close: a result that belongs to an earlier opening is ignored
+  const visit = useRef(0);
+  const passwordHeading = useRef<HTMLHeadingElement>(null);
   const titleId = useId();
 
+  useEffect(() => {
+    if (password) passwordHeading.current?.focus();
+  }, [password]);
+
   function close() {
+    visit.current += 1;
     setOpen(false);
     setPassword(null);
     setError(null);
@@ -31,13 +41,15 @@ export function ResetPasswordPanel({ studentId, name }: { studentId: string; nam
     busyRef.current = true;
     setBusy(true);
     setError(null);
+    const mine = visit.current;
     try {
       const result = await resetStudentPassword(studentId);
+      router.refresh();
+      if (mine !== visit.current) return;
       if (result.ok) setPassword(result.password);
       else setError(result.error);
-      router.refresh();
     } catch {
-      setError(GENERIC_ERROR_TH);
+      if (mine === visit.current) setError(GENERIC_ERROR_TH);
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -49,10 +61,10 @@ export function ResetPasswordPanel({ studentId, name }: { studentId: string; nam
       <Button type="button" variant="card" onClick={() => setOpen(true)}>
         รีเซ็ตรหัสผ่าน
       </Button>
-      <Modal open={open} onClose={close} labelledBy={titleId}>
+      <Modal open={open} onClose={close} labelledBy={titleId} busy={busy}>
         {password ? (
           <div className="space-y-4">
-            <h2 id={titleId} className="font-display text-lg font-semibold">
+            <h2 id={titleId} ref={passwordHeading} tabIndex={-1} className="font-display text-lg font-semibold outline-none">
               รหัสผ่านชั่วคราว
             </h2>
             <p data-testid="temp-password" className="rounded-input bg-paper-2 p-3 text-center font-mono text-3xl tracking-wider break-all select-all">

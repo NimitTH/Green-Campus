@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { SUSPEND_REASON_MAX, banDurationFor, confirmNameMatches, isSuspendInput, validateSuspend, type SuspendInput } from "./validation";
+import {
+  SUSPEND_REASON_MAX,
+  banDurationFor,
+  confirmNameMatches,
+  isSuspendInput,
+  needsUnsuspendRetry,
+  showUnsuspendButton,
+  validateSuspend,
+  type SuspendInput,
+} from "./validation";
 
 const base: SuspendInput = { duration: "1", customDays: "", reason: "ทิ้งขยะผิดที่ซ้ำ" };
 
@@ -79,5 +88,18 @@ describe("banDurationFor", () => {
     expect(banDurationFor(1)).toBe("24h");
     expect(banDurationFor(365)).toBe("8760h");
     expect(banDurationFor(null)).toBe("876000h");
+  });
+});
+
+describe("unsuspend retry (review I1)", () => {
+  it("offers ยกเลิกระงับ again only when the Auth step failed after the database step", () => {
+    expect(needsUnsuspendRetry({ ok: false, error: "x", retry: true })).toBe(true);
+    expect(needsUnsuspendRetry({ ok: false, error: "เฉพาะครู" })).toBe(false);
+    expect(needsUnsuspendRetry({ ok: true })).toBe(false);
+  });
+  it("the button shows while suspended or while a retry is pending", () => {
+    expect(showUnsuspendButton(true, false)).toBe(true);
+    expect(showUnsuspendButton(false, true)).toBe(true);
+    expect(showUnsuspendButton(false, false)).toBe(false);
   });
 });

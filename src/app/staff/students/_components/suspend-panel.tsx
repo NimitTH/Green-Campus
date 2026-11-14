@@ -4,7 +4,14 @@ import { useRouter } from "next/navigation";
 import { useId, useRef, useState } from "react";
 import { suspendStudent, unsuspendStudent } from "@/app/actions/accounts";
 import { Button, inputClass } from "@/components/ui";
-import { SUSPEND_DAYS_MAX, SUSPEND_REASON_MAX, type SuspendDuration, type SuspendFieldErrors } from "@/lib/accounts/validation";
+import {
+  SUSPEND_DAYS_MAX,
+  SUSPEND_REASON_MAX,
+  needsUnsuspendRetry,
+  showUnsuspendButton,
+  type SuspendDuration,
+  type SuspendFieldErrors,
+} from "@/lib/accounts/validation";
 import { GENERIC_ERROR_TH } from "@/lib/errors";
 
 const DURATIONS: { value: SuspendDuration; label: string }[] = [
@@ -18,7 +25,8 @@ const DURATIONS: { value: SuspendDuration; label: string }[] = [
 
 /**
  * "ระงับบัญชี" (DESIGN-4 6.2): duration + required reason. A student who is already suspended can get a new period /
- * reason (recorded again) or "ยกเลิกระงับ". The database decides; a failed Auth step shows the retry message.
+ * reason (recorded again) or "ยกเลิกระงับ". The database decides; a failed Auth step shows the retry message. After a
+ * failed Auth step on unsuspend the page already reads "ปกติ", so the button stays until a retry succeeds (review I1).
  */
 export function SuspendPanel({ studentId, suspended }: { studentId: string; suspended: boolean }) {
   const router = useRouter();
@@ -28,12 +36,17 @@ export function SuspendPanel({ studentId, suspended }: { studentId: string; susp
   const [fieldErrors, setFieldErrors] = useState<SuspendFieldErrors>({});
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [retryUnsuspend, setRetryUnsuspend] = useState(false);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const uid = useId();
   const f = (name: string) => `${uid}-${name}`;
 
-  async function run(command: () => Promise<{ ok: true } | { ok: false; error?: string; fieldErrors?: SuspendFieldErrors }>, success: string) {
+  async function run(
+    command: () => Promise<{ ok: true } | { ok: false; error?: string; fieldErrors?: SuspendFieldErrors; retry?: boolean }>,
+    success: string,
+    isUnsuspend = false,
+  ) {
     if (busyRef.current) return;
     busyRef.current = true;
     setBusy(true);
@@ -42,6 +55,8 @@ export function SuspendPanel({ studentId, suspended }: { studentId: string; susp
     setFieldErrors({});
     try {
       const result = await command();
+      // any suspend replaces the pending retry; an unsuspend keeps it only when its Auth step failed
+      setRetryUnsuspend(isUnsuspend && needsUnsuspendRetry(result));
       if (result.ok) {
         setDone(success);
         setReason("");
@@ -76,8 +91,8 @@ export function SuspendPanel({ studentId, suspended }: { studentId: string; susp
           {done}
         </p>
       ) : null}
-      {suspended ? (
-        <Button type="button" variant="primary" disabled={busy} onClick={() => void run(() => unsuspendStudent(studentId), "ยกเลิกระงับแล้ว")}>
+      {showUnsuspendButton(suspended, retryUnsuspend) ? (
+        <Button type="button" variant="primary" disabled={busy} onClick={() => void run(() => unsuspendStudent(studentId), "ยกเลิกระงับแล้ว", true)}>
           ยกเลิกระงับ
         </Button>
       ) : null}
