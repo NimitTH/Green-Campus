@@ -377,7 +377,72 @@ type ListConfig = {
 
 ## 10. ผลตรวจ build ปิดงาน
 
-กรอกตอนปิดงาน (Task 18): ตาราง gate, บรรทัด build ของ `/`, `/articles`, `use-cache-count`, ปัญหาที่ทราบ, ผล audit
+ปิดงาน 15 พ.ย. 2026 (Task 18) · รีวิวรวมทั้ง branch แล้วแก้ 3 รอบ (4153bd6, 9fd61c5, df3186b, b185bce) + Impeccable polish (8c7677d) · ตัวเลขด้านล่างมาจาก gate เต็มบน 8c7677d (หลัง `npx supabase db reset`)
+
+| ขั้น | ผล |
+|---|---|
+| `npx supabase test db` (pgTAP) | 1241 ผ่าน (33 ไฟล์) |
+| `npm test` (vitest) | 933 ผ่าน (74 ไฟล์) |
+| `npm run test:e2e` | 357 ผ่าน, ข้าม 19, ไม่ผ่าน 0 |
+| `npm run test:seed` | 12 ผ่าน |
+| `npm run test:e2e:prod` | 62 ผ่าน, ข้าม 5, ไม่ผ่าน 1 (`skeletons.spec.ts` บน mobile-chrome รอ prefetch ไม่ทัน · รันซ้ำเดี่ยว `--repeat-each=3` ทั้งสอง project 6/6 ผ่าน · ดูปัญหาที่ทราบ) · รอบก่อนหน้าบน b185bce: 63 ผ่าน, ข้าม 5 |
+| `npm run lint` | 0 error (112 warning เดิม) |
+| `npx tsc -p scripts/tsconfig.json`, `npm run build` | ผ่าน |
+| `node tests/redesign/check-scope.mjs` | `scope OK` |
+
+บรรทัด build (ยัง ◐ ทั้งหมดตาม §1):
+
+```
+┌ ◐ /                                      1m      1h
+├ ◐ /articles
+├ ◐ /staff
+├ ◐ /staff/articles
+├ ◐ /staff/students
+```
+
+`use-cache-count` = **9** เท่าเดิมจาก redesign-3 · รอบนี้ไม่เพิ่ม `'use cache'` เลย เพราะรายการใหม่ทั้งหมด (staff, บัญชีนักเรียน) อ่าน session/searchParams จึง stream ใน `<Suspense>` แทน · baseline ใน check-scope ไม่เปลี่ยน · `src/proxy.ts` ไม่เปลี่ยน
+
+**ปัญหาที่ทราบ (known issues)**
+
+1. ต้อง `npx supabase db push` migration 0032–0036 ขึ้น Cloud **ก่อน** deploy แอป (§11 ข้อ 1) ไม่อย่างนั้นหน้า staff/บัญชีจะเรียกฟังก์ชันที่ยังไม่มี
+2. ระงับบัญชีหรือรีเซ็ตรหัสผ่านแล้ว access token เดิมยังเรียก API ตรงได้ไม่เกิน 1 ชม. (ความเสี่ยงที่ยอมรับใน §6.4) · ทุกหน้าในแอปปิดกั้นทันทีผ่าน DAL
+3. การลบ `auth.sessions` ตอนรีเซ็ต/ระงับ (ruling R15) บน Cloud อาจไม่มีสิทธิ์ ระบบจะข้ามพร้อมคำเตือนใน log · ตรวจตาม §11 ข้อ 5
+4. นักเรียนเรียก `clear_must_change_password` ตรง ๆ ได้ (ข้ามการบังคับเปลี่ยนรหัสของตัวเอง) · ผลกระทบมีแค่ตัวเอง
+5. การกันเลื่อนบทบาทนักเรียนที่ถูกระงับอยู่ในแอปเท่านั้น (`changeUserRole`) ไม่มี guard ในฐานข้อมูล (ไม่ได้ทำ migration 0037)
+6. ปุ่ม "ลองยกเลิกระงับอีกครั้ง" จำสถานะไว้ฝั่ง client เท่านั้น · reload แล้วหาย ทางแก้คือระงับแล้วยกเลิกระงับใหม่
+7. ลบบัญชีแล้วล้างรูปโปรไฟล์ได้สูงสุด 100 ไฟล์ต่อบัญชี
+8. หน้าไม่พบที่ render ใน `<Suspense>` (stream) ตอบ HTTP 200 แต่แสดงหน้าไม่พบ (พฤติกรรมของ streaming)
+9. บัญชีสาธิตไม่เห็นประวัติบัญชีของนักเรียนจริง รวมถึงนักเรียนจริงที่ถูกลบแล้ว (R16/R16a ตั้งใจ) · admin สาธิตไม่เห็นป้ายเตือน lockout ของผู้ใช้จริงใน `/staff/users/[id]`
+10. หน้าชั่งขยะแสดงได้สูงสุด 200 แถว
+11. `skeletons.spec.ts` ย้ายไปรันใน `test:e2e:prod` เท่านั้น (R17: dev ไม่มี prefetch) · ยังไม่นิ่งเป็นครั้งคราวบน mobile-chrome (ไม่ผ่าน 1 ครั้งใน gate เต็ม, รันซ้ำเดี่ยวผ่าน 8/8 และ 6/6)
+12. `check-scope.mjs` จะเตือนเมื่อแก้ไฟล์ที่ branch นี้เพิ่มเข้ามาแล้วยังไม่ commit · commit แล้วจะหาย
+
+**Impeccable audit/polish (Task 18):** ตรวจ 22 หน้าที่เปลี่ยน (staff ทั้งหมด, `/staff/students`, `/staff/students/[id]`, `/change-password`, หน้ารายการฝั่งนักเรียน) ด้วย axe-core (WCAG 2.2 A/AA) ในธีมสว่าง, `data-theme=dark` และ system dark บน Desktop Chrome + Pixel 7 · ผ่านครบ 16 ข้อ
+
+- contrast: ข้อความทุกคู่ ≥ 5.3:1, ขอบ control 3.15–3.54:1, ปกกิจกรรม/บทความ 6.2–8.0:1
+- เป้ากด ≥ 44px บนมือถือ, ไม่มี scroll แนวนอนที่ 360px
+- ลำดับ focus ของ toolbar, sidebar, ปฏิทิน และ dialog ถูกต้อง · Escape คืน focus ให้ปุ่มที่เปิด
+- reduced motion ผ่าน, ไม่มี id ซ้ำหลังนำทางฝั่ง client 10 ครั้ง
+
+แก้ใน 8c7677d:
+
+- วันที่ที่เลือกในปฏิทินธีมมืดจาก 1.90:1 เป็น 9.87:1
+- ช่องวันในปฏิทินบนมือถือเป็น 44×44
+- ปุ่ม "ลบ" แจ้งเตือนและลิงก์ "ดู" กว้าง 44px
+- Home/End ในปฏิทินไปต้น/ท้ายสัปดาห์
+- กราฟ `/staff` ไม่เป็นจุด Tab ซ่อน
+- ตารางกว้างใน `/staff/reports` เลื่อนด้วยคีย์บอร์ดได้
+- ลูกศรเปลี่ยนเดือนและหน้าเป็น SVG
+
+ไม่มีการเปลี่ยนข้อความ
+
+รอเจ้าของตัดสิน (ไม่ได้แก้):
+
+- ลิงก์ "ข้ามไปเนื้อหา" ใน staff shell
+- ป้าย "ปรับแต้ม / ประวัติ" ใน `/staff/users` ที่ล้าสมัยและชื่อไม่ตรงกับ aria-label
+- aria-label ของปุ่ม "ดู" ใน `/staff/articles` ไม่มีชื่อบทความ
+- ไอคอนปุ่มคัดลอกรหัสผ่านเป็นรูปลิงก์
+- เป้ากดเก่าบางจุด < 44px (แต่ ≥ 24px ผ่าน AA)
 
 ## 11. สิ่งที่เจ้าของต้องทำบน Supabase Cloud
 
