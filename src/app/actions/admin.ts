@@ -10,7 +10,7 @@ import {
   type RateFieldErrors,
   type RateInput,
 } from "@/lib/admin/validation";
-import { getAccountStatusRow } from "@/lib/accounts/queries";
+import { getAccountStatusRow, getStudentAccount } from "@/lib/accounts/queries";
 import { getCurrentUser, isSuspendedAt } from "@/lib/auth/dal";
 import { isAdminRole, toRole } from "@/lib/auth/routes";
 import { errorCodeFromDb, errorMessageTh, GENERIC_ERROR_TH } from "@/lib/errors";
@@ -42,6 +42,25 @@ function dbError(name: string, error: { code?: string; message?: string }): stri
   return errorMessageTh(code);
 }
 
+/**
+ * Whether the target is suspended now; null when that cannot be read. A student is read through staff_get_student,
+ * which gives suspended_until to demo callers too (re-review I1: since R16a the account_status table returns no row
+ * about a real user to a demo admin, which used to skip this guard). Anyone else (an older promoted row) is read from
+ * account_status, which a demo admin cannot see for a real user, as R16a intends.
+ */
+async function targetSuspended(userId: string): Promise<boolean | null> {
+  const now = new Date();
+  try {
+    const student = await getStudentAccount(userId);
+    if (student) return isSuspendedAt(student.suspendedUntil, now);
+    const status = await getAccountStatusRow(userId);
+    return status !== null && isSuspendedAt(status.suspendedUntil, now);
+  } catch (e) {
+    console.error("changeUserRole suspension check failed", e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
 /** set_user_role through the caller's session. */
 export async function changeUserRole(userId: string, role: string): Promise<AdminActionResult> {
   if (typeof userId !== "string" || !isUuid(userId)) return { ok: false, error: errorMessageTh("user_not_found") };
@@ -50,8 +69,9 @@ export async function changeUserRole(userId: string, role: string): Promise<Admi
   if (!(await isAdminCaller())) return { ok: false, error: ADMIN_ONLY };
 
   if (newRole !== "student") {
-    const status = await getAccountStatusRow(userId);
-    if (status && isSuspendedAt(status.suspendedUntil, new Date())) return { ok: false, error: SUSPENDED_PROMOTION };
+    const suspended = await targetSuspended(userId);
+    if (suspended === null) return { ok: false, error: GENERIC_ERROR_TH }; // fail closed: the check could not run
+    if (suspended) return { ok: false, error: SUSPENDED_PROMOTION };
   }
 
   const supabase = await createServerClient();

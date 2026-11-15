@@ -478,6 +478,31 @@ test("@accounts a suspended student cannot be promoted; a promoted suspended acc
   }
 });
 
+// Re-review I1: since R16a a demo admin cannot select a real student's account_status row, so the guard reads the
+// suspension through staff_get_student (which still gives the status to demo staff).
+test("@accounts a demo admin cannot promote a suspended real student either", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const name = `นักเรียนเลื่อนสาธิต ${suffix}`;
+  let admin: TestUser | undefined;
+  let student: TestUser | undefined;
+  try {
+    admin = await createConfirmedUser("admin", `acct-dpa-${suffix}`);
+    student = await createConfirmedUser("student", `acct-dps-${suffix}`);
+    await setDemo(admin.id, true);
+    await setFullName(student.id, name);
+    await setAccountStatus(student.id, { suspended_until: "infinity", suspend_reason: "e2e" });
+
+    await signIn(page, admin, `/staff/users/${student.id}`);
+    await page.getByLabel(`บทบาทของ ${name}`).selectOption("teacher");
+    await page.getByRole("button", { name: "บันทึก", exact: true }).click();
+    await page.getByRole("button", { name: "ยืนยันเปลี่ยนบทบาท" }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "ถูกระงับอยู่" })).toBeVisible();
+    expect(await profileRole(student.id)).toBe("student");
+  } finally {
+    await deleteUsers([student, admin]);
+  }
+});
+
 test("@accounts /staff/students has no horizontal scroll at 360 px", async ({ browser }, testInfo) => {
   const suffix = uniqueSuffix(testInfo.project.name);
   let teacher: TestUser | undefined;

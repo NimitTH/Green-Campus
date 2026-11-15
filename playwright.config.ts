@@ -12,6 +12,8 @@ const BASE_URL = PROD ? "http://localhost:3100" : "http://localhost:3000";
 export default defineConfig({
   testDir: "./tests/e2e",
   testMatch: "**/*.spec.ts",
+  // Ruling R17: the skeleton spec needs Link prefetching, which exists in production only (it is in test:e2e:prod).
+  testIgnore: PROD ? [] : ["**/skeletons.spec.ts"],
   // Tests share one database; run them one at a time.
   fullyParallel: false,
   workers: 1,

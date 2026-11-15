@@ -144,7 +144,11 @@ export async function isDemoAccount(userId: string): Promise<boolean> {
   return (data as { is_demo: boolean } | null)?.is_demo === true;
 }
 
-/** A user's account_status row (staff may read every row, 0036 RLS); null when there is none. */
+/**
+ * A user's account_status row through RLS (0036, R16a): everyone reads their own row; staff read other rows, but a
+ * demo caller only rows about demo users. So null means "no row" OR "a demo caller asking about a real user": do not
+ * use it for a guard on a student (read staff_get_student through getStudentAccount instead).
+ */
 export async function getAccountStatusRow(userId: string): Promise<{ suspendedUntil: string | null; mustChangePassword: boolean } | null> {
   const supabase = await createServerClient();
   const { data, error } = await supabase

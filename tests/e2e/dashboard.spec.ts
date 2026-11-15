@@ -140,6 +140,16 @@ test("waste chart bars use theme chart tokens and follow the theme", async ({ pa
         await setTheme(theme);
         await page.setViewportSize({ width, height: 900 });
         await expect(html).toHaveAttribute("data-theme", theme);
+        // ResponsiveContainer re-lays out after the resize: wait until a bar's box is the same on two reads
+        let lastBox = "";
+        await expect
+          .poll(async () => {
+            const box = JSON.stringify(await bars.first().boundingBox());
+            const settled = box === lastBox;
+            lastBox = box;
+            return settled;
+          })
+          .toBe(true);
         await page.screenshot({ path: `${dir}/dashboard-${width}-${theme}-${testInfo.project.name}.png`, fullPage: true });
       }
     }

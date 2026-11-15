@@ -261,7 +261,9 @@ type ListConfig = {
 - ครู: รีเซ็ตรหัส, ระงับ, ยกเลิกระงับ · admin: ทุกคำสั่ง
 - ผู้ทำที่ `is_demo = true` ทำได้เฉพาะนักเรียนที่ `is_demo = true`
 - การอ่านของบัญชีสาธิต (ครูหรือ admin ที่ `is_demo = true`, เจ้าของตัดสิน 14 พ.ย. 2026): `/staff/students` แสดงเฉพาะนักเรียนสาธิต (total นับเฉพาะนักเรียนสาธิต) · หน้ารายละเอียดของนักเรียนจริงไม่แสดงอีเมล เหตุผลการระงับ และผู้ระงับ (ฐานข้อมูลคืน null) · "ประวัติการจัดการบัญชี" ของนักเรียนจริงว่าง · ครูและ admin จริงเห็นเหมือนเดิม
-- `account_events` อ่านได้เฉพาะ staff · ไม่มีใครแก้/ลบได้ (ไม่มี policy update/delete, เขียนผ่านฟังก์ชันเท่านั้น) · student_id ไม่เป็น FK (ประวัติยังอยู่หลังลบ)
+  - บัญชีสาธิตยังเห็นสถานะของนักเรียนจริงผ่าน `staff_get_student` (ป้าย "ถูกระงับ…" และ "ต้องเปลี่ยนรหัสผ่าน") แต่ไม่เห็นอีเมล เหตุผล และผู้ระงับ · การกันเลื่อนบทบาทนักเรียนที่ถูกระงับ (`changeUserRole`) อ่านสถานะจากฟังก์ชันนี้ จึงใช้ได้กับ admin สาธิตด้วย
+  - อ่านตารางตรง (RLS ของ `account_status` และ `account_events`, ใช้ helper `account_staff_can_read`): staff สาธิตอ่านได้เฉพาะแถวของผู้ใช้ที่เป็นบัญชีสาธิต · staff จริงอ่านได้ทุกแถว · ทุกคนอ่านแถว `account_status` ของตัวเองได้เสมอ
+- `account_events` อ่านได้เฉพาะ staff (staff สาธิตเฉพาะแถวของนักเรียนสาธิต) · ไม่มีใครแก้/ลบได้ (ไม่มี policy update/delete, เขียนผ่านฟังก์ชันเท่านั้น) · student_id ไม่เป็น FK (ประวัติยังอยู่หลังลบ)
 
 ### 6.4 การบังคับใช้
 
@@ -308,8 +310,9 @@ type ListConfig = {
 ### 7.5 `0036_student_accounts.sql`
 
 - `account_status` (`student_id uuid primary key references profiles on delete cascade`, `suspended_until timestamptz` (`'infinity'` = จนกว่าจะปลด), `suspend_reason text check (char_length <= 500)`, `suspended_by uuid`, `must_change_password boolean not null default false`, `updated_at timestamptz not null default now()`)
-  - RLS: select ของตัวเองหรือ `is_staff()` · ไม่มี insert/update/delete ให้ client
-- `account_events` (`id uuid pk`, `student_id uuid not null` (ไม่ใช่ FK), `student_name text not null`, `actor_id uuid`, `actor_name text not null`, `action text check in ('password_reset','suspend','unsuspend','rename','delete')`, `detail text`, `created_at timestamptz default now()`) + index `(student_id, created_at desc)` · RLS select `is_staff()` เท่านั้น
+  - RLS: select ของตัวเอง หรือ `account_staff_can_read(student_id)` (staff · ถ้าผู้เรียกเป็นบัญชีสาธิต เฉพาะแถวของผู้ใช้สาธิต §6.3) · ไม่มี insert/update/delete ให้ client
+  - `account_staff_can_read(p_student uuid) returns boolean`: security definer, `search_path = ''`, อ่าน `profiles` โดยไม่ผ่าน RLS (ไม่วนซ้ำ) · grant `authenticated` เพราะ policy เรียกด้วยสิทธิ์ผู้ query
+- `account_events` (`id uuid pk`, `student_id uuid not null` (ไม่ใช่ FK), `student_name text not null`, `actor_id uuid`, `actor_name text not null`, `action text check in ('password_reset','suspend','unsuspend','rename','delete')`, `detail text`, `created_at timestamptz default now()`) + index `(student_id, created_at desc)` · RLS select `account_staff_can_read(student_id)` เท่านั้น (staff · staff สาธิตเฉพาะแถวของนักเรียนสาธิต · แถวของบัญชีที่ลบแล้วไม่ใช่สาธิต)
 - ฟังก์ชัน (ทุกตัวตรวจกฎ §6.3 · error code: `not_staff`, `not_admin`, `not_student`, `demo_scope`, `self_target`, `invalid_input`):
   - `staff_list_students(p_q text, p_sort text, p_dir text, p_status text, p_limit int, p_offset int) returns table (..., total bigint)` · join `auth.users` (email, created_at) + `student_balance` + `account_status` · sort/dir/status ตรวจจาก whitelist · ค้นหา ilike ชื่อ/ชื่อที่แสดง/อีเมล (escape) · `stable`
   - `staff_get_student(p_student)` · `staff_list_account_events(p_student, p_limit)`

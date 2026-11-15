@@ -38,7 +38,7 @@ describe("skeletons", () => {
     expect(withViews).toContain("w-[87px]"); // the view toggle
     const staff = renderToStaticMarkup(createElement(ListSkeleton, { view: "list", toolbar: { views: false, filters: 3 } }));
     expect(staff).not.toContain("w-[87px]");
-    // sort + direction + 3 filters on the second row
+    // the sort select + 3 filters are w-36 (the direction link is w-28)
     expect(staff.match(/h-11 w-36/g)).toHaveLength(4);
     expect(staff).toContain("mb-6"); // same gap below the toolbar as the page
   });
