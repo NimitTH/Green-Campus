@@ -16,6 +16,30 @@
 
 -- Tables ---------------------------------------------------------------------------------------------------
 
+-- Staff read rule for the account tables (ruling R16a, owner decision 14 Nov 2026): staff may read rows about any
+-- user, except that a demo caller (profiles.is_demo) reads only rows about demo users; a row whose user has no
+-- profile (a deleted account) is not demo. Security definer so the policies below read profiles without going
+-- through its RLS (no recursion); it answers only about the caller's own role and flag and the target's flag.
+create function public.account_staff_can_read(p_student uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.profiles c
+    where c.id = (select auth.uid())
+      and c.role in ('teacher', 'admin')
+      and (not c.is_demo
+           or exists (select 1 from public.profiles t where t.id = p_student and t.is_demo))
+  );
+$$;
+
+revoke execute on function public.account_staff_can_read(uuid) from public, anon;
+grant execute on function public.account_staff_can_read(uuid) to authenticated;
+
 create table public.account_status (
   student_id uuid primary key references public.profiles (id) on delete cascade,
   -- 'infinity' = until a staff member lifts it
@@ -31,7 +55,7 @@ revoke all on public.account_status from public, anon, authenticated;
 grant select on public.account_status to authenticated;
 create policy account_status_select on public.account_status
   for select to authenticated
-  using (student_id = (select auth.uid()) or (select public.is_staff()));
+  using (student_id = (select auth.uid()) or public.account_staff_can_read(student_id));
 
 create table public.account_events (
   id uuid primary key default gen_random_uuid(),
@@ -51,7 +75,7 @@ revoke all on public.account_events from public, anon, authenticated;
 grant select on public.account_events to authenticated;
 create policy account_events_select_staff on public.account_events
   for select to authenticated
-  using ((select public.is_staff()));
+  using (public.account_staff_can_read(student_id));
 
 -- Internal helpers (not callable by clients) ---------------------------------------------------------------
 

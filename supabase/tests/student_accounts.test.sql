@@ -4,7 +4,7 @@
 -- fixtures), demo student ds 5a03; teacher t 5a11, admin a 5a12, demo teacher dt 5a13, demo admin da 5a14,
 -- teacher target t2 5a15.
 begin;
-select plan(107);
+select plan(116);
 
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-000000005a01', 'sa-s1@example.test', '{"full_name":"SA นักเรียนหนึ่ง"}'::jsonb),
@@ -94,6 +94,10 @@ select ok(not has_function_privilege('authenticated', 'public.account_end_sessio
           and (select prosecdef and coalesce(proconfig @> array['search_path=""'], false) from pg_proc
                where oid = 'public.account_end_sessions(uuid)'::regprocedure),
   'account_end_sessions is an internal definer helper no client can call');
+select ok(not has_function_privilege('anon', 'public.account_staff_can_read(uuid)', 'execute')
+          and (select prosecdef and coalesce(proconfig @> array['search_path=""'], false) from pg_proc
+               where oid = 'public.account_staff_can_read(uuid)'::regprocedure),
+  'account_staff_can_read (the RLS read rule) is a definer helper with an empty search_path, not callable by anon');
 select ok(has_table_privilege('service_role', 'public.account_status', 'select,insert,update'),
   'service_role (admin client) can maintain account_status');
 select ok(not has_table_privilege('anon', 'public.account_status', 'select')
@@ -405,6 +409,36 @@ select is((select count(*) from public.staff_list_account_events('00000000-0000-
 select ok((select count(*) from public.staff_list_account_events('00000000-0000-0000-0000-000000005a03')) > 0,
   'demo staff see the history of a demo student');
 reset role;
+
+-- Direct table reads (ruling R16a): the RLS select policies apply the same rule as the functions
+insert into public.account_status (student_id, must_change_password)
+  values ('00000000-0000-0000-0000-000000005a13', false); -- a status row of the demo teacher itself
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000005a13","role":"authenticated"}', true);
+select is((select count(*) from public.account_status
+           where student_id in ('00000000-0000-0000-0000-000000005a01', '00000000-0000-0000-0000-000000005a02')),
+  0::bigint, 'demo staff select no account_status row of a real student');
+select is((select count(*) from public.account_events
+           where student_id in ('00000000-0000-0000-0000-000000005a01', '00000000-0000-0000-0000-000000005a02', '00000000-0000-0000-0000-000000005a99')),
+  0::bigint, 'demo staff select no account_events row of a real or deleted student');
+select is((select count(*) from public.account_status where student_id = '00000000-0000-0000-0000-000000005a03'), 1::bigint,
+  'demo staff select a demo student''s account_status row');
+select ok((select count(*) from public.account_events where student_id = '00000000-0000-0000-0000-000000005a03') > 0,
+  'demo staff select a demo student''s account_events rows');
+select is((select array_agg(student_id) from public.account_status where student_id = '00000000-0000-0000-0000-000000005a13'),
+  array['00000000-0000-0000-0000-000000005a13'::uuid], 'demo staff still select their own account_status row');
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000005a14","role":"authenticated"}', true);
+select is((select count(*) from public.account_status where student_id in ('00000000-0000-0000-0000-000000005a01', '00000000-0000-0000-0000-000000005a02'))
+          + (select count(*) from public.account_events where student_id = '00000000-0000-0000-0000-000000005a02'),
+  0::bigint, 'a demo admin selects no real student''s rows either');
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000005a12","role":"authenticated"}', true);
+select is((select count(*) from public.account_status
+           where student_id in ('00000000-0000-0000-0000-000000005a01', '00000000-0000-0000-0000-000000005a02', '00000000-0000-0000-0000-000000005a03', '00000000-0000-0000-0000-000000005a13')),
+  4::bigint, 'real staff still select every account_status row (real, demo and staff targets)');
+select ok((select count(*) from public.account_events where student_id = '00000000-0000-0000-0000-000000005a99') = 1,
+  'real staff still select the history of a deleted student');
+reset role;
+delete from public.account_status where student_id = '00000000-0000-0000-0000-000000005a13';
 
 -- ---------------------------------------------------------------------------------------------------------
 -- 6. leaderboard skips students who are suspended at p_now
