@@ -72,6 +72,15 @@ function inRange(value: string, min?: string, max?: string): boolean {
 const iconButton =
   "inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-input border border-rule-strong bg-surface text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
+/** The month buttons' drawn chevrons (the same stroke as the pagination's). */
+function MonthChevron({ dir }: { dir: "prev" | "next" }) {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d={dir === "prev" ? "M15 6l-6 6 6 6" : "M9 6l6 6-6 6"} />
+    </svg>
+  );
+}
+
 type CalendarGridProps = {
   year: number;
   month: number;
@@ -115,8 +124,9 @@ export function CalendarGrid({ year, month, label, focusDay, value, min, max, on
                   aria-label={`${Number(day.slice(8))} ${THAI_MONTHS_LONG[month]} ${year + BE_OFFSET}`}
                   onClick={() => onPick(day)}
                   className={[
-                    "h-10 rounded-input p-0 font-mono focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
-                    day === value ? "bg-accent text-white" : "hover:bg-accent-soft",
+                    // phones: 44px day targets (7 x 44px + p-2 + 2px border = the 20.375rem popover); sm+ keeps the compact 18rem one
+                    "h-11 rounded-input p-0 font-mono sm:h-10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
+                    day === value ? "bg-accent text-on-accent" : "hover:bg-accent-soft",
                     enabled ? "cursor-pointer" : "cursor-not-allowed opacity-40",
                   ].join(" ")}
                 >
@@ -228,6 +238,11 @@ function DateField({ id, initialIso, required, min, max, errorId, describedBy, e
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       pick(focusDay);
+    } else if (e.key === "Home" || e.key === "End") {
+      // APG date picker: the first / last day (Sunday / Saturday) of the focused week
+      e.preventDefault();
+      const weekday = new Date(`${focusDay}T00:00:00Z`).getUTCDay();
+      goTo(moveDay(focusDay, e.key === "Home" ? -weekday : 6 - weekday));
     } else if (steps[e.key]) {
       e.preventDefault();
       goTo(moveDay(focusDay, steps[e.key][0], steps[e.key][1]));
@@ -294,19 +309,19 @@ function DateField({ id, initialIso, required, min, max, errorId, describedBy, e
               close();
             }
           }}
-          className="absolute left-0 top-full z-30 mt-1 w-72 max-w-[calc(100vw-2rem)] rounded-card border border-rule bg-surface p-3 shadow-sheet"
+          className="absolute left-0 top-full z-30 mt-1 w-[20.375rem] max-w-[calc(100vw-2rem)] rounded-card border border-rule bg-surface p-2 shadow-sheet sm:w-72 sm:p-3"
         >
           <div className="mb-2 flex items-center justify-between gap-2">
             <button type="button" onClick={() => goTo(moveDay(focusDay, 0, -1), false)} className={iconButton}>
               <span className="sr-only">เดือนก่อน</span>
-              <span aria-hidden="true">‹</span>
+              <MonthChevron dir="prev" />
             </button>
             <div aria-live="polite" className="font-display text-base font-semibold">
               {monthLabel}
             </div>
             <button type="button" onClick={() => goTo(moveDay(focusDay, 0, 1), false)} className={iconButton}>
               <span className="sr-only">เดือนถัดไป</span>
-              <span aria-hidden="true">›</span>
+              <MonthChevron dir="next" />
             </button>
           </div>
           <CalendarGrid

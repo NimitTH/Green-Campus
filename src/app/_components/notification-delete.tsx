@@ -21,6 +21,7 @@ export function DeleteNotificationButton({ id, title, onError }: { id: string; t
       type="button"
       variant="quiet"
       size="sm"
+      className="min-w-11"
       disabled={pending}
       aria-label={`ลบการแจ้งเตือน ${title}`}
       onClick={() =>

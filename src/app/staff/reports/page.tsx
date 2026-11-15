@@ -23,6 +23,7 @@ const thNum = "whitespace-nowrap px-3 py-2 text-right text-sm font-medium text-m
 const td = "whitespace-nowrap px-3 py-2";
 const tdNum = "whitespace-nowrap px-3 py-2 text-right font-mono";
 const tdName = "px-3 py-2"; // wraps: a long title or name must not stretch the table
+// The wide tables scroll sideways: each wrapper is a named, focusable region so keyboard users can scroll it too.
 const tableWrap = "overflow-x-auto rounded-card border border-rule bg-surface shadow-sheet";
 
 // cacheComponents: searchParams and the session are request-time data, read them inside <Suspense>.
@@ -112,7 +113,7 @@ async function Reports({ searchParams }: { searchParams: SearchParams }) {
         {activities.length === 0 ? (
           <EmptyState>ไม่มีกิจกรรมที่จบในช่วงนี้</EmptyState>
         ) : (
-          <div className={tableWrap}>
+          <div className={tableWrap} role="region" aria-labelledby={activityHeadingId} tabIndex={0}>
             <table data-testid="report-activities" className="w-full text-sm">
               <thead>
                 <tr>
@@ -160,7 +161,7 @@ async function Reports({ searchParams }: { searchParams: SearchParams }) {
         {students.length === 0 ? (
           <EmptyState>ไม่มีนักเรียนที่มีผลอนุมัติในช่วงนี้</EmptyState>
         ) : (
-          <div className={tableWrap}>
+          <div className={tableWrap} role="region" aria-labelledby={studentHeadingId} tabIndex={0}>
             <table data-testid="report-students" className="w-full text-sm">
               <thead>
                 <tr>

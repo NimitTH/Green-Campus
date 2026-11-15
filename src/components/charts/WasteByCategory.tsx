@@ -15,7 +15,8 @@ export function WasteByCategory({ data }: { data: WasteDatum[] }) {
     <div data-testid="waste-chart">
       <div aria-hidden="true" className="h-64 w-full">
         <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 320, height: 256 }}>
-          <BarChart data={data} margin={{ top: 20, right: 8, bottom: 0, left: 0 }}>
+          {/* accessibilityLayer off: the svg would be a tab stop inside this aria-hidden box; the table below is the accessible copy */}
+          <BarChart data={data} accessibilityLayer={false} margin={{ top: 20, right: 8, bottom: 0, left: 0 }}>
             <CartesianGrid vertical={false} stroke="var(--rule)" />
             <XAxis dataKey="name" interval={0} tick={{ fontSize: 12, fill: "var(--muted)" }} stroke="var(--rule)" />
             <YAxis width={36} tick={{ fontSize: 12, fill: "var(--muted)" }} stroke="var(--rule)" />

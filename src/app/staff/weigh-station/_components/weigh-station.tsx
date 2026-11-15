@@ -3,7 +3,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { paginateRows, sortRows } from "@/app/_components/list/client-list";
 import { directionAriaLabel, directionLabel, PAGE_SIZE, type SortDir } from "@/app/_components/list/list-params";
-import { pageWindow } from "@/app/_components/list/pagination";
+import { Chevron, pageWindow } from "@/app/_components/list/pagination";
 import { Button, Card, inputClass, inputClassLg } from "@/components/ui";
 import { formatBangkok } from "@/lib/datetime";
 import { GENERIC_ERROR_TH } from "@/lib/errors";
@@ -312,7 +312,7 @@ export function WeighStation({ activities }: { activities: Activity[] }) {
               <ul className="flex flex-wrap items-center justify-center gap-1">
                 <li>
                   <button type="button" aria-label="หน้าก่อน" disabled={paged.page <= 1} onClick={() => setPage(paged.page - 1)} className={PAGE_BTN}>
-                    ‹
+                    <Chevron dir="prev" />
                   </button>
                 </li>
                 {pageWindow(paged.page, paged.lastPage).map((n, i) =>
@@ -336,7 +336,7 @@ export function WeighStation({ activities }: { activities: Activity[] }) {
                 )}
                 <li>
                   <button type="button" aria-label="หน้าถัดไป" disabled={paged.page >= paged.lastPage} onClick={() => setPage(paged.page + 1)} className={PAGE_BTN}>
-                    ›
+                    <Chevron dir="next" />
                   </button>
                 </li>
               </ul>

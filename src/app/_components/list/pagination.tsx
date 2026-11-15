@@ -20,7 +20,7 @@ const BOX =
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 const LINK = `${BOX} text-ink hover:bg-accent-soft`;
 
-function Chevron({ dir }: { dir: "prev" | "next" }) {
+export function Chevron({ dir }: { dir: "prev" | "next" }) {
   return (
     <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d={dir === "prev" ? "M15 6l-6 6 6 6" : "M9 6l6 6-6 6"} />

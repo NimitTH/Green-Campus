@@ -100,7 +100,7 @@ async function ActivityList({ searchParams }: { searchParams: SearchParams }) {
                     </div>
                     <div className="flex flex-wrap items-start gap-2">
                       {a.status !== "draft" ? (
-                        <ButtonLink href={`/activities/${a.id}`} aria-label={`ดู ${a.title}`} variant="card">
+                        <ButtonLink href={`/activities/${a.id}`} aria-label={`ดู ${a.title}`} variant="card" className="min-w-11">
                           ดู
                         </ButtonLink>
                       ) : null}

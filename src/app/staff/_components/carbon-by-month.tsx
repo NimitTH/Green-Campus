@@ -17,7 +17,8 @@ export function CarbonByMonth({ data }: { data: CarbonMonthDatum[] }) {
     <div data-testid="carbon-chart">
       <div aria-hidden="true" className="h-64 w-full">
         <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 320, height: 256 }}>
-          <BarChart data={rows} margin={{ top: 20, right: 8, bottom: 0, left: 0 }}>
+          {/* accessibilityLayer off: the svg would be a tab stop inside this aria-hidden box; the table below is the accessible copy */}
+          <BarChart data={rows} accessibilityLayer={false} margin={{ top: 20, right: 8, bottom: 0, left: 0 }}>
             <CartesianGrid vertical={false} stroke="var(--rule)" />
             <XAxis dataKey="label" interval={0} tick={{ fontSize: 12, fill: "var(--muted)" }} stroke="var(--rule)" />
             <YAxis width={36} tick={{ fontSize: 12, fill: "var(--muted)" }} stroke="var(--rule)" />
