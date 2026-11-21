@@ -14,7 +14,8 @@ item 2 and the icon in item 5.
 1. **O1 skip link.** Add a "ข้ามไปเนื้อหา" link as the first focusable element in the staff shell
    (`src/app/staff/layout.tsx`) and in the student layout (`src/app/(student)/layout.tsx`).
    - It is visually hidden until it gets keyboard focus.
-   - Activating it moves focus to the page's `<main>`. `<main>` gets an `id` and `tabIndex={-1}`.
+   - Activating it moves focus to the page content. Each page renders its own `<main>`, so the target is the content
+     wrapper in each layout, which gets `id="main-content"` and `tabIndex={-1}` (builder's call, see the plan).
    - The id must be unique per page and must not duplicate after `<Activity>` navigation.
 2. **O3 + O2 (/staff/users).** Every row's action link shows "รายละเอียด", with the aria-label "รายละเอียด {ชื่อ}".
    This replaces both "ปรับแต้ม / ประวัติ" and the old "จัดการ {ชื่อ}". The link target is unchanged.
