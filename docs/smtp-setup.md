@@ -46,7 +46,9 @@ custom SMTP ก่อนเปิดให้นักเรียนสมั�
 - Site URL: URL ของเว็บบน Vercel เช่น `https://<ชื่อโปรเจกต์>.vercel.app`
 - Redirect URLs: เพิ่ม `https://<ชื่อโปรเจกต์>.vercel.app/**` (และ `http://localhost:3000/**` ถ้าทดสอบจากเครื่อง)
 
-ลิงก์ในอีเมลจะพาไปที่ `/auth/callback` แล้วต่อไปหน้า `/dashboard` (สมัคร) หรือ `/reset-password` (ลืมรหัส)
+ลิงก์ในอีเมลจะพาไปที่ `/auth/callback` แล้วต่อไปหน้า `/dashboard` (สมัคร), `/auth/callback/reset` แล้วไป `/reset-password` (ลืมรหัส)
+หรือ `/auth/callback/email` แล้วไป `/profile` (เปลี่ยนอีเมล) ถ้าใส่ Redirect URLs เป็นรายการแยกแทน `/**` ต้องใส่ครบทั้ง 3 พาธ
+(รายละเอียดใน `docs/deploy.md` ข้อ 2.3)
 
 ## 5. เช็กลิสต์ทดสอบ
 

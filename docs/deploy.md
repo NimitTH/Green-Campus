@@ -58,8 +58,11 @@ where table_schema = 'storage' and table_name = 'objects' and column_name in ('a
 
 - **URL Configuration**
   - Site URL: `https://<โดเมน>`
-  - Redirect URLs: `https://<โดเมน>/auth/callback` และ `https://<โดเมน>/auth/callback/reset`
-    (สมัคร → `/auth/callback` แล้วไป `/dashboard`; ลืมรหัสผ่าน → `/auth/callback/reset` แล้วไป `/reset-password`)
+  - Redirect URLs: `https://<โดเมน>/auth/callback`, `https://<โดเมน>/auth/callback/reset` และ `https://<โดเมน>/auth/callback/email`
+    (สมัคร → `/auth/callback` แล้วไป `/dashboard`; ลืมรหัสผ่าน → `/auth/callback/reset` แล้วไป `/reset-password`;
+    เปลี่ยนอีเมลในโปรไฟล์ → `/auth/callback/email` แล้วไป `/profile`)
+  - `<โดเมน>` ต้องเป็นโดเมน Production จริงจาก Vercel > Settings > Domains ถ้า URL ที่แอปขอไม่อยู่ใน Redirect URLs
+    Supabase จะพาไป Site URL แทน (ลิงก์ในอีเมลจะมี `redirect_to=` เป็นหน้าแรก) และถ้า Site URL ผิดโดเมนจะขึ้น `404 DEPLOYMENT_NOT_FOUND`
     ถ้าใช้ Preview deployment ด้วย ให้เพิ่ม `https://<preview-โดเมน>/**`
 - **Custom SMTP**: ต้องตั้งก่อนให้นักเรียนสมัครจริง ทำตาม `docs/smtp-setup.md`
 - **Rate Limits** (Authentication > Rate Limits)
