@@ -306,6 +306,7 @@ test.describe("article list: search, sort, view, pagination", () => {
     test.skip(testInfo.project.name !== "chromium" || browserName !== "chromium", "clipboard permissions: desktop chromium only");
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.goto(`/articles/${seeded[1].slug}`);
+    await expect(page.getByRole("button", { name: "คัดลอกลิงก์" }).locator('svg[data-icon="link"]')).toHaveCount(1);
     await page.getByRole("button", { name: "คัดลอกลิงก์" }).click();
     await expect(page.getByRole("status").filter({ hasText: "คัดลอกแล้ว" })).toBeVisible();
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(page.url());

@@ -70,7 +70,7 @@ export function ResetPasswordPanel({ studentId, name }: { studentId: string; nam
             <p data-testid="temp-password" className="rounded-input bg-paper-2 p-3 text-center font-mono text-3xl tracking-wider break-all select-all">
               {password}
             </p>
-            <CopyLinkButton text={password} label="คัดลอกรหัสผ่าน" />
+            <CopyLinkButton text={password} label="คัดลอกรหัสผ่าน" icon="clipboard" />
             <p className="text-sm text-ink">ให้รหัสนี้กับนักเรียน รหัสจะแสดงครั้งเดียว นักเรียนต้องตั้งรหัสใหม่หลังเข้าสู่ระบบ</p>
             <Button type="button" variant="primary" onClick={close} className="w-full sm:w-auto">
               เสร็จแล้ว

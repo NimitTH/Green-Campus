@@ -209,6 +209,8 @@ test("@accounts reset password: shown once, the student must set a new one, the 
     const temp = (await shown.textContent())!.trim();
     await expect(dialog).toContainText("ให้รหัสนี้กับนักเรียน รหัสจะแสดงครั้งเดียว");
     await expect(dialog.getByRole("button", { name: "คัดลอกรหัสผ่าน" })).toBeVisible();
+    // a11y follow-ups O6: the password copy button shows a clipboard icon, not the link icon
+    await expect(dialog.getByRole("button", { name: "คัดลอกรหัสผ่าน" }).locator('svg[data-icon="clipboard"]')).toHaveCount(1);
     expect(page.url()).not.toContain(temp);
     await dialog.getByRole("button", { name: "เสร็จแล้ว" }).click();
     await expect(dialog).toBeHidden();
