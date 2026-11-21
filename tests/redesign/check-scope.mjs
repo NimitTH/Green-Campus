@@ -30,7 +30,7 @@ const ADMIN_IMPORT_OK = new Set([
 ]);
 const ALLOWED_NEW = new Set(["text:ธีม", "text:สว่าง", "text:มืด", "text:ตามระบบ", "aria:ธีม"]);
 const REMOVED_OK = new Set();
-for (const [file, set] of [["ui-strings-2.allow.txt", ALLOWED_NEW], ["ui-strings-3.allow.txt", ALLOWED_NEW], ["ui-strings-3.removed.txt", REMOVED_OK], ["ui-strings-4.allow.txt", ALLOWED_NEW], ["ui-strings-4.removed.txt", REMOVED_OK]]) {
+for (const [file, set] of [["ui-strings-2.allow.txt", ALLOWED_NEW], ["ui-strings-3.allow.txt", ALLOWED_NEW], ["ui-strings-3.removed.txt", REMOVED_OK], ["ui-strings-4.allow.txt", ALLOWED_NEW], ["ui-strings-4.removed.txt", REMOVED_OK], ["ui-strings-5.allow.txt", ALLOWED_NEW], ["ui-strings-5.removed.txt", REMOVED_OK]]) {
   let txt = "";
   try { txt = readFileSync(join(here, file), "utf8"); } catch { /* optional file */ }
   // Redesign 4 Task 8: the files may also list data-testid values (testid:...) that are new or removed on purpose.

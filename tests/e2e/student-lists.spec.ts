@@ -175,3 +175,20 @@ test("/my-submissions: status sort, cover link to the activity, list view, searc
     await deleteActivitiesByTitle(titleB);
   }
 });
+
+// a11y follow-ups O1: the student shell has the same skip link.
+test("student shell skip link focuses the content", async ({ page }, testInfo) => {
+  let student: TestUser | undefined;
+  try {
+    student = await createConfirmedUser("student", `skip-stu-${uniqueSuffix(testInfo.project.name)}`);
+    await signIn(page, student, "/activities");
+    await page.reload(); // fresh load: sequential focus starts at the top
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("link", { name: "ข้ามไปเนื้อหา" })).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#main-content")).toBeFocused();
+  } finally {
+    await deleteUsers([student]);
+  }
+});

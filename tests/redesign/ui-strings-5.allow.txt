@@ -1,0 +1,3 @@
+# a11y follow-ups (docs/superpowers/specs/2026-11-21-a11y-followups-design.md): UI strings allowed to be NEW.
+# O1 skip link in the staff and student shells.
+text:ข้ามไปเนื้อหา

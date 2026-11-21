@@ -305,3 +305,53 @@ test("admins get the ผู้ดูแลระบบ badge on /staff", async (
     await deleteUsers([admin]);
   }
 });
+
+// a11y follow-ups O1: "ข้ามไปเนื้อหา" is the first tab stop and moves focus to the page content.
+test("skip link is the first tab stop and moves focus to the content", async ({ page }, testInfo) => {
+  let teacher: TestUser | undefined;
+  try {
+    teacher = await createConfirmedUser("teacher", `skip-${uniqueSuffix(testInfo.project.name)}`);
+    await signIn(page, teacher, "/staff/students");
+    // a fresh document load, so sequential focus starts at the top (signIn leaves focus on the login form)
+    await page.reload();
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: "ข้ามไปเนื้อหา" });
+    await expect(skip).toBeFocused();
+    await expect(skip).toBeInViewport();
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#main-content")).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(page.locator("#main-content :focus")).toHaveCount(1);
+  } finally {
+    await deleteUsers([teacher]);
+  }
+});
+
+test("skip link is hidden for mouse users and unique after navigation", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "desktop sidebar navigation");
+  let teacher: TestUser | undefined;
+  try {
+    teacher = await createConfirmedUser("teacher", `skip-nav-${uniqueSuffix(testInfo.project.name)}`);
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await signIn(page, teacher, "/staff/students");
+    const skip = page.getByRole("link", { name: "ข้ามไปเนื้อหา" });
+    await expect(skip).toHaveCount(1);
+    await expect(skip).not.toBeInViewport();
+    const side = page.getByRole("navigation", { name: "เมนูผู้ดูแล" });
+    for (const href of ["/staff/activities", "/staff/orders", "/staff/students"]) {
+      await side.locator(`a[href="${href}"]`).click();
+      await expect(page).toHaveURL(new RegExp(`${href}$`));
+      await expect(page.locator("#main-content")).toHaveCount(1);
+      await expect(skip).toHaveCount(1);
+    }
+    // after client navigation the one link still targets the visible page's content
+    await skip.focus();
+    await expect(skip).toBeInViewport();
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#main-content")).toBeFocused();
+    await expect(page.locator("#main-content").getByRole("heading", { level: 1 }).filter({ visible: true })).toHaveText("บัญชีนักเรียน");
+  } finally {
+    await deleteUsers([teacher]);
+  }
+});

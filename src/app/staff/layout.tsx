@@ -7,6 +7,7 @@ import { isAdminRole } from "@/lib/auth/routes";
 import { signOut } from "@/lib/auth/actions";
 import { Button, ThemeToggle } from "@/components/ui";
 import { PageSkeleton } from "../_components/page-skeleton";
+import { MAIN_CONTENT_ID, SkipLink } from "../_components/skip-link";
 import { SIDEBAR_COLLAPSED, SIDEBAR_COOKIE } from "./_components/sidebar-cookie";
 import { StaffDrawer, StaffNavLinks, StaffSidebar, type StaffNavItem } from "./_components/staff-nav";
 import { StaffNavIcon } from "./_components/staff-nav-icons";
@@ -24,6 +25,7 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
   );
   return (
     <div className="flex flex-1 flex-col">
+      <SkipLink />
       <header className="relative flex items-center justify-between gap-3 border-b border-rule bg-surface px-4 py-1 md:px-6 xl:px-10">
         <div className="flex min-w-0 items-center gap-2">
           <StaffDrawer>
@@ -41,7 +43,7 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
         <Suspense fallback={<StaffSidebar shell>{nav}</StaffSidebar>}>
           <SidebarFromCookie>{nav}</SidebarFromCookie>
         </Suspense>
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div id={MAIN_CONTENT_ID} tabIndex={-1} className="flex min-w-0 flex-1 flex-col outline-none">
           <Suspense fallback={<PageSkeleton />}>
             <StaffGate>{children}</StaffGate>
           </Suspense>
