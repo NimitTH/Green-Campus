@@ -96,7 +96,7 @@ async function ArticleList({ searchParams }: { searchParams: SearchParams }) {
                     </div>
                     <div className="flex flex-wrap items-start gap-2">
                       {a.published ? (
-                        <ButtonLink href={`/articles/${a.slug}`} variant="card" className="min-w-11">
+                        <ButtonLink href={`/articles/${a.slug}`} aria-label={`ดู ${a.title}`} variant="card" className="min-w-11">
                           ดู
                         </ButtonLink>
                       ) : null}

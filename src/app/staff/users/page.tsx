@@ -159,8 +159,8 @@ function UserRow({ user }: { user: AdminUser }) {
             </p>
           ) : null}
         </div>
-        <ButtonLink href={`/staff/users/${user.id}`} aria-label={`จัดการ ${user.fullName}`} variant="card" className="shrink-0">
-          {user.role === "student" ? "ปรับแต้ม / ประวัติ" : "รายละเอียด"}
+        <ButtonLink href={`/staff/users/${user.id}`} aria-label={`รายละเอียด ${user.fullName}`} variant="card" className="shrink-0">
+          รายละเอียด
         </ButtonLink>
       </div>
       <div className="mt-3">

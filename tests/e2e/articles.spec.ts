@@ -426,3 +426,22 @@ test.describe("staff article list: search, paging, category", () => {
     await expect(items(page).first()).toContainText(`บทความสตาฟ ${token} 00`);
   });
 });
+
+// a11y follow-ups O5: the staff list's "ดู" link names the article, as on /staff/activities.
+test("staff articles view link names the article", async ({ page }, testInfo) => {
+  const token = uniqueSuffix(testInfo.project.name);
+  let teacher: TestUser | undefined;
+  let seeded: SeededArticle[] = [];
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-art-view-${token}`);
+    seeded = await seedPublishedArticles(`บทความดู ${token}`, `view-${token}`, 1);
+    await signIn(page, teacher, "/staff/articles");
+    await page.goto(`/staff/articles?q=${encodeURIComponent(`บทความดู ${token}`)}`);
+    const link = page.getByRole("link", { name: `ดู ${seeded[0].title}`, exact: true });
+    await expect(link).toHaveText("ดู");
+    await expect(link).toHaveAttribute("href", `/articles/${seeded[0].slug}`);
+  } finally {
+    await deleteArticlesById(seeded.map((a) => a.id));
+    await deleteUsers([teacher]);
+  }
+});

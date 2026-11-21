@@ -1,0 +1,5 @@
+# a11y follow-ups: UI strings removed on purpose.
+# O3/O2: /staff/users rows read "รายละเอียด" (points moved to /staff/students/[id]), named "รายละเอียด {ชื่อ}".
+aria:จัดการ ${user.fullName}
+text:จัดการ
+text:ปรับแต้ม / ประวัติ

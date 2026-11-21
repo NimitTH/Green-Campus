@@ -234,3 +234,26 @@ test("a /staff/users page past the end goes to the last page instead of an empty
     await deleteUsers([adminUser]);
   }
 });
+
+// a11y follow-ups O3/O2: every row's link reads "รายละเอียด" and is named "รายละเอียด {ชื่อ}" (the name has spaces).
+test("users list rows link to details with a matching name", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const name = `นักเรียน ชื่อยาว ${suffix}`;
+  let adminUser: TestUser | undefined;
+  let student: TestUser | undefined;
+  try {
+    adminUser = await createConfirmedUser("admin", `admin-ad-label-${suffix}`);
+    student = await createConfirmedUser("student", `student-ad-label-${suffix}`);
+    await setFullName(student.id, name);
+    await signIn(page, adminUser, "/staff/users");
+    await page.goto(`/staff/users?q=${encodeURIComponent(name)}`);
+    const row = page.getByTestId("admin-user").filter({ hasText: name });
+    await expect(row).toHaveCount(1);
+    const link = row.getByRole("link", { name: `รายละเอียด ${name}`, exact: true });
+    await expect(link).toHaveText("รายละเอียด");
+    await expect(link).toHaveAttribute("href", `/staff/users/${student.id}`);
+    await expect(page.getByText("ปรับแต้ม / ประวัติ")).toHaveCount(0);
+  } finally {
+    await deleteUsers([adminUser, student]);
+  }
+});
