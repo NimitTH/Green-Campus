@@ -3,7 +3,8 @@ import { getCurrentUser } from "@/lib/auth/dal";
 import { isStaffRole } from "@/lib/auth/routes";
 import { SiteFooter } from "../_components/site-footer";
 import { SiteHeader } from "../_components/site-header";
-import { MAIN_CONTENT_ID, SkipLink } from "../_components/skip-link";
+import { mainContentProps } from "../_components/main-content";
+import { SkipLink } from "../_components/skip-link";
 import { BottomNav } from "./_components/student-nav";
 
 // Student area shell (spec 9.2), also used by /dashboard. It shares SiteHeader / SiteFooter with the public
@@ -16,7 +17,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     <div className="flex flex-1 flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom)+1rem)] md:pb-0">
       <SkipLink />
       <SiteHeader />
-      <div id={MAIN_CONTENT_ID} tabIndex={-1} className="flex flex-1 flex-col outline-none">
+      <div {...mainContentProps} className="flex flex-1 flex-col outline-none">
         {children}
       </div>
       <SiteFooter />

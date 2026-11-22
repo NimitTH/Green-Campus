@@ -74,7 +74,7 @@ export async function StaffStats() {
           <ul className="space-y-1 text-sm">
             {stats.openActivities.map((a) => (
               <li key={a.id} className="flex flex-wrap justify-between gap-x-3">
-                <Link href={`/staff/activities/${a.id}/edit`} className="inline-flex min-h-11 min-w-0 items-center break-words font-medium text-accent underline">
+                <Link href={`/staff/activities/${a.id}/edit`} className="min-w-0 break-words font-medium text-accent underline max-md:inline-block max-md:py-3">
                   {a.title}
                 </Link>
                 <span className="text-muted">สิ้นสุด {formatBangkok(a.endsAt)}</span>

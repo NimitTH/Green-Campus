@@ -7,7 +7,8 @@ import { isAdminRole } from "@/lib/auth/routes";
 import { signOut } from "@/lib/auth/actions";
 import { Button, ThemeToggle } from "@/components/ui";
 import { PageSkeleton } from "../_components/page-skeleton";
-import { MAIN_CONTENT_ID, SkipLink } from "../_components/skip-link";
+import { mainContentProps } from "../_components/main-content";
+import { SkipLink } from "../_components/skip-link";
 import { SIDEBAR_COLLAPSED, SIDEBAR_COOKIE } from "./_components/sidebar-cookie";
 import { StaffDrawer, StaffNavLinks, StaffSidebar, type StaffNavItem } from "./_components/staff-nav";
 import { StaffNavIcon } from "./_components/staff-nav-icons";
@@ -43,7 +44,7 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
         <Suspense fallback={<StaffSidebar shell>{nav}</StaffSidebar>}>
           <SidebarFromCookie>{nav}</SidebarFromCookie>
         </Suspense>
-        <div id={MAIN_CONTENT_ID} tabIndex={-1} className="flex min-w-0 flex-1 flex-col outline-none">
+        <div {...mainContentProps} className="flex min-w-0 flex-1 flex-col outline-none">
           <Suspense fallback={<PageSkeleton />}>
             <StaffGate>{children}</StaffGate>
           </Suspense>

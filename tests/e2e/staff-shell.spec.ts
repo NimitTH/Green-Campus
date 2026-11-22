@@ -323,9 +323,9 @@ test("skip link is the first tab stop and moves focus to the content", async ({ 
     await expect(skip).toBeFocused();
     await expect(skip).toBeInViewport();
     await page.keyboard.press("Enter");
-    await expect(page.locator("#main-content")).toBeFocused();
+    await expect(page.locator("[data-main-content]").filter({ visible: true })).toBeFocused();
     await page.keyboard.press("Tab");
-    await expect(page.locator("#main-content :focus")).toHaveCount(1);
+    await expect(page.locator("[data-main-content] :focus")).toHaveCount(1);
   } finally {
     await deleteUsers([teacher]);
   }
@@ -345,15 +345,15 @@ test("skip link is hidden for mouse users and unique after navigation", async ({
     for (const href of ["/staff/activities", "/staff/orders", "/staff/students"]) {
       await side.locator(`a[href="${href}"]`).click();
       await expect(page).toHaveURL(new RegExp(`${href}$`));
-      await expect(page.locator("#main-content")).toHaveCount(1);
+      await expect(page.locator("[data-main-content]").filter({ visible: true })).toHaveCount(1);
       await expect(skip).toHaveCount(1);
     }
     // after client navigation the one link still targets the visible page's content
     await skip.focus();
     await expect(skip).toBeInViewport();
     await page.keyboard.press("Enter");
-    await expect(page.locator("#main-content")).toBeFocused();
-    await expect(page.locator("#main-content").getByRole("heading", { level: 1 }).filter({ visible: true })).toHaveText("บัญชีนักเรียน");
+    await expect(page.locator("[data-main-content]").filter({ visible: true })).toBeFocused();
+    await expect(page.locator("[data-main-content]").filter({ visible: true }).getByRole("heading", { level: 1 }).filter({ visible: true })).toHaveText("บัญชีนักเรียน");
   } finally {
     await deleteUsers([teacher]);
   }
@@ -400,5 +400,75 @@ test("remaining links are at least 44px on mobile", async ({ page, browser }, te
     await deleteActivitiesByTitle(title);
     await deleteUsers([teacher, student]); // first: its order references the reward
     await deleteRewardsByName([rewardName]);
+  }
+});
+
+// Final review I1: moving between the staff and student layouts keeps the hidden layout mounted (<Activity>);
+// the page must still have one skip target, and the skip link must focus the visible page's content.
+test("skip link target stays unique across the staff and student layouts", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "desktop sidebar navigation");
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const title = `กิจกรรมข้ามเลย์เอาต์ ${suffix}`;
+  let teacher: TestUser | undefined;
+  let student: TestUser | undefined;
+  try {
+    teacher = await createConfirmedUser("teacher", `skip-x-${suffix}`);
+    student = await createConfirmedUser("student", `skip-x-stu-${suffix}`);
+    await createJoinedCodeActivity(title, student.id);
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await signIn(page, teacher, "/staff/activities");
+    await page.goto(`/staff/activities?q=${encodeURIComponent(title)}`);
+
+    const skipTo = async (heading: string) => {
+      // no duplicate skip-target id in the document, whichever layout is hidden
+      expect(await page.locator('[id="main-content"]').count()).toBeLessThanOrEqual(1);
+      // the hidden layout's copy of the link is display:none; focus the one a keyboard user can reach
+      const focused = await page.evaluate(() => {
+        const links = Array.from(document.querySelectorAll<HTMLAnchorElement>("a")).filter((a) => a.textContent === "ข้ามไปเนื้อหา");
+        const link = links.find((a) => a.checkVisibility());
+        link?.focus();
+        return Boolean(link);
+      });
+      expect(focused).toBe(true);
+      await page.keyboard.press("Enter");
+      const active = page.locator(":focus");
+      await expect(active).toBeVisible();
+      await expect(active.getByRole("heading", { level: 1, name: heading })).toBeVisible();
+    };
+
+    await page.getByRole("link", { name: `ดู ${title}`, exact: true }).click();
+    await expect(page).toHaveURL(/\/activities\/[0-9a-f-]+$/);
+    await skipTo(title);
+
+    await page.goBack();
+    await expect(page).toHaveURL(/\/staff\/activities/);
+    await skipTo("จัดการกิจกรรม");
+  } finally {
+    await deleteActivitiesByTitle(title);
+    await deleteUsers([teacher, student]);
+  }
+});
+
+// Final review I2: the 44px rule is for phones; on a desktop the /staff list rows keep their text height.
+test("desktop /staff open-activity links keep their text height", async ({ browser }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "desktop only");
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const title = `กิจกรรมเดสก์ท็อป ${suffix}`;
+  let teacher: TestUser | undefined;
+  let student: TestUser | undefined;
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  try {
+    teacher = await createConfirmedUser("teacher", `desk-${suffix}`);
+    student = await createConfirmedUser("student", `desk-stu-${suffix}`);
+    await createJoinedCodeActivity(title, student.id);
+    const page = await ctx.newPage();
+    await signIn(page, teacher, "/staff");
+    const link = page.getByTestId("stat-open-activities").getByRole("link").first();
+    await expect(link).toBeVisible();
+    expect((await link.boundingBox())!.height).toBeLessThan(30);
+  } finally {
+    await ctx.close();
+    await deleteActivitiesByTitle(title);
+    await deleteUsers([teacher, student]);
   }
 });

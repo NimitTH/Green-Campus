@@ -187,7 +187,7 @@ test("student shell skip link focuses the content", async ({ page }, testInfo) =
     await page.keyboard.press("Tab");
     await expect(page.getByRole("link", { name: "ข้ามไปเนื้อหา" })).toBeFocused();
     await page.keyboard.press("Enter");
-    await expect(page.locator("#main-content")).toBeFocused();
+    await expect(page.locator("[data-main-content]").filter({ visible: true })).toBeFocused();
   } finally {
     await deleteUsers([student]);
   }
