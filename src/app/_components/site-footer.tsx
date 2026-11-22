@@ -19,7 +19,7 @@ export function SiteFooter() {
           </p>
           <p className="mt-2 text-sm text-ink">ระบบจัดการขยะในวิทยาลัย</p>
           <p className="mt-1 text-sm text-muted">
-            <LessSourceLink>ค่า carbon อ้างอิง อบก. LESS-WM-01 v06</LessSourceLink>
+            <LessSourceLink className="min-h-11 items-center">ค่า carbon อ้างอิง อบก. LESS-WM-01 v06</LessSourceLink>
           </p>
           {social.length > 0 ? (
             <ul className="mt-3 flex flex-wrap gap-1">

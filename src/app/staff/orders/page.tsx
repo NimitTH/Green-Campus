@@ -86,7 +86,7 @@ function OrderRow({ order, overdue }: { order: StaffOrder; overdue: boolean }) {
   return (
     <Card as="li" data-testid="staff-order">
       <div className="flex items-start justify-between gap-3">
-        <Link href={`/orders/${order.id}`} className="font-mono text-lg font-bold tracking-wider text-ink hover:underline">
+        <Link href={`/orders/${order.id}`} className="inline-flex min-h-11 items-center font-mono text-lg font-bold tracking-wider text-ink hover:underline">
           {orderNumber(order.id)}
         </Link>
         <span data-testid="order-status">

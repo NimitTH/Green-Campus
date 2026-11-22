@@ -6,7 +6,10 @@ import { openStaffMenu } from "./helpers/staff-menu";
 import {
   createConfirmedUser,
   createJoinedCodeActivity,
+  createOrderFor,
+  createRewardRow,
   deleteActivitiesByTitle,
+  deleteRewardsByName,
   deleteUsers,
   seedSubmission,
   signedInClient,
@@ -353,5 +356,49 @@ test("skip link is hidden for mouse users and unique after navigation", async ({
     await expect(page.locator("#main-content").getByRole("heading", { level: 1 }).filter({ visible: true })).toHaveText("บัญชีนักเรียน");
   } finally {
     await deleteUsers([teacher]);
+  }
+});
+
+// a11y follow-ups O4: the last small links reach 44px on phones (the activity-form checkboxes keep their 44px label row).
+test("remaining links are at least 44px on mobile", async ({ page, browser }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chrome", "touch targets: phone project only");
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const title = `กิจกรรมเป้ากด ${suffix}`;
+  const rewardName = `รางวัลเป้ากด ${suffix}`;
+  let teacher: TestUser | undefined;
+  let student: TestUser | undefined;
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-44-${suffix}`);
+    student = await createConfirmedUser("student", `student-44-${suffix}`);
+    await createJoinedCodeActivity(title, student.id);
+    const rewardId = await createRewardRow(rewardName, 5, 10);
+    await createOrderFor(student.id, rewardId, 1, 5, rewardName);
+
+    const atLeast44 = async (locator: ReturnType<typeof page.locator>, width = false) => {
+      await expect(locator).toBeVisible();
+      const box = (await locator.boundingBox())!;
+      expect(box.height).toBeGreaterThanOrEqual(44);
+      if (width) expect(box.width).toBeGreaterThanOrEqual(44);
+    };
+
+    await signIn(page, teacher, "/staff");
+    await atLeast44(page.getByTestId("stat-open-activities").getByRole("link").first());
+    // Review Focus 5: the desktop list layout is unchanged (saved for a human look, not compared)
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.screenshot({ path: testInfo.outputPath("staff-home-1280.png"), fullPage: true });
+    await page.setViewportSize(testInfo.project.use.viewport!);
+    await page.goto("/staff/orders");
+    await atLeast44(page.getByTestId("staff-order").first().locator('a[href^="/orders/"]').first());
+
+    const ctx = await browser.newContext({ ...testInfo.project.use });
+    const sp = await ctx.newPage();
+    await signIn(sp, student, "/activities");
+    await atLeast44(sp.locator("header").locator('a[href="/"]').first(), true);
+    await atLeast44(sp.locator("footer").locator('a[href^="https://ghgreduction"]').filter({ visible: true }).first());
+    await ctx.close();
+  } finally {
+    await deleteActivitiesByTitle(title);
+    await deleteUsers([teacher, student]); // first: its order references the reward
+    await deleteRewardsByName([rewardName]);
   }
 });

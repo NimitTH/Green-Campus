@@ -10,7 +10,7 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-rule bg-[color-mix(in_oklab,var(--paper)_82%,transparent)] backdrop-blur-md">
       <div className="mx-auto flex w-full max-w-[70rem] items-center gap-x-1 px-4 py-1 md:gap-x-3 md:px-6">
-        <Link href="/" className="inline-flex min-h-11 shrink-0 items-center gap-2 pr-1 font-display text-base font-semibold whitespace-nowrap text-accent sm:text-lg">
+        <Link href="/" className="inline-flex min-h-11 min-w-11 shrink-0 items-center gap-2 pr-1 font-display text-base font-semibold whitespace-nowrap text-accent sm:text-lg">
           <LeafMark />
           {/* Phones: the leaf alone, so the bar fits one row; the name stays the link's accessible name. */}
           <span className="max-[439px]:sr-only">Green Campus</span>
