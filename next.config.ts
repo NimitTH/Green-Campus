@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   /* config options here */
   experimental: {
     agentFeedback: true,
+    agentUpgrade: "security",
   },
   // Dev only: the route indicator (bottom-left by default) covers the fixed student bottom nav on phones and
   // intercepted taps in e2e; every other corner holds the bell or the menu button. Compile and runtime
