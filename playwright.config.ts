@@ -9,6 +9,14 @@ import { defineConfig, devices } from "@playwright/test";
 const PROD = process.env.E2E_PROD === "1" || process.env.npm_lifecycle_event === "test:e2e:prod";
 const BASE_URL = PROD ? "http://localhost:3100" : "http://localhost:3000";
 
+// Task 19: the cron route fails closed without CRON_SECRET. Outside CI a fixed, obviously-fake value (never a
+// real secret); in CI the job sets CRON_SECRET itself. Computed once here, before any spec runs, and handed to
+// the specs as E2E_CRON_SECRET (workers inherit this process's env). The specs must not read CRON_SECRET:
+// tests/e2e/helpers/supabase-admin.ts loads .env.local into the worker, which may hold the real deploy secret
+// while the dev server below still has this value.
+process.env.E2E_CRON_SECRET ??= process.env.CI ? (process.env.CRON_SECRET ?? "") : process.env.CRON_SECRET || "e2e-cron-secret";
+const CRON_SECRET = process.env.E2E_CRON_SECRET;
+
 export default defineConfig({
   testDir: "./tests/e2e",
   testMatch: "**/*.spec.ts",
@@ -40,10 +48,8 @@ export default defineConfig({
     url: BASE_URL,
     // prod mode always builds the current code (never reuses a stale server on 3100)
     reuseExistingServer: !process.env.CI && !PROD,
-    // Task 19: the cron route fails closed without CRON_SECRET. A fixed, obviously-fake value for local
-    // runs only (never CI, never a real secret). A dev server started by hand needs the same value:
-    // CRON_SECRET=e2e-cron-secret npm run dev. tests/e2e/cleanup-orphans.spec.ts reads the same default.
-    env: process.env.CI ? {} : { CRON_SECRET: process.env.CRON_SECRET || "e2e-cron-secret" },
+    // A dev server started by hand needs the same value: CRON_SECRET=e2e-cron-secret npm run dev.
+    env: process.env.CI ? {} : { CRON_SECRET },
     timeout: PROD ? 600_000 : 180_000,
   },
 });

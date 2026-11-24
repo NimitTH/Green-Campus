@@ -17,11 +17,14 @@ import {
 // Task 19 (R132): the orphan cleanup route against the LOCAL stack. Uploads four objects with unique
 // prefixes, backdates three by 25h (test setup only: a metadata update of storage.objects.created_at),
 // then calls the real route: ?dry=1 deletes nothing, the real call removes only the two old orphans.
-// CRON_SECRET comes from playwright.config (fixed test value outside CI). Asserts only on its own objects.
+// The secret comes from playwright.config (fixed test value outside CI). Asserts only on its own objects.
 // Database + HTTP only: chromium project only.
 
 const DB_URL = process.env.E2E_DB_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
-const SECRET = process.env.CI ? process.env.CRON_SECRET! : process.env.CRON_SECRET || "e2e-cron-secret";
+// Set by playwright.config.ts (the value the dev server got). Not CRON_SECRET: earlier specs load .env.local
+// into this worker, which can replace it with the real deploy secret.
+const SECRET = process.env.E2E_CRON_SECRET;
+if (!SECRET) throw new Error("E2E_CRON_SECRET is not set; run through playwright.config.ts");
 const ROUTE = "/api/cron/cleanup-orphans";
 
 test("orphan cleanup removes only old unreferenced images", async ({ request }, info) => {
