@@ -7,6 +7,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { activityCoverUrl } from "./cover";
 import { ACTIVITY_LIST_CONFIG, ACTIVITY_SORT_COLUMN, STAFF_ACTIVITY_CONFIG, STAFF_ACTIVITY_SORT_COLUMN, staffActivityFilters, staffActivitySearchFilter } from "./list-config";
 import type { ActivityRecord } from "./validation";
+import { sortWasteRates, type WasteRate } from "./waste-rates";
 
 // Read helpers for activity pages. They run as the signed-in user, so RLS decides what
 // is visible (students: open + joined; staff: all). Callers check the role via the DAL.
@@ -192,4 +193,25 @@ export async function listActivitiesForStudentPage(
       coverUrl: activityCoverUrl(r.cover_path),
     })),
   };
+}
+
+/**
+ * Round 6 (old-site features 1): every waste group's rates for the rate card on a waste activity, in the fixed
+ * group order. Null on failure (the page then shows only its sentence); never throws.
+ */
+export async function getWasteRates(): Promise<WasteRate[] | null> {
+  const supabase = await createServerClient();
+  const { data, error } = await supabase.from("waste_categories").select("code, name, points_per_kg, carbon_kg_per_kg");
+  if (error) {
+    console.error("getWasteRates failed", error.message);
+    return null;
+  }
+  return sortWasteRates(
+    ((data ?? []) as { code: string; name: string; points_per_kg: number; carbon_kg_per_kg: number | string }[]).map((r) => ({
+      code: r.code,
+      name: r.name,
+      pointsPerKg: r.points_per_kg,
+      carbonKgPerKg: Number(r.carbon_kg_per_kg),
+    })),
+  );
 }

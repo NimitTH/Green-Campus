@@ -9,11 +9,12 @@ import { requireUser } from "@/lib/auth/dal";
 import { splitParagraphs } from "@/lib/articles/format";
 import { activityCoverUrl } from "@/lib/activities/cover";
 import { typeLabelTh } from "@/lib/activities/labels";
-import { getActivity, hasActiveSubmission, hasJoined, type ActivityRow } from "@/lib/activities/queries";
+import { getActivity, getWasteRates, hasActiveSubmission, hasJoined, type ActivityRow } from "@/lib/activities/queries";
 import { inSubmitWindow, joinState, type JoinState } from "@/lib/activities/status";
 import { formatBangkok } from "@/lib/datetime";
 import { getStaffNames } from "@/lib/staff-names";
 import { isUuid } from "@/lib/uuid";
+import { WasteRateCard } from "./_components/waste-rate-card";
 import { JoinButton } from "./join-button";
 
 export const metadata: Metadata = { title: "รายละเอียดกิจกรรม | Green Campus" };
@@ -66,6 +67,7 @@ async function ActivityDetail({ params }: { params: Promise<{ id: string }> }) {
   const creatorName = (activity.created_by && names.get(activity.created_by)) || null;
   const coverUrl = activityCoverUrl(activity.cover_path);
   const details = activity.details ? splitParagraphs(activity.details) : [];
+  const wasteRates = activity.type === "waste" ? await getWasteRates() : null;
 
   // DESIGN-3 2 D / 6.3: cover, title, "โดย ชื่อ · วันที่สร้าง" with the copy-link button, the facts, then the details.
   return (
@@ -108,6 +110,7 @@ async function ActivityDetail({ params }: { params: Promise<{ id: string }> }) {
           <dd className="inline">{rewardText(activity)}</dd>
         </div>
       </dl>
+      {wasteRates && wasteRates.length > 0 ? <WasteRateCard rates={wasteRates} /> : null}
       </Card>
 
       {activity.description ? (

@@ -9,6 +9,7 @@ import {
   deleteUsers,
   findActivity,
   joinAs,
+  rateByCode,
   seedActivities,
   setActivityCover,
   setDisplayName,
@@ -433,5 +434,44 @@ test("activity form: Thai date and time inputs round-trip to the edit page", asy
   } finally {
     await deleteActivitiesByTitle(title);
     await deleteUsers([teacher]);
+  }
+});
+
+// Round 6 (old-site features 1): a waste activity lists every group's points and carbon per kg; other types do not.
+test("waste activity shows the rate card with every group", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const wasteTitle = `กิจกรรมอัตรา ${suffix}`;
+  const treesTitle = `กิจกรรมปลูกต้นไม้อัตรา ${suffix}`;
+  let student: TestUser | undefined;
+  try {
+    student = await createConfirmedUser("student", `student-rate-${suffix}`);
+    const wasteId = await createActivityRow(wasteTitle, { type: "waste", unit_points: 0, requires_code: false });
+    const treesId = await createActivityRow(treesTitle, { type: "trees", unit_points: 5 });
+    const plastic = await rateByCode("plastic");
+    await signIn(page, student, `/activities/${wasteId}`);
+
+    const table = page.getByRole("table", { name: "อัตราแต้มและ carbon ต่อ กก." });
+    await expect(table).toBeVisible();
+    const rows = table.locator("tbody tr");
+    await expect(rows).toHaveCount(4);
+    await expect(rows.first()).toContainText(plastic.name);
+    await expect(rows.first()).toContainText(String(plastic.points_per_kg));
+
+    await page.setViewportSize({ width: 360, height: 800 });
+    await page.reload();
+    await expect(table).toBeVisible();
+    const { scrollWidth, clientWidth } = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth,
+    }));
+    expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
+
+    await page.goto(`/activities/${treesId}`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(treesTitle);
+    await expect(page.getByRole("table", { name: "อัตราแต้มและ carbon ต่อ กก." })).toHaveCount(0);
+  } finally {
+    await deleteActivitiesByTitle(wasteTitle);
+    await deleteActivitiesByTitle(treesTitle);
+    await deleteUsers([student]);
   }
 });

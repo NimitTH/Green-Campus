@@ -1,0 +1,6 @@
+# Round 6 (docs/superpowers/specs/2026-11-25-old-site-features-design.md): UI strings allowed to be NEW.
+# 1. Waste rate card on a waste activity.
+text:อัตราแต้มและ carbon ต่อ กก.
+text:กลุ่ม
+text:แต้ม/กก.
+text:carbon กก. CO₂e/กก.
