@@ -77,7 +77,7 @@
 - `npm run test:e2e` รันเฉพาะ project `chromium` และ `mobile-chrome` (`--project=...`) ถ้าเรียก `npx playwright test` ตรงๆ
   project `seed` จะถูกข้าม (skip) เอง
 
-## รอบ 6: ฟีเจอร์จากเว็บเก่า (migrations 0037–0040)
+## รอบ 6: ฟีเจอร์จากเว็บเก่า (migrations 0037–0041)
 
 ดูแบบที่ `docs/superpowers/specs/2026-11-25-old-site-features-design.md`
 
@@ -93,3 +93,4 @@
   - `orders.order_no` มีค่า default เป็น `next_order_no(now())` insert ตรงๆ จึงได้เลขเองด้วย
   - ออเดอร์เก่าได้เลขย้อนหลังตามเวลาที่สั่ง
   - ค้นด้วยเลขเก่า 8 ตัว (hex) ยังเจอ
+- 0041 แอดมินบัญชีสาธิต (`is_demo`) ไม่ได้รับแจ้งเตือน มองไม่เห็น และปิดเรื่องที่ผู้ใช้จริงแจ้งไม่ได้ (กฎ `demo_scope` เดียวกับ 0036)
