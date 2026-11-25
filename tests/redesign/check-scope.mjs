@@ -17,6 +17,8 @@ const writeBaseline = process.argv.includes("--write-baseline");
 const FORBIDDEN_PREFIXES = ["src/app/api/", "scripts/"];
 const NEW_ONLY_PREFIXES = ["supabase/migrations/", "supabase/tests/"];
 const FORBIDDEN_FILES = ["src/proxy.ts"];
+// Round 6 review M5: the demo seed renumbers backdated orders (0040 order numbers); this ONE scripts/ file may change.
+const FORBIDDEN_PATH_ALLOWLIST = new Set(["scripts/demo/lib/build.ts"]);
 // Redesign 4 (controller ruling): DESIGN-4 3.1/7.1 reverses "students cannot delete notifications", so this ONE existing test
 // file may be modified. Every other existing migration/test still fails when modified or deleted.
 const MODIFIED_TEST_ALLOWLIST = new Set(["supabase/tests/notifications.test.sql"]);
@@ -104,6 +106,7 @@ try {
   problems.push(`git diff failed: ${e.message}`);
 }
 for (const p of changed) {
+  if (FORBIDDEN_PATH_ALLOWLIST.has(p)) continue;
   if (FORBIDDEN_FILES.includes(p) || FORBIDDEN_PREFIXES.some((pre) => p.startsWith(pre))) problems.push(`forbidden path changed: ${p}`);
 }
 for (const p of touchedExisting) {

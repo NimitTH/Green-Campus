@@ -18,7 +18,7 @@ export function ResolveForm({ id }: { id: string }) {
         <input id={noteId} name="note" type="text" maxLength={500} className={inputClass} />
       </div>
       <Button type="submit" variant="primary" disabled={pending} className="shrink-0">
-        ทำเครื่องหมายว่าแก้แล้ว
+        {pending ? "กำลังบันทึก..." : "ทำเครื่องหมายว่าแก้แล้ว"}
       </Button>
       {state && !state.ok ? (
         <p role="alert" className="text-sm text-danger sm:basis-full">

@@ -575,6 +575,11 @@ export async function insertSeed(ctx: Ctx): Promise<Record<string, number>> {
         [
           `update public.orders set created_at = ${C}, expires_at = ${C} + interval '7 days', ready_at = case when ready_at is not null then ${RD} end,
              completed_at = case when completed_at is not null then ${D} end where id = '${id}'`,
+          // round 6 (0040): renumber for the backdated Bangkok day and name the new number in the order's notifications
+          `with old as (select order_no from public.orders where id = '${id}'),
+                renum as (update public.orders set order_no = public.next_order_no(${C}) where id = '${id}' returning order_no)
+           update public.notifications set body = replace(body, (select order_no from old), (select order_no from renum))
+           where link = '/orders/${id}' and user_id = '${o.buyer}'`,
           `update public.order_items set created_at = ${C} where order_id = '${id}'`,
           `update public.ledger_entries set created_at = case kind when 'redeem' then ${C} else ${D} end where ref_order_id = '${id}'`,
           `update public.notifications set

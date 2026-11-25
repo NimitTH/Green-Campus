@@ -25,7 +25,9 @@ export function safeReportPath(from: string | null | undefined): string | null {
 }
 
 export function validateReportMessage(text: string): { ok: true; value: string } | { ok: false; error: string } {
-  const value = trimReportText(text);
+  // a submitted textarea sends CRLF line breaks: count (and store) each as one character, as the user sees it
+  const value = trimReportText(text.replace(/\r\n?/g, "\n"));
+  if (value.includes("\u0000")) return { ok: false, error: "ข้อความมีอักขระที่ใช้ไม่ได้" };
   if (value === "") return { ok: false, error: "เขียนรายละเอียดปัญหาก่อนส่ง" };
   if (Array.from(value).length > REPORT_MESSAGE_MAX) return { ok: false, error: "เขียนได้ไม่เกิน 1,000 ตัวอักษร" };
   return { ok: true, value };
@@ -50,4 +52,13 @@ export function reportErrorFromDb(
   if (Object.hasOwn(REPORT_ERRORS, code)) return REPORT_ERRORS[code];
   const shared = errorCodeFromDb(dbError);
   return shared ? { error: errorMessageTh(shared) } : null;
+}
+
+/**
+ * The href for a stored page link on the admin list, or null to show it as plain text: only a path that
+ * safeReportPath keeps exactly as stored (no dot segments that could normalise to "//host"). Defence in depth: a
+ * signed-in user can call submit_problem_report directly.
+ */
+export function reportLinkHref(stored: string): string | null {
+  return safeReportPath(stored) === stored && !/\/\.\.?(\/|$)/.test(stored.split(/[?#]/)[0]) ? stored : null;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { REPORT_MESSAGE_MAX, reportErrorFromDb, safeReportPath, validateReportMessage } from "./format";
+import { REPORT_MESSAGE_MAX, reportErrorFromDb, reportLinkHref, safeReportPath, validateReportMessage } from "./format";
 
 describe("safeReportPath", () => {
   it("keeps a same-site path with its query", () => {
@@ -47,5 +47,24 @@ describe("reportErrorFromDb (final review I1)", () => {
   });
   it("is null for an unknown error (the caller logs it and shows the generic message)", () => {
     expect(reportErrorFromDb({ message: "connection reset" }, "submit")).toBeNull();
+  });
+});
+
+describe("validateReportMessage line breaks and NUL (final review M4)", () => {
+  it("counts a CRLF line break as one character, as the user sees it, and stores LF", () => {
+    const text = `${"ก".repeat(499)}\r\n${"ข".repeat(500)}`; // 1000 visible characters with the line break
+    expect(validateReportMessage(text)).toEqual({ ok: true, value: `${"ก".repeat(499)}\n${"ข".repeat(500)}` });
+  });
+  it("refuses a NUL character with a field message instead of a database error", () => {
+    expect(validateReportMessage("ปัญหา\u0000")).toEqual({ ok: false, error: "ข้อความมีอักขระที่ใช้ไม่ได้" });
+  });
+});
+
+describe("reportLinkHref (final review M3)", () => {
+  it("links a clean same-site path", () => {
+    expect(reportLinkHref("/rewards?q=1")).toBe("/rewards?q=1");
+  });
+  it("does not link a stored path with dot segments or anything safeReportPath would change", () => {
+    for (const bad of ["/.//evil.com", "/a/..//evil.com", "/a/../b", "//evil.com"]) expect(reportLinkHref(bad)).toBeNull();
   });
 });

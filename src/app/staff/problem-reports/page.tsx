@@ -7,7 +7,7 @@ import { ListSkeleton } from "@/app/_components/skeletons";
 import { ButtonLink, Card, EmptyState, Mono, PageHeader } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth/dal";
 import { formatBangkok } from "@/lib/datetime";
-import { REPORTS_PER_PAGE } from "@/lib/problem-reports/format";
+import { REPORTS_PER_PAGE, reportLinkHref } from "@/lib/problem-reports/format";
 import { listProblemReports } from "@/lib/problem-reports/queries";
 import { ResolveForm } from "./_components/resolve-form";
 
@@ -67,9 +67,13 @@ async function Reports({ searchParams }: { searchParams: SearchParams }) {
             {r.pageUrl ? (
               <p className="mt-2 text-sm">
                 <span className="text-muted">หน้าที่พบปัญหา </span>
-                <Link href={r.pageUrl} className="inline-flex min-h-11 items-center font-mono break-all text-accent underline underline-offset-4 md:min-h-0">
-                  {r.pageUrl}
-                </Link>
+                {reportLinkHref(r.pageUrl) ? (
+                  <Link href={r.pageUrl} className="inline-flex min-h-11 items-center font-mono break-all text-accent underline underline-offset-4 md:min-h-0">
+                    {r.pageUrl}
+                  </Link>
+                ) : (
+                  <span className="font-mono break-all text-ink">{r.pageUrl}</span>
+                )}
               </p>
             ) : null}
             {r.status === "open" ? (

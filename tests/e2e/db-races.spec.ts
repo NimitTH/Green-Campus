@@ -217,10 +217,12 @@ test("(b) stock 1, two students check out at once: one order, stock 0, the other
 });
 
 // Round 6 (old-site features 3): two checkouts on the same Bangkok day at once get consecutive, different numbers.
-// A holds the day's counter row (uncommitted); B queues on it and takes the next number once A commits.
+// A holds the day's counter row (uncommitted); B, buying something else, queues on that row and takes the next
+// number once A commits (final review M1: the earlier version contended on a shared reward row instead).
 test("(b2) two students check out at once: both orders get different ORD- numbers", async () => {
   const suffix = uniqueSuffix();
-  const name = `race-no ${suffix}`;
+  const name1 = `race-no-a ${suffix}`;
+  const name2 = `race-no-b ${suffix}`;
   let s1: TestUser | undefined;
   let s2: TestUser | undefined;
   try {
@@ -228,16 +230,16 @@ test("(b2) two students check out at once: both orders get different ORD- number
     s2 = await createConfirmedUser("student", `race-no2-${suffix}`);
     await grantPoints(s1.id, 10);
     await grantPoints(s2.id, 10);
-    const rewardId = await createRewardRow(name, 10, 5);
-    await putInCart(s1.id, rewardId, 1);
-    await putInCart(s2.id, rewardId, 1);
+    // different rewards and different students: the only row both checkouts lock is today's order_day_counters row
+    await putInCart(s1.id, await createRewardRow(name1, 10, 5), 1);
+    await putInCart(s2.id, await createRewardRow(name2, 10, 5), 1);
 
     await beginAs(a, s1.id);
     const first = result(await start(a, "select public.checkout() as r"));
     expect(first.ok).toBe(true);
     await beginAs(b, s2.id);
     const second = start(b, "select public.checkout() as r");
-    await waitForLock(monitor, b.pid); // B queues on the reward row or the day's counter row
+    await waitForLock(monitor, b.pid); // B queues on the day's counter row (nothing else is shared)
     await a.client.query("commit");
     const settled = await second;
     await endTx(b, settled);
@@ -252,7 +254,7 @@ test("(b2) two students check out at once: both orders get different ORD- number
     if (n1.slice(0, 12) === n2.slice(0, 12)) expect(Number(n2.slice(13))).toBe(Number(n1.slice(13)) + 1);
   } finally {
     await deleteUsers([s1, s2]);
-    await deleteRewardsByName([name]);
+    await deleteRewardsByName([name1, name2]);
   }
 });
 

@@ -232,7 +232,7 @@ Every other feature has one obvious way given the existing code.
 
 **Demo and suspended accounts:**
 - Follow the existing rule for demo accounts' writes (demo accounts must not notify real admins).
-- Suspended students may still report, since this may be their only channel.
+- Suspended students: the owner decided on 2026-11-25 that they do not need to report. The existing sign-in gate signs them out, so they cannot reach the form; nothing extra is built.
 
 **Tests:**
 - pgTAP: permissions, the rate limit, notifications to admins and back to the reporter, and idempotent resolve.
@@ -256,5 +256,5 @@ Every other feature has one obvious way given the existing code.
   dates vary by school and aren't stored anywhere.
 - At most 5 problem reports per person per day.
 - Old 8-character order numbers still work in search.
-- Suspended students can still send a problem report.
+- ~~Suspended students can still send a problem report.~~ Owner, 2026-11-25: not needed (see section 5).
 - Only admins see problem reports. Teachers don't, because website problems are for admins to fix.

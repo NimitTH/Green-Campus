@@ -244,7 +244,7 @@ export function ArticleForm({
       <fieldset className="mb-4" aria-describedby={f("window-hint")}>
         <legend className="mb-1 text-sm font-medium text-ink">ช่วงเวลาแสดง (ไม่บังคับ)</legend>
         <p id={f("window-hint")} className="mb-2 text-sm text-muted">
-          เว้นว่างได้ บทความจะขึ้นหรือหายภายในประมาณ 1 นาทีหลังเวลาที่ตั้ง (เวลาประเทศไทย)
+          เว้นว่างได้ บทความจะขึ้นหรือหายหลังเวลาที่ตั้งไม่กี่นาที (เวลาประเทศไทย)
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field id={f("showFrom")} label="แสดงตั้งแต่">

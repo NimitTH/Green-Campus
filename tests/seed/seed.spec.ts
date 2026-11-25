@@ -271,6 +271,16 @@ test("seed run twice gives the same row count in every table it touches", async 
     expect(orders.some((o) => o.status === "pending_pickup" && o.ready)).toBe(true);
     expect(orders.some((o) => o.status === "completed")).toBe(true);
     expect(orders.some((o) => o.status === "cancelled")).toBe(true);
+    // round 6 review M5: a backdated demo order's number carries its own (Bangkok) order date, and its
+    // notifications name that same number
+    expect(
+      (await one(`select count(*)::int n from public.orders
+                  where substr(order_no, 5, 8) <> to_char((created_at at time zone 'Asia/Bangkok')::date, 'YYYYMMDD')`)).n,
+    ).toBe(0);
+    expect(
+      (await one(`select count(*)::int n from public.notifications nt join public.orders o on nt.link = '/orders/' || o.id::text
+                  where nt.type = 'order_created' and position(o.order_no in nt.body) = 0`)).n,
+    ).toBe(0);
     // the seed leaves nothing for users outside the seed domain
     expect((await one(`select count(*)::int n from public.notifications n join auth.users u on u.id = n.user_id where u.email not like $1`, [`%${SEED_DOMAIN}`])).n).toBe(0);
   });
