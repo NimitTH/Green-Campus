@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import { buttonClass } from "@/components/ui";
+import { GOOGLE_CALLBACK_PATH, OAUTH_NEXT_COOKIE, OAUTH_NEXT_MAX_AGE, isGoogleAuthEnabled } from "@/lib/auth/google";
+import { GOOGLE_FAILED_MESSAGE } from "@/lib/auth/messages";
+import { safeNextPath } from "@/lib/auth/routes";
+import { createBrowserClient } from "@/lib/supabase/browser";
 
 function GoogleLogo() {
   return (
@@ -14,21 +18,52 @@ function GoogleLogo() {
   );
 }
 
-/** Placeholder: never calls an auth API. Pressing it only says the feature is not open yet. */
+// NEXT_PUBLIC_ values are inlined at build time (docs/google-signin.md: redeploy after changing it).
+const ENABLED = isGoogleAuthEnabled(process.env.NEXT_PUBLIC_GOOGLE_AUTH);
+
+/**
+ * Sign in or up with Google through Supabase (docs/superpowers/specs/2026-11-26-google-signin-design.md). With
+ * NEXT_PUBLIC_GOOGLE_AUTH unset it stays the placeholder: pressing it only says the feature is not open yet.
+ */
 export function GoogleButton({ label }: { label: string }) {
-  const [clicked, setClicked] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  async function start() {
+    if (!ENABLED) {
+      setMessage("ยังไม่เปิดให้ใช้งาน");
+      return;
+    }
+    setPending(true);
+    setMessage(null);
+    // ?next= rides in a short cookie so the redirect URL matches the Supabase allow-list exactly
+    const next = safeNextPath(new URLSearchParams(window.location.search).get("next"));
+    const secure = window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `${OAUTH_NEXT_COOKIE}=${encodeURIComponent(next)}; Max-Age=${OAUTH_NEXT_MAX_AGE}; Path=/; SameSite=Lax${secure}`;
+    const { error } = await createBrowserClient().auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}${GOOGLE_CALLBACK_PATH}` },
+    });
+    if (error) {
+      setPending(false);
+      setMessage(GOOGLE_FAILED_MESSAGE);
+    }
+    // on success the browser is already leaving for Google; the button stays disabled
+  }
+
   return (
     <div>
       <button
         type="button"
-        onClick={() => setClicked(true)}
+        onClick={start}
+        disabled={pending}
         className={buttonClass({ variant: "card", size: "lg", className: "w-full" })}
       >
         <GoogleLogo />
         {label}
       </button>
       <div role="status" className="mt-2 text-center text-sm text-muted">
-        {clicked ? "ยังไม่เปิดให้ใช้งาน" : null}
+        {message}
       </div>
     </div>
   );
