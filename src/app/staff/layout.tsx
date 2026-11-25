@@ -80,11 +80,13 @@ const MAIN_ITEMS: StaffNavItem[] = [
 const ADMIN_ITEMS: StaffNavItem[] = [
   { href: "/staff/users", label: "ผู้ใช้", icon: "users" },
   { href: "/staff/rates", label: "อัตรา", icon: "rates" },
+  { href: "/staff/problem-reports", label: "แจ้งปัญหา", icon: "problems" },
 ];
 
 const ACCOUNT_ITEMS: StaffNavItem[] = [
   { href: "/staff/profile", label: "โปรไฟล์", icon: "profile" },
   { href: "/staff/notifications", label: "แจ้งเตือน", icon: "notifications" },
+  { href: "/staff/report-problem", label: "แจ้งปัญหาการใช้งาน", icon: "report", withFrom: true },
 ];
 
 // Classes prefixed sidebar-collapsed: apply inside a collapsed sidebar only, never in the drawer (globals.css).

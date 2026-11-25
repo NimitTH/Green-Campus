@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ReportProblemLink } from "./report-problem-link";
 import { LessSourceLink } from "./less-source-link";
 import { SocialIcon } from "./social-icons";
 import { visibleSocialLinks } from "./social-links";
@@ -59,6 +60,9 @@ export function SiteFooter() {
           <ul className="mt-1">
             <li>
               <Link href="/articles" className={FOOT_LINK}>บทความ</Link>
+            </li>
+            <li>
+              <ReportProblemLink className={FOOT_LINK} />
             </li>
           </ul>
         </div>

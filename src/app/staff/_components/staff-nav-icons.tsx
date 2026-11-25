@@ -15,6 +15,8 @@ export type StaffIconName =
   | "rates"
   | "profile"
   | "notifications"
+  | "problems"
+  | "report"
   | "signout"
   | "collapse"
   | "expand";
@@ -105,6 +107,17 @@ const PATHS: Record<StaffIconName, React.ReactNode> = {
     <>
       <path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4Z" />
       <path d="M10 21h4" />
+    </>
+  ),
+  problems: (
+    <>
+      <path d="M4 5h16v11H9l-5 4Z" />
+      <path d="M12 8v3M12 13.5v.5" />
+    </>
+  ),
+  report: (
+    <>
+      <path d="M5 21V4h11l-2 4 2 4H5" />
     </>
   ),
   signout: (

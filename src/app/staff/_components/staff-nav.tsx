@@ -14,7 +14,13 @@ import { StaffNavIcon, type StaffIconName } from "./staff-nav-icons";
 // DESIGN-4 4.2: the sidebar collapses to icons (w-16). The look is CSS (the sidebar-collapsed variant, globals.css), so the
 // server-rendered menu parts and the static shell follow it too; client links read context only for aria-label/tooltip.
 
-export type StaffNavItem = { href: string; label: string; icon: StaffIconName };
+/** withFrom (round 6): the link carries the current page as ?from= (the problem report form). */
+export type StaffNavItem = { href: string; label: string; icon: StaffIconName; withFrom?: boolean };
+
+function itemHref(item: StaffNavItem, pathname: string | null): string {
+  if (!item.withFrom || pathname === null || isActive(pathname, item.href)) return item.href;
+  return `${item.href}?from=${encodeURIComponent(pathname)}`;
+}
 
 /** True inside a collapsed sidebar (the drawer has no provider, so it always shows labels). */
 const CollapsedContext = createContext(false);
@@ -55,7 +61,7 @@ function LinksView({ items, pathname }: { items: StaffNavItem[]; pathname: strin
         return (
           <li key={item.href}>
             <Link
-              href={item.href}
+              href={itemHref(item, pathname)}
               aria-current={current ? "page" : undefined}
               aria-label={collapsed ? item.label : undefined}
               className={`group/item relative flex min-h-11 items-center gap-3 rounded-input border-l-[3px] px-3 sidebar-collapsed:justify-center sidebar-collapsed:px-0 ${
