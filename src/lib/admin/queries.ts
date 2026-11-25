@@ -1,4 +1,5 @@
 import "server-only";
+import type { CarbonMonths } from "./chart-range";
 import { cache } from "react";
 import type { WasteDatum } from "@/components/charts/WasteByCategory";
 import { toRole, type Role } from "@/lib/auth/routes";
@@ -69,14 +70,15 @@ export type StaffCharts = {
 };
 
 /**
- * DESIGN-4 4.3: chart data for the /staff home, from staff_carbon_by_month(6) and staff_waste_by_category() (0035,
- * staff only). React cache(): both chart boundaries on one request share one pair of calls.
+ * DESIGN-4 4.3: chart data for the /staff home, from staff_carbon_by_month(months) and staff_waste_by_category(since)
+ * (0035/0037, staff only; round 6 adds the ranges). React cache(): both chart boundaries on one request share one
+ * pair of calls (the arguments are the cache key).
  */
-export const getStaffCharts = cache(async (): Promise<StaffCharts> => {
+export const getStaffCharts = cache(async (monthCount: CarbonMonths, since: string | null): Promise<StaffCharts> => {
   const supabase = await createServerClient();
   const [months, waste] = await Promise.all([
-    supabase.rpc("staff_carbon_by_month", { p_months: 6 }),
-    supabase.rpc("staff_waste_by_category"),
+    supabase.rpc("staff_carbon_by_month", { p_months: monthCount }),
+    supabase.rpc("staff_waste_by_category", { p_since: since }),
   ]);
   if (months.error) throw new Error(`getStaffCharts: ${months.error.message}`);
   if (waste.error) throw new Error(`getStaffCharts: ${waste.error.message}`);

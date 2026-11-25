@@ -4,3 +4,17 @@ text:อัตราแต้มและ carbon ต่อ กก.
 text:กลุ่ม
 text:แต้ม/กก.
 text:carbon กก. CO₂e/กก.
+# 2. Quick time ranges (reports presets, /staff chart ranges).
+aria:ช่วงเวลารายงาน
+aria:ช่วงกราฟ carbon
+aria:ช่วงกราฟขยะ
+text:7 วัน
+text:30 วัน
+text:เดือนนี้
+text:12 เดือน
+text:${m} เดือน
+text:ทั้งหมด
+text:ช่วงเวลารายงาน
+text:ช่วงกราฟ carbon
+text:ช่วงกราฟขยะ
+text:เดือน

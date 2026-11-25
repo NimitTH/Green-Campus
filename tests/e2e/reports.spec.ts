@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, request as playwrightRequest, test } from "@playwright/test";
 import { signIn } from "./helpers/auth";
+import { presetRange } from "../../src/lib/reports/range";
 import {
   createConfirmedUser,
   createJoinedCodeActivity,
@@ -279,6 +280,29 @@ test("reports: Thai date inputs post ISO, the calendar works from the keyboard, 
     await expect(page.locator(`[id="${describedBy}"]`)).toContainText("วันที่ไม่ถูกต้อง");
     await page.getByRole("button", { name: "ดูรายงาน" }).click();
     await expect(page).toHaveURL(url);
+  } finally {
+    await deleteUsers([teacher]);
+  }
+});
+
+// Round 6 (old-site features 2): quick range links above the date form.
+test("report presets fill the date range and mark the current one", async ({ page }, testInfo) => {
+  let teacher: TestUser | undefined;
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-preset-${uniqueSuffix(testInfo.project.name)}`);
+    await signIn(page, teacher, "/staff/reports");
+    const nav = page.getByRole("navigation", { name: "ช่วงเวลารายงาน" });
+    for (const name of ["7 วัน", "30 วัน", "เดือนนี้", "12 เดือน"]) await expect(nav.getByRole("link", { name })).toBeVisible();
+    // the default range is this month
+    await expect(nav.getByRole("link", { name: "เดือนนี้" })).toHaveAttribute("aria-current", "page");
+
+    await nav.getByRole("link", { name: "7 วัน" }).click();
+    const r = presetRange("7d", new Date());
+    await expect(page).toHaveURL((url) => url.searchParams.get("from") === r.from && url.searchParams.get("to") === r.to);
+    await expect(nav.getByRole("link", { name: "7 วัน" })).toHaveAttribute("aria-current", "page");
+    await expect(nav.getByRole("link", { name: "เดือนนี้" })).not.toHaveAttribute("aria-current", "page");
+    // the form and downloads use the preset range (the visible field shows the Thai date; the link carries ISO)
+    await expect(page.getByRole("link", { name: "ดาวน์โหลด CSV รายกิจกรรม" })).toHaveAttribute("href", `/api/reports/csv?kind=activities&from=${r.from}&to=${r.to}`);
   } finally {
     await deleteUsers([teacher]);
   }

@@ -11,6 +11,7 @@ import {
   deleteActivitiesByTitle,
   deleteRewardsByName,
   deleteUsers,
+  grantCarbon,
   seedSubmission,
   signedInClient,
   wasteCategoryId,
@@ -469,6 +470,37 @@ test("desktop /staff open-activity links keep their text height", async ({ brows
   } finally {
     await ctx.close();
     await deleteActivitiesByTitle(title);
+    await deleteUsers([teacher, student]);
+  }
+});
+
+// Round 6 (old-site features 2): range choices for both /staff charts, kept in the URL.
+test("/staff chart ranges: 12 months of carbon, and a waste period", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  let teacher: TestUser | undefined;
+  let student: TestUser | undefined;
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-range-${suffix}`);
+    student = await createConfirmedUser("student", `student-range-${suffix}`);
+    await grantCarbon(student.id, 1.5); // this month has carbon, so the chart (not the empty state) renders
+    await signIn(page, teacher, "/staff");
+
+    const carbonNav = page.getByRole("navigation", { name: "ช่วงกราฟ carbon" });
+    await expect(carbonNav.getByRole("link", { name: "6 เดือน" })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByTestId("carbon-table").locator("tbody tr")).toHaveCount(6);
+    await carbonNav.getByRole("link", { name: "12 เดือน" }).click();
+    await expect(page).toHaveURL(/[?&]months=12/);
+    await expect(carbonNav.getByRole("link", { name: "12 เดือน" })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByTestId("carbon-table").locator("tbody tr")).toHaveCount(12);
+
+    const wasteNav = page.getByRole("navigation", { name: "ช่วงกราฟขยะ" });
+    for (const name of ["30 วัน", "12 เดือน", "ทั้งหมด"]) await expect(wasteNav.getByRole("link", { name })).toBeVisible();
+    await expect(wasteNav.getByRole("link", { name: "ทั้งหมด" })).toHaveAttribute("aria-current", "page");
+    await wasteNav.getByRole("link", { name: "30 วัน" }).click();
+    await expect(page).toHaveURL(/[?&]waste=30d/);
+    await expect(page).toHaveURL(/[?&]months=12/); // the other chart's choice is kept
+    await expect(wasteNav.getByRole("link", { name: "30 วัน" })).toHaveAttribute("aria-current", "page");
+  } finally {
     await deleteUsers([teacher, student]);
   }
 });

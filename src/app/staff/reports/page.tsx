@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { RangeLinks } from "@/app/_components/range-links";
 import { TableSkeleton } from "@/app/_components/skeletons";
 import { ButtonLink, Card, DateInput, EmptyState, Field, PageHeader, buttonClass, Mono } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/dal";
 import { getActivityReport, getStudentReport } from "@/lib/reports/data";
-import { bangkokMonthRange, parseDateRange } from "@/lib/reports/range";
+import { REPORT_PRESETS, bangkokMonthRange, matchPreset, parseDateRange, presetRange, type ReportPreset } from "@/lib/reports/range";
+
+const PRESET_LABEL: Record<ReportPreset, string> = { "7d": "7 วัน", "30d": "30 วัน", month: "เดือนนี้", "12m": "12 เดือน" };
 
 export const metadata: Metadata = { title: "รายงาน | Green Campus" };
 
@@ -54,14 +57,21 @@ async function Reports({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff("/staff/reports");
   const params = await searchParams;
   // The default range is the current Bangkok calendar month (the clock is read after the session: request-time).
-  const fallback = bangkokMonthRange(new Date());
+  const now = new Date();
+  const fallback = bangkokMonthRange(now);
   const parsed = parseDateRange(one(params.from) ?? fallback.from, one(params.to) ?? fallback.to);
   const range = parsed.ok ? parsed : fallback;
   const [activities, students] = await Promise.all([getActivityReport(range.from, range.to), getStudentReport(range.from, range.to)]);
   const query = `from=${range.from}&to=${range.to}`;
+  const currentPreset = matchPreset(range, now);
+  const presets = REPORT_PRESETS.map((p) => {
+    const r = presetRange(p, now);
+    return { href: `/staff/reports?from=${r.from}&to=${r.to}`, label: PRESET_LABEL[p], current: p === currentPreset };
+  });
 
   return (
     <>
+      <RangeLinks label="ช่วงเวลารายงาน" items={presets} className="mb-3" />
       <form method="get" className="mb-4 flex flex-wrap items-end gap-3">
         <Field id={`${uid}-from`} label="ตั้งแต่วันที่จบ" className="min-w-40 flex-1">
           <DateInput key={range.from} id={`${uid}-from`} name="from" required defaultValue={range.from} />

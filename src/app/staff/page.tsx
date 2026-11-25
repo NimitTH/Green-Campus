@@ -3,6 +3,8 @@ import { Suspense } from "react";
 import { WasteByCategory } from "@/components/charts/WasteByCategory";
 import { Avatar, Card, EmptyState } from "@/components/ui";
 import { Badge } from "@/app/_components/activity-ui";
+import { RangeLinks } from "@/app/_components/range-links";
+import { CARBON_MONTHS, WASTE_PERIODS, parseChartRange, wasteSince, type CarbonMonths, type WastePeriod } from "@/lib/admin/chart-range";
 import { getStaffCharts } from "@/lib/admin/queries";
 import { requireStaff } from "@/lib/auth/dal";
 import { greetingFor, greetingName } from "@/lib/greeting";
@@ -12,11 +14,23 @@ import { StaffStats } from "./_components/staff-stats";
 
 export const metadata: Metadata = { title: "ครูและผู้ดูแล | Green Campus" };
 
-export default function StaffPage() {
+type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
+const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : undefined);
+const WASTE_LABEL: Record<WastePeriod, string> = { "30d": "30 วัน", "12m": "12 เดือน", all: "ทั้งหมด" };
+
+function chartHref(months: CarbonMonths, waste: WastePeriod): string {
+  const params = new URLSearchParams();
+  if (months !== 6) params.set("months", String(months));
+  if (waste !== "all") params.set("waste", waste);
+  const s = params.toString();
+  return s ? `/staff?${s}` : "/staff";
+}
+
+export default function StaffPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6">
       <Suspense fallback={<DashboardSkeleton />}>
-        <StaffHome />
+        <StaffHome searchParams={searchParams} />
       </Suspense>
     </main>
   );
@@ -25,8 +39,12 @@ export default function StaffPage() {
 // DESIGN-4 4.3: the student dashboard header (greeting, 72px avatar, role badge before the name, email), the
 // unchanged work/totals stats, then two school-wide charts, each streamed in its own boundary. No menu cards: the
 // sidebar (or the drawer on phones) is the menu.
-async function StaffHome() {
+async function StaffHome({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireStaff();
+  const sp = await searchParams;
+  // round 6: the chart ranges live in the URL; unknown values fall back to 6 months / all waste
+  const range = parseChartRange({ months: one(sp.months), waste: one(sp.waste) });
+  const since = wasteSince(range.waste, new Date());
   return (
     <>
       <div className="mb-6">
@@ -52,14 +70,24 @@ async function StaffHome() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card as="section">
           <h2 className="mb-3 font-display font-semibold">carbon ที่ลดได้รายเดือน (กก. CO₂e)</h2>
+          <RangeLinks
+            label="ช่วงกราฟ carbon"
+            className="mb-3"
+            items={CARBON_MONTHS.map((m) => ({ href: chartHref(m, range.waste), label: `${m} เดือน`, current: m === range.months }))}
+          />
           <Suspense fallback={<ChartSkeleton />}>
-            <CarbonChart />
+            <CarbonChart months={range.months} since={since} />
           </Suspense>
         </Card>
         <Card as="section">
           <h2 className="mb-3 font-display font-semibold">ขยะแยกตามกลุ่ม (กก.)</h2>
+          <RangeLinks
+            label="ช่วงกราฟขยะ"
+            className="mb-3"
+            items={WASTE_PERIODS.map((w) => ({ href: chartHref(range.months, w), label: WASTE_LABEL[w], current: w === range.waste }))}
+          />
           <Suspense fallback={<ChartSkeleton />}>
-            <WasteChart />
+            <WasteChart months={range.months} since={since} />
           </Suspense>
         </Card>
       </div>
@@ -67,24 +95,26 @@ async function StaffHome() {
   );
 }
 
-async function loadCharts() {
+type ChartProps = { months: CarbonMonths; since: string | null };
+
+async function loadCharts({ months, since }: ChartProps) {
   try {
-    return await getStaffCharts();
+    return await getStaffCharts(months, since);
   } catch (e) {
     console.error("StaffCharts failed", e instanceof Error ? e.message : e);
     return null;
   }
 }
 
-async function CarbonChart() {
-  const charts = await loadCharts();
+async function CarbonChart(props: ChartProps) {
+  const charts = await loadCharts(props);
   if (!charts) return <ChartError />;
   if (charts.months.every((m) => m.carbonKg === 0)) return <ChartEmpty />;
   return <CarbonByMonth data={charts.months} />;
 }
 
-async function WasteChart() {
-  const charts = await loadCharts();
+async function WasteChart(props: ChartProps) {
+  const charts = await loadCharts(props);
   if (!charts) return <ChartError />;
   if (charts.waste.every((w) => w.kg === 0)) return <ChartEmpty />;
   return <WasteByCategory data={charts.waste} />;

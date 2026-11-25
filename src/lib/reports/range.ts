@@ -38,3 +38,46 @@ export function bangkokMonthRange(now: Date): DateRange {
   const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
   return { from: `${y}-${pad(m + 1)}-01`, to: `${y}-${pad(m + 1)}-${pad(last)}` };
 }
+
+// Round 6 (old-site features 2): quick ranges for the reports page. Every preset ends on today's Bangkok date.
+export const REPORT_PRESETS = ["7d", "30d", "month", "12m"] as const;
+export type ReportPreset = (typeof REPORT_PRESETS)[number];
+
+function isoDay(t: number): string {
+  return new Date(t).toISOString().slice(0, 10);
+}
+
+/** Today's Bangkok date as UTC-midnight milliseconds. */
+function bangkokToday(now: Date): number {
+  const b = new Date(now.getTime() + BANGKOK_OFFSET_MS);
+  return Date.UTC(b.getUTCFullYear(), b.getUTCMonth(), b.getUTCDate());
+}
+
+/** The same calendar day one year earlier (29 Feb -> 28 Feb), as UTC-midnight milliseconds. */
+function oneYearEarlier(day: number): number {
+  const d = new Date(day);
+  const y = d.getUTCFullYear() - 1;
+  const m = d.getUTCMonth();
+  const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  return Date.UTC(y, m, Math.min(d.getUTCDate(), last));
+}
+
+export function presetRange(preset: ReportPreset, now: Date): DateRange {
+  if (preset === "month") return bangkokMonthRange(now);
+  const today = bangkokToday(now);
+  const from = preset === "7d" ? today - 6 * DAY_MS : preset === "30d" ? today - 29 * DAY_MS : oneYearEarlier(today) + DAY_MS;
+  return { from: isoDay(from), to: isoDay(today) };
+}
+
+export function matchPreset(range: DateRange, now: Date): ReportPreset | null {
+  for (const p of REPORT_PRESETS) {
+    const r = presetRange(p, now);
+    if (r.from === range.from && r.to === range.to) return p;
+  }
+  return null;
+}
+
+/** The instant a Bangkok calendar day (YYYY-MM-DD) starts, as an ISO timestamp. */
+export function bangkokDayStartIso(day: string): string {
+  return new Date(Date.parse(`${day}T00:00:00Z`) - BANGKOK_OFFSET_MS).toISOString();
+}
