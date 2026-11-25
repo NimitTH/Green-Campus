@@ -76,3 +76,20 @@
   แล้วจบด้วยฐานข้อมูลที่มี seed อยู่ (ใช้ทดสอบ `npx supabase test db` กับข้อมูล seed ได้) spec ข้ามตัวเองถ้าไม่ได้รันผ่าน `npm run test:seed`
 - `npm run test:e2e` รันเฉพาะ project `chromium` และ `mobile-chrome` (`--project=...`) ถ้าเรียก `npx playwright test` ตรงๆ
   project `seed` จะถูกข้าม (skip) เอง
+
+## รอบ 6: ฟีเจอร์จากเว็บเก่า (migrations 0037–0040)
+
+ดูแบบที่ `docs/superpowers/specs/2026-11-25-old-site-features-design.md`
+
+- 0037 `staff_waste_by_category(p_since)`: กราฟขยะในหน้า `/staff` เลือกช่วงได้ (`?months=12&waste=30d`)
+- 0038 ช่วงเวลาแสดงบทความ (`show_from` / `show_until`): กฎอยู่ในฟังก์ชัน `article_is_visible` ซึ่ง RLS ใช้
+  รายการบทความหน้าเว็บ cache ไว้ราว 1 นาที บทความจึงขึ้นหรือหายช้ากว่าเวลาที่ตั้งได้ประมาณนั้น
+- 0039 แจ้งปัญหาการใช้งาน (`problem_reports`):
+  - ส่งผ่าน `submit_problem_report` ได้ไม่เกิน 5 ครั้งต่อคนต่อ 24 ชม.
+  - บัญชีสาธิตส่งไม่ได้
+  - แอดมินทุกคนได้แจ้งเตือน ดูรายการที่ `/staff/problem-reports` (เฉพาะแอดมิน)
+- 0040 เลขออเดอร์ `ORD-YYYYMMDD-NNNN`:
+  - นับแยกตามวันตามเวลาไทยในตาราง `order_day_counters`
+  - `orders.order_no` มีค่า default เป็น `next_order_no(now())` insert ตรงๆ จึงได้เลขเองด้วย
+  - ออเดอร์เก่าได้เลขย้อนหลังตามเวลาที่สั่ง
+  - ค้นด้วยเลขเก่า 8 ตัว (hex) ยังเจอ
