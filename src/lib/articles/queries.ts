@@ -18,11 +18,14 @@ export type StaffArticle = {
   coverUrl: string | null;
   category: ArticleCategory;
   updatedAt: string;
+  /** Round 6 display window (UTC ISO), null = no limit. */
+  showFrom: string | null;
+  showUntil: string | null;
 };
 
-type Row = { id: string; slug: string; title: string; body: string; published: boolean; cover_path: string | null; category: string; updated_at: string };
+type Row = { id: string; slug: string; title: string; body: string; published: boolean; cover_path: string | null; category: string; updated_at: string; show_from: string | null; show_until: string | null };
 
-const COLUMNS = "id, slug, title, body, published, cover_path, category, updated_at";
+const COLUMNS = "id, slug, title, body, published, cover_path, category, updated_at, show_from, show_until";
 
 async function toArticles(rows: Row[]): Promise<StaffArticle[]> {
   const supabase = await createServerClient();
@@ -36,6 +39,8 @@ async function toArticles(rows: Row[]): Promise<StaffArticle[]> {
     coverUrl: r.cover_path ? supabase.storage.from(ARTICLE_BUCKET).getPublicUrl(r.cover_path).data.publicUrl : null,
     category: isArticleCategory(r.category) ? r.category : "other",
     updatedAt: r.updated_at,
+    showFrom: r.show_from,
+    showUntil: r.show_until,
   }));
 }
 

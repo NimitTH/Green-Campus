@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { signIn } from "./helpers/auth";
 import { staffMenu } from "./helpers/staff-menu";
 import { PNG_1X1 } from "./helpers/images";
+import { bangkokInputValue, fillDateTime } from "./helpers/time";
 import {
   createConfirmedUser,
   deleteArticlesById,
@@ -443,6 +444,58 @@ test("staff articles view link names the article", async ({ page }, testInfo) =>
     await expect(link).toHaveAttribute("href", `/articles/${seeded[0].slug}`);
   } finally {
     await deleteArticlesById(seeded.map((a) => a.id));
+    await deleteUsers([teacher]);
+  }
+});
+
+// Round 6 (old-site features 4): a published article with a future start is hidden from the public until then.
+test("a scheduled article is hidden from the public until its start", async ({ page, browser }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const title = `บทความตั้งเวลา ${suffix}`;
+  const slug = `e2e-sched-${suffix}`;
+  let teacher: TestUser | undefined;
+  const anon = await browser.newContext();
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-sched-${suffix}`);
+    await signIn(page, teacher, "/staff/articles/new");
+    await fillArticle(page, { title, slug, body: "ประกาศล่วงหน้า" });
+    await page.getByLabel(/^เผยแพร่/).filter({ visible: true }).check();
+    await fillDateTime(page.getByLabel("แสดงตั้งแต่").filter({ visible: true }), bangkokInputValue(24 * 60));
+    await page.getByRole("button", { name: "บันทึกบทความ" }).filter({ visible: true }).click();
+    await expect(page).toHaveURL((url) => url.pathname === "/staff/articles");
+    const row = page.getByTestId("staff-article").filter({ hasText: title });
+    await expect(row).toContainText("รอเวลาแสดง");
+    await expect(row.getByRole("link", { name: `ดู ${title}` })).toHaveCount(0);
+    const saved = await findArticle(slug);
+    expect(saved?.published).toBe(true);
+
+    const anonPage = await anon.newPage();
+    await anonPage.goto(`/articles?q=${encodeURIComponent(title)}`);
+    await expect(anonPage.getByText("ไม่พบรายการที่ตรงกับคำค้น")).toBeVisible();
+    await anonPage.goto(`/articles/${slug}`);
+    await expect(anonPage.getByText("ไม่พบบทความนี้")).toBeVisible();
+  } finally {
+    await anon.close();
+    await deleteArticlesByTitle([title]);
+    await deleteUsers([teacher]);
+  }
+});
+
+// Round 6: half a date in the window blocks the save, so an article is never published at once by mistake.
+test("a half-typed display start blocks saving", async ({ page }, testInfo) => {
+  const suffix = uniqueSuffix(testInfo.project.name);
+  const title = `บทความเวลาไม่ครบ ${suffix}`;
+  let teacher: TestUser | undefined;
+  try {
+    teacher = await createConfirmedUser("teacher", `teacher-half-${suffix}`);
+    await signIn(page, teacher, "/staff/articles/new");
+    await fillArticle(page, { title, slug: `e2e-half-${suffix}`, body: "เนื้อหา" });
+    await page.getByLabel("แสดงตั้งแต่").filter({ visible: true }).fill("01/12/2569");
+    await page.getByRole("button", { name: "บันทึกบทความ" }).filter({ visible: true }).click();
+    await expect(page.getByText("กรอกวันที่และเวลาให้ครบ หรือเว้นว่างทั้งสองช่อง")).toBeVisible();
+    await expect(page).toHaveURL((url) => url.pathname === "/staff/articles/new");
+  } finally {
+    await deleteArticlesByTitle([title]);
     await deleteUsers([teacher]);
   }
 });

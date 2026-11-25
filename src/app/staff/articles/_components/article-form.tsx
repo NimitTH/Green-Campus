@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useId, useRef, useState } from "react";
 import { saveArticle } from "@/app/actions/articles";
-import { Button, ButtonLink, Field, inputClass } from "@/components/ui";
+import { Button, ButtonLink, DateTimeInput, Field, inputClass } from "@/components/ui";
 import { ARTICLE_BUCKET, ARTICLE_CATEGORIES, ARTICLE_CATEGORY_LABEL_TH, ARTICLE_LIMITS, type ArticleFieldErrors, type ArticleInput } from "@/lib/articles/format";
 import { errorMessageTh, uploadErrorCode } from "@/lib/errors";
 import { ImageError, resizeToJpeg } from "@/lib/image";
@@ -84,9 +84,29 @@ export function ArticleForm({
     return path;
   }
 
+  /**
+   * Round 6: the display window comes from the DateTimeInput hidden values. A field with text typed but no valid
+   * value (half a date, a bad time) blocks the save, so a scheduled article is never published at once by mistake.
+   */
+  function readWindow(form: HTMLFormElement): { ok: true; value: { showFrom: string; showUntil: string } } | { ok: false; errors: ArticleFieldErrors } {
+    const data = new FormData(form);
+    const out = { showFrom: String(data.get("showFrom") ?? ""), showUntil: String(data.get("showUntil") ?? "") };
+    const errors: ArticleFieldErrors = {};
+    for (const key of ["showFrom", "showUntil"] as const) {
+      const typed = [f(key), `${f(key)}-time`].some((elId) => ((form.querySelector(`[id="${elId}"]`) as HTMLInputElement | null)?.value ?? "").trim() !== "");
+      if (typed && out[key] === "") errors[key] = "กรอกวันที่และเวลาให้ครบ หรือเว้นว่างทั้งสองช่อง";
+    }
+    return Object.keys(errors).length > 0 ? { ok: false, errors } : { ok: true, value: out };
+  }
+
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busyRef.current) return;
+    const shown = readWindow(event.currentTarget);
+    if (!shown.ok) {
+      setFieldErrors(shown.errors);
+      return;
+    }
     busyRef.current = true;
     setBusy(true);
     setError(null);
@@ -98,6 +118,8 @@ export function ArticleForm({
       const result = await withTimeout(
         saveArticle({
           ...values,
+          showFrom: shown.value.showFrom,
+          showUntil: shown.value.showUntil,
           id: articleId,
           mode: id ? "update" : "create",
           imagePath,
@@ -217,6 +239,22 @@ export function ArticleForm({
         </select>
         <FieldError id={f("category-error")} message={fieldErrors.category} />
       </Field>
+
+      {/* round 6: optional display window (Bangkok time); outside it the public does not see the article */}
+      <fieldset className="mb-4" aria-describedby={f("window-hint")}>
+        <legend className="mb-1 text-sm font-medium text-ink">ช่วงเวลาแสดง (ไม่บังคับ)</legend>
+        <p id={f("window-hint")} className="mb-2 text-sm text-muted">
+          เว้นว่างได้ บทความจะขึ้นหรือหายภายในประมาณ 1 นาทีหลังเวลาที่ตั้ง (เวลาประเทศไทย)
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field id={f("showFrom")} label="แสดงตั้งแต่">
+            <DateTimeInput id={f("showFrom")} name="showFrom" timeLabel="เวลาเริ่มแสดง" defaultValue={initial.showFrom} error={fieldErrors.showFrom} />
+          </Field>
+          <Field id={f("showUntil")} label="แสดงถึง">
+            <DateTimeInput id={f("showUntil")} name="showUntil" timeLabel="เวลาสิ้นสุดการแสดง" defaultValue={initial.showUntil} error={fieldErrors.showUntil} />
+          </Field>
+        </div>
+      </fieldset>
 
       <Field id={f("cover")} label="รูปปก (ไม่บังคับ)" className="mb-4">
         {coverUrl && !removeCover ? (

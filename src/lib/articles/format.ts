@@ -1,3 +1,4 @@
+import { bangkokLocalToUtcIso } from "@/lib/datetime";
 // Pure helpers for articles (Task 18 Part B, R122): slug rules, the plain-text body (paragraphs split on
 // blank lines, rendered as text, never as HTML), list excerpts and the staff form validation.
 // The database checks the same slug / title / body rules (0020).
@@ -66,17 +67,45 @@ export function excerpt(body: string, max: number = ARTICLE_LIMITS.excerptMax): 
   return `${chars.slice(0, max).join("").trimEnd()}…`;
 }
 
-export type ArticleInput = { title: string; slug: string; body: string; published: boolean; category: string };
+/** showFrom / showUntil: "" (no limit) or the DateTimeInput value, read as Bangkok wall time (round 6). */
+export type ArticleInput = { title: string; slug: string; body: string; published: boolean; category: string; showFrom: string; showUntil: string };
 export type ArticleFieldErrors = Partial<Record<keyof ArticleInput, string>>;
-/** slug null: generate one on save. */
-export type ArticleRecord = { title: string; slug: string | null; body: string; published: boolean; category: ArticleCategory };
+/** slug null: generate one on save. showFrom / showUntil: UTC ISO, or null for no limit. */
+export type ArticleRecord = {
+  title: string;
+  slug: string | null;
+  body: string;
+  published: boolean;
+  category: ArticleCategory;
+  showFrom: string | null;
+  showUntil: string | null;
+};
+
+export type ArticleWindowState = "draft" | "scheduled" | "expired" | "visible";
+
+/** Where an article stands for the public now: the same rule as public.article_is_visible (0038). */
+export function articleWindowState(a: { published: boolean; showFrom: string | null; showUntil: string | null }, now: Date): ArticleWindowState {
+  if (!a.published) return "draft";
+  const t = now.getTime();
+  if (a.showFrom !== null && Date.parse(a.showFrom) > t) return "scheduled";
+  if (a.showUntil !== null && t >= Date.parse(a.showUntil)) return "expired";
+  return "visible";
+}
 
 export function isArticleInputShape(value: unknown): value is ArticleInput {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   const proto = Object.getPrototypeOf(value);
   if (proto !== Object.prototype && proto !== null) return false;
   const v = value as Record<string, unknown>;
-  return typeof v.title === "string" && typeof v.slug === "string" && typeof v.body === "string" && typeof v.published === "boolean" && typeof v.category === "string";
+  return (
+    typeof v.title === "string" &&
+    typeof v.slug === "string" &&
+    typeof v.body === "string" &&
+    typeof v.published === "boolean" &&
+    typeof v.category === "string" &&
+    typeof v.showFrom === "string" &&
+    typeof v.showUntil === "string"
+  );
 }
 
 export function validateArticle(
@@ -100,6 +129,16 @@ export function validateArticle(
   const category = input.category;
   if (!isArticleCategory(category)) errors.category = "เลือกประเภทบทความ";
 
-  if (Object.keys(errors).length > 0 || !isArticleCategory(category)) return { ok: false, fieldErrors: errors };
-  return { ok: true, value: { title, slug: slugText || null, body, published: input.published, category } };
+  // round 6: the display window, Bangkok wall time -> UTC ISO; empty = no limit
+  const window = (local: string): string | null | undefined => (local.trim() === "" ? null : (bangkokLocalToUtcIso(local.trim()) ?? undefined));
+  const showFrom = window(input.showFrom);
+  const showUntil = window(input.showUntil);
+  if (showFrom === undefined) errors.showFrom = "วันเวลาไม่ถูกต้อง";
+  if (showUntil === undefined) errors.showUntil = "วันเวลาไม่ถูกต้อง";
+  else if (showFrom && showUntil && Date.parse(showUntil) <= Date.parse(showFrom)) errors.showUntil = "เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่ม";
+
+  if (Object.keys(errors).length > 0 || !isArticleCategory(category) || showFrom === undefined || showUntil === undefined) {
+    return { ok: false, fieldErrors: errors };
+  }
+  return { ok: true, value: { title, slug: slugText || null, body, published: input.published, category, showFrom, showUntil } };
 }

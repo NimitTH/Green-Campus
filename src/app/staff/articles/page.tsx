@@ -9,7 +9,7 @@ import { Pagination } from "@/app/_components/list/pagination";
 import { loadClamped } from "@/app/_components/list/paging";
 import { ListSkeleton } from "@/app/_components/skeletons";
 import { ButtonLink, Card, EmptyState, PageHeader, Mono } from "@/components/ui";
-import { ARTICLE_CATEGORY_LABEL_TH } from "@/lib/articles/format";
+import { ARTICLE_CATEGORY_LABEL_TH, articleWindowState } from "@/lib/articles/format";
 import { STAFF_ARTICLE_CONFIG } from "@/lib/articles/list-config";
 import { listArticlesForStaffPage } from "@/lib/articles/queries";
 import { requireStaff } from "@/lib/auth/dal";
@@ -57,6 +57,7 @@ function Thumb({ url }: { url: string | null }) {
 
 async function ArticleList({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff("/staff/articles");
+  const now = new Date(); // round 6: window badges (request time, after the session check)
   const { params, result } = await loadClamped(STAFF_ARTICLE_CONFIG, parseListParams(STAFF_ARTICLE_CONFIG, await searchParams), listArticlesForStaffPage);
 
   return (
@@ -87,6 +88,8 @@ async function ArticleList({ searchParams }: { searchParams: SearchParams }) {
                       <h2 className="font-semibold break-words">{a.title}</h2>
                       <div className="mt-1 flex flex-wrap items-center gap-2">
                         <Badge tone={a.published ? "green" : "gray"}>{a.published ? "เผยแพร่แล้ว" : "ฉบับร่าง"}</Badge>
+                        {articleWindowState(a, now) === "scheduled" ? <Badge tone="amber">รอเวลาแสดง</Badge> : null}
+                        {articleWindowState(a, now) === "expired" ? <Badge tone="gray">หมดเวลาแสดง</Badge> : null}
                         <Badge>{ARTICLE_CATEGORY_LABEL_TH[a.category]}</Badge>
                         <span className="text-xs break-all text-muted">/articles/{a.slug}</span>
                       </div>
@@ -95,7 +98,7 @@ async function ArticleList({ searchParams }: { searchParams: SearchParams }) {
                       </p>
                     </div>
                     <div className="flex flex-wrap items-start gap-2">
-                      {a.published ? (
+                      {articleWindowState(a, now) === "visible" ? (
                         <ButtonLink href={`/articles/${a.slug}`} aria-label={`ดู ${a.title}`} variant="card" className="min-w-11">
                           ดู
                         </ButtonLink>

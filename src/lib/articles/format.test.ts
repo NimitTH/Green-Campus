@@ -11,6 +11,7 @@ import {
   SLUG_TAKEN_TH,
   splitParagraphs,
   validateArticle,
+  articleWindowState,
 } from "./format";
 
 describe("isValidSlug", () => {
@@ -76,11 +77,11 @@ describe("excerpt", () => {
 });
 
 describe("validateArticle", () => {
-  const ok = { title: "  ลดขยะ  พลาสติก ", slug: "", body: "ย่อหน้า\n\nสอง", published: false, category: "knowledge" };
+  const ok = { title: "  ลดขยะ  พลาสติก ", slug: "", body: "ย่อหน้า\n\nสอง", published: false, category: "knowledge", showFrom: "", showUntil: "" };
 
   it("accepts a valid article, collapses the title and leaves a blank slug to be generated", () => {
     const r = validateArticle(ok);
-    expect(r).toEqual({ ok: true, value: { title: "ลดขยะ พลาสติก", slug: null, body: "ย่อหน้า\n\nสอง", published: false, category: "knowledge" } });
+    expect(r).toEqual({ ok: true, value: { title: "ลดขยะ พลาสติก", slug: null, body: "ย่อหน้า\n\nสอง", published: false, category: "knowledge", showFrom: null, showUntil: null } });
   });
   it("trims and lowercases a typed slug", () => {
     const r = validateArticle({ ...ok, slug: "  Waste-Tips " });
@@ -122,7 +123,8 @@ describe("validateArticle", () => {
 
 describe("isArticleInputShape", () => {
   it("accepts the form shape only", () => {
-    expect(isArticleInputShape({ title: "", slug: "", body: "", published: true, category: "other" })).toBe(true);
+    expect(isArticleInputShape({ title: "", slug: "", body: "", published: true, category: "other", showFrom: "", showUntil: "" })).toBe(true);
+    expect(isArticleInputShape({ title: "", slug: "", body: "", published: true, category: "other" })).toBe(false);
     expect(isArticleInputShape({ title: "", slug: "", body: "", published: true })).toBe(false);
     expect(isArticleInputShape({ title: "", slug: "", body: "" })).toBe(false);
     expect(isArticleInputShape({ title: 1, slug: "", body: "", published: true, category: "other" })).toBe(false);
@@ -139,5 +141,35 @@ describe("article categories", () => {
     expect(isArticleCategory("all")).toBe(false);
     expect(isArticleCategory("toString")).toBe(false);
     expect(isArticleCategory(undefined)).toBe(false);
+  });
+});
+
+describe("article display window (round 6)", () => {
+  const ok = { title: "ประกาศ", slug: "", body: "เนื้อหา", published: true, category: "announcement", showFrom: "", showUntil: "" };
+
+  it("reads the window as Bangkok time and stores ISO; empty means no limit", () => {
+    const r = validateArticle({ ...ok, showFrom: "2026-12-01T08:00", showUntil: "" });
+    expect(r.ok && r.value.showFrom).toBe("2026-12-01T01:00:00.000Z");
+    expect(r.ok && r.value.showUntil).toBeNull();
+  });
+  it("rejects an end at or before the start", () => {
+    for (const showUntil of ["2026-12-01T07:00", "2026-12-01T08:00"]) {
+      const r = validateArticle({ ...ok, showFrom: "2026-12-01T08:00", showUntil });
+      expect(r).toEqual({ ok: false, fieldErrors: { showUntil: "เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่ม" } });
+    }
+  });
+  it("rejects a date-time that does not exist", () => {
+    const r = validateArticle({ ...ok, showFrom: "2026-02-30T08:00" });
+    expect(r.ok).toBe(false);
+    expect(!r.ok && r.fieldErrors.showFrom).toBe("วันเวลาไม่ถูกต้อง");
+  });
+  it("articleWindowState gives draft, scheduled, expired and visible", () => {
+    const now = new Date("2026-12-01T05:00:00Z");
+    const w = (published: boolean, showFrom: string | null, showUntil: string | null) => articleWindowState({ published, showFrom, showUntil }, now);
+    expect(w(false, null, null)).toBe("draft");
+    expect(w(true, "2026-12-01T06:00:00Z", null)).toBe("scheduled");
+    expect(w(true, null, "2026-12-01T05:00:00Z")).toBe("expired");
+    expect(w(true, "2026-12-01T05:00:00Z", "2026-12-01T06:00:00Z")).toBe("visible");
+    expect(w(true, null, null)).toBe("visible");
   });
 });

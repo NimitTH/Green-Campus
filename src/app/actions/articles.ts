@@ -91,7 +91,7 @@ export async function saveArticle(input: SaveArticleInput): Promise<SaveArticleR
 
   const result = validateArticle(input);
   if (!result.ok) return { ok: false, fieldErrors: result.fieldErrors };
-  const { title, slug, body, published, category } = result.value;
+  const { title, slug, body, published, category, showFrom, showUntil } = result.value;
 
   const imagePath = input.imagePath ?? null;
   if (imagePath !== null) {
@@ -107,7 +107,7 @@ export async function saveArticle(input: SaveArticleInput): Promise<SaveArticleR
     const previousCover = (before as { cover_path: string | null } | null)?.cover_path ?? null;
     const cover = imagePath ? { cover_path: imagePath } : input.removeCover ? { cover_path: null } : {};
     // A blank slug on edit keeps the current one (changing it would break shared links).
-    const fields = { title, body, published, category, ...(slug ? { slug } : {}), ...cover };
+    const fields = { title, body, published, category, show_from: showFrom, show_until: showUntil, ...(slug ? { slug } : {}), ...cover };
     const { data, error } = await supabase
       .from("articles")
       .update(fields)
@@ -136,6 +136,8 @@ export async function saveArticle(input: SaveArticleInput): Promise<SaveArticleR
       body,
       published,
       category,
+      show_from: showFrom,
+      show_until: showUntil,
       cover_path: imagePath,
       author_id: user.id,
     });
