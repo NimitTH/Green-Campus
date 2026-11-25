@@ -17,6 +17,9 @@ export const RESET_LINK_INVALID_MESSAGE =
 
 export const SUSPENDED_MESSAGE = "บัญชีนี้ถูกระงับ ติดต่อครูหรือผู้ดูแล";
 
+/** /login?error=google: the user cancelled at Google, or the sign-in could not finish. */
+export const GOOGLE_FAILED_MESSAGE = "เข้าสู่ระบบด้วย Google ไม่สำเร็จ ลองอีกครั้ง";
+
 export function authErrorMessage(code: string | null | undefined): string {
   switch (code) {
     case "user_banned":
@@ -58,6 +61,7 @@ export function authErrorMessage(code: string | null | undefined): string {
 export function loginErrorMessage(error: string | null | undefined): string | null {
   if (error === "link") return LINK_INVALID_MESSAGE;
   if (error === "suspended") return SUSPENDED_MESSAGE;
+  if (error === "google") return GOOGLE_FAILED_MESSAGE;
   return null;
 }
 
