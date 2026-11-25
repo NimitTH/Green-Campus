@@ -1,4 +1,5 @@
 import { safeNextPath } from "@/lib/auth/routes";
+import { errorCodeFromDb, errorMessageTh } from "@/lib/errors";
 
 // Round 6 (old-site features 5): pure helpers for website problem reports. The rules match 0039's checks.
 
@@ -28,4 +29,25 @@ export function validateReportMessage(text: string): { ok: true; value: string }
   if (value === "") return { ok: false, error: "เขียนรายละเอียดปัญหาก่อนส่ง" };
   if (Array.from(value).length > REPORT_MESSAGE_MAX) return { ok: false, error: "เขียนได้ไม่เกิน 1,000 ตัวอักษร" };
   return { ok: true, value };
+}
+
+const REPORT_ERRORS: Record<string, { error?: string; fieldError?: string }> = {
+  too_many_reports: { error: "แจ้งปัญหาครบ 5 ครั้งใน 24 ชั่วโมงแล้ว ลองใหม่ภายหลัง" },
+  report_not_found: { error: "ไม่พบเรื่องที่แจ้งนี้ รีเฟรชหน้าเพื่อดูรายการล่าสุด" },
+};
+
+/**
+ * The Thai message for an error from submit_problem_report / resolve_problem_report (0039), or null for an unknown
+ * error (the caller logs it and shows the generic message). The codes come back as the error message.
+ */
+export function reportErrorFromDb(
+  dbError: { message?: string | null } | null | undefined,
+  context: "submit" | "resolve",
+): { error?: string; fieldError?: string } | null {
+  const code = dbError?.message?.trim() ?? "";
+  if (code === "demo_scope") return { error: context === "submit" ? "บัญชีสาธิตแจ้งปัญหาไม่ได้" : "บัญชีสาธิตจัดการได้เฉพาะเรื่องที่บัญชีสาธิตแจ้ง" };
+  if (code === "invalid_input") return context === "submit" ? { fieldError: "ตรวจข้อความอีกครั้ง" } : { error: "ข้อมูลไม่ถูกต้อง ตรวจแล้วลองอีกครั้ง" };
+  if (Object.hasOwn(REPORT_ERRORS, code)) return REPORT_ERRORS[code];
+  const shared = errorCodeFromDb(dbError);
+  return shared ? { error: errorMessageTh(shared) } : null;
 }

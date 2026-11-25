@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { isAdminRole } from "@/lib/auth/routes";
-import { errorCodeFromDb, errorMessageTh, GENERIC_ERROR_TH } from "@/lib/errors";
-import { REPORT_NOTE_MAX, safeReportPath, trimReportText, validateReportMessage } from "@/lib/problem-reports/format";
+import { errorMessageTh, GENERIC_ERROR_TH } from "@/lib/errors";
+import { REPORT_NOTE_MAX, reportErrorFromDb, safeReportPath, trimReportText, validateReportMessage } from "@/lib/problem-reports/format";
 import { createServerClient } from "@/lib/supabase/server";
 import { isUuid } from "@/lib/uuid";
 
@@ -13,7 +13,6 @@ import { isUuid } from "@/lib/uuid";
 
 export type ReportFormState = { ok: true } | { ok: false; error?: string; fieldError?: string } | undefined;
 
-const DEMO_REPORT_TH = "บัญชีสาธิตแจ้งปัญหาไม่ได้";
 
 export async function submitProblemReport(_prev: ReportFormState, formData: FormData): Promise<ReportFormState> {
   const raw = String(formData.get("message") ?? "");
@@ -28,10 +27,8 @@ export async function submitProblemReport(_prev: ReportFormState, formData: Form
   const supabase = await createServerClient();
   const { error } = await supabase.rpc("submit_problem_report", { p_message: checked.value, p_page_url: pageUrl });
   if (error) {
-    const code = errorCodeFromDb(error);
-    if (code === "demo_scope") return { ok: false, error: DEMO_REPORT_TH };
-    if (code === "invalid_input") return { ok: false, fieldError: "ตรวจข้อความอีกครั้ง" };
-    if (code) return { ok: false, error: errorMessageTh(code) };
+    const mapped = reportErrorFromDb(error, "submit");
+    if (mapped) return { ok: false, ...mapped };
     console.error("submitProblemReport failed", error.code, error.message);
     return { ok: false, error: GENERIC_ERROR_TH };
   }
@@ -43,7 +40,7 @@ export type ResolveState = { ok: true } | { ok: false; error: string } | undefin
 export async function resolveProblemReport(_prev: ResolveState, formData: FormData): Promise<ResolveState> {
   const id = String(formData.get("id") ?? "");
   const note = trimReportText(String(formData.get("note") ?? ""));
-  if (!isUuid(id)) return { ok: false, error: errorMessageTh("report_not_found") };
+  if (!isUuid(id)) return { ok: false, error: reportErrorFromDb({ message: "report_not_found" }, "resolve")?.error ?? GENERIC_ERROR_TH };
   if (Array.from(note).length > REPORT_NOTE_MAX) return { ok: false, error: "หมายเหตุยาวได้ไม่เกิน 500 ตัวอักษร" };
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: errorMessageTh("not_authenticated") };
@@ -52,8 +49,8 @@ export async function resolveProblemReport(_prev: ResolveState, formData: FormDa
   const supabase = await createServerClient();
   const { error } = await supabase.rpc("resolve_problem_report", { p_id: id, p_note: note || null });
   if (error) {
-    const code = errorCodeFromDb(error);
-    if (code) return { ok: false, error: errorMessageTh(code) };
+    const mapped = reportErrorFromDb(error, "resolve");
+    if (mapped) return { ok: false, error: mapped.error ?? GENERIC_ERROR_TH };
     console.error("resolveProblemReport failed", error.code, error.message);
     return { ok: false, error: GENERIC_ERROR_TH };
   }

@@ -92,8 +92,6 @@ const ORDER_MESSAGES: Record<string, string> = {
 const ACCOUNT_MESSAGES: Record<string, string> = {
   not_staff: "เฉพาะครูและผู้ดูแลเท่านั้นที่จัดการบัญชีนักเรียนได้",
   not_student: "จัดการได้เฉพาะบัญชีนักเรียน",
-  too_many_reports: "วันนี้แจ้งปัญหาครบ 5 ครั้งแล้ว ลองใหม่พรุ่งนี้",
-  report_not_found: "ไม่พบเรื่องที่แจ้งนี้ รีเฟรชหน้าเพื่อดูรายการล่าสุด",
   demo_scope: "บัญชีสาธิตจัดการได้เฉพาะนักเรียนสาธิต",
   self_target: "จัดการบัญชีของตัวเองไม่ได้",
   invalid_input: "ข้อมูลไม่ถูกต้อง ตรวจแล้วลองอีกครั้ง",

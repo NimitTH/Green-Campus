@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { REPORT_MESSAGE_MAX, safeReportPath, validateReportMessage } from "./format";
+import { REPORT_MESSAGE_MAX, reportErrorFromDb, safeReportPath, validateReportMessage } from "./format";
 
 describe("safeReportPath", () => {
   it("keeps a same-site path with its query", () => {
@@ -27,5 +27,25 @@ describe("validateReportMessage", () => {
   it("counts characters, not bytes: 1000 Thai characters pass, 1001 fail", () => {
     expect(validateReportMessage("ก".repeat(REPORT_MESSAGE_MAX)).ok).toBe(true);
     expect(validateReportMessage("ก".repeat(REPORT_MESSAGE_MAX + 1))).toEqual({ ok: false, error: "เขียนได้ไม่เกิน 1,000 ตัวอักษร" });
+  });
+});
+
+describe("reportErrorFromDb (final review I1)", () => {
+  it("names the limit, the rolling 24 hours, and does not say try again now", () => {
+    expect(reportErrorFromDb({ message: "too_many_reports" }, "submit")).toEqual({ error: "แจ้งปัญหาครบ 5 ครั้งใน 24 ชั่วโมงแล้ว ลองใหม่ภายหลัง" });
+  });
+  it("tells a demo account it cannot report, and a demo admin it cannot close a real report", () => {
+    expect(reportErrorFromDb({ message: "demo_scope" }, "submit")).toEqual({ error: "บัญชีสาธิตแจ้งปัญหาไม่ได้" });
+    expect(reportErrorFromDb({ message: "demo_scope" }, "resolve")).toEqual({ error: "บัญชีสาธิตจัดการได้เฉพาะเรื่องที่บัญชีสาธิตแจ้ง" });
+  });
+  it("maps invalid_input on submit to the message field", () => {
+    expect(reportErrorFromDb({ message: "invalid_input" }, "submit")).toEqual({ fieldError: "ตรวจข้อความอีกครั้ง" });
+  });
+  it("maps report_not_found and the shared codes", () => {
+    expect(reportErrorFromDb({ message: "report_not_found" }, "resolve")).toEqual({ error: "ไม่พบเรื่องที่แจ้งนี้ รีเฟรชหน้าเพื่อดูรายการล่าสุด" });
+    expect(reportErrorFromDb({ message: "not_admin" }, "resolve")).toEqual({ error: "เฉพาะผู้ดูแลระบบเท่านั้นที่ทำรายการนี้ได้" });
+  });
+  it("is null for an unknown error (the caller logs it and shows the generic message)", () => {
+    expect(reportErrorFromDb({ message: "connection reset" }, "submit")).toBeNull();
   });
 });
