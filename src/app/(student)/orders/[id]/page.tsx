@@ -48,7 +48,7 @@ async function Order({ params }: { params: Promise<{ id: string }> }) {
       <Card tone="accent" className="text-center">
         <p className="text-sm text-muted">เลขที่ออเดอร์ (แสดงที่แผนกตอนรับของ)</p>
         <h1 data-testid="order-number" className="font-mono text-4xl font-bold tracking-widest break-all">
-          {orderNumber(order.id)}
+          {orderNumber(order)}
         </h1>
         <p className="mt-2" data-testid="order-status">
           <Badge tone={orderStatusTone(order.status, order.readyAt)}>{orderStatusLabelTh(order.status, order.readyAt)}</Badge>

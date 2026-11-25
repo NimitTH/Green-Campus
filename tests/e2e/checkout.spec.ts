@@ -21,6 +21,7 @@ import {
   signedInClient,
   updateReward,
   type TestUser,
+  orderNoOf,
 } from "./helpers/supabase-admin";
 
 // Plan Task 13 (R77, R79): checkout, staff pickup/cancel, expiry, and two concurrency races.
@@ -29,9 +30,11 @@ function uniqueSuffix(projectName: string): string {
   return `${projectName}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-const orderNumber = (id: string) => id.slice(0, 8).toUpperCase();
+// round 6: the old 8-hex prefix still finds an order in search; the page shows ORD-YYYYMMDD-NNNN (orderNoOf)
+const hexPrefix = (id: string) => id.slice(0, 8).toUpperCase();
 const card = (page: Page, name: string) => page.getByTestId("reward-card").filter({ hasText: name });
-const staffOrder = (page: Page, id: string) => page.getByTestId("staff-order").filter({ hasText: orderNumber(id) });
+const staffOrder = (page: Page, id: string) => page.locator(`[data-testid="staff-order"][data-order-id="${id}"]`);
+const orderRow = (page: Page, id: string) => page.locator(`[data-testid="order-row"][data-order-id="${id}"]`);
 
 type CheckoutResult = {
   ok: boolean;
@@ -68,7 +71,7 @@ test("earn -> cart -> ยืนยันแลก -> staff notified -> เตร
     const orderId = new URL(page.url()).pathname.split("/")[2];
 
     await expect(page.getByTestId("order-status")).toHaveText("รอเตรียมของ");
-    await expect(page.getByTestId("order-number")).toHaveText(orderNumber(orderId));
+    await expect(page.getByTestId("order-number")).toHaveText(await orderNoOf(orderId));
     await expect(page.getByText("รับของที่แผนกก่อนวันที่")).toBeVisible();
     await expect(page.getByTestId("order-item").filter({ hasText: name })).toContainText("20");
     await expect(page.getByTestId("order-total")).toHaveText("20 แต้ม");
@@ -79,7 +82,7 @@ test("earn -> cart -> ยืนยันแลก -> staff notified -> เตร
     // the list shows it too
     await page.getByRole("link", { name: "ออเดอร์" }).first().click();
     await expect(page).toHaveURL((url) => url.pathname === "/orders");
-    const row = page.getByTestId("order-row").filter({ hasText: orderNumber(orderId) });
+    const row = orderRow(page, orderId);
     await expect(row.getByTestId("order-status")).toHaveText("รอเตรียมของ");
     await expect(row).toContainText("20 แต้ม");
 
@@ -115,7 +118,7 @@ test("earn -> cart -> ยืนยันแลก -> staff notified -> เตร
     await expect(page.getByTestId("order-status")).toHaveText("พร้อมรับ");
     await expect(page.getByText("ของพร้อมแล้ว รับที่แผนกก่อนวันที่")).toBeVisible();
     await page.goto("/orders");
-    await expect(page.getByTestId("order-row").filter({ hasText: orderNumber(orderId) }).getByTestId("order-status")).toHaveText("พร้อมรับ");
+    await expect(orderRow(page, orderId).getByTestId("order-status")).toHaveText("พร้อมรับ");
     await page.goto("/notifications");
     await expect(page.getByText("ของรางวัลพร้อมรับแล้ว").first()).toBeVisible();
 
@@ -166,9 +169,9 @@ test("teacher cancels an order (with a confirm step): stock and points come back
 
     await signIn(page, teacher, "/staff/orders");
     // search by order number prefix
-    await page.getByRole("searchbox", { name: "ชื่อนักเรียน หรือเลขที่ออเดอร์" }).fill(orderNumber(orderId).slice(0, 6).toLowerCase());
+    await page.getByRole("searchbox", { name: "ชื่อนักเรียน หรือเลขที่ออเดอร์" }).fill(hexPrefix(orderId).slice(0, 6).toLowerCase());
     await page.keyboard.press("Enter");
-    await expect(page).toHaveURL((url) => url.searchParams.get("q") === orderNumber(orderId).slice(0, 6).toLowerCase());
+    await expect(page).toHaveURL((url) => url.searchParams.get("q") === hexPrefix(orderId).slice(0, 6).toLowerCase());
     await expect(page.getByTestId("staff-order")).toHaveCount(1);
     // search by student name (every e2e user is named "ทดสอบ <role>")
     await page.getByRole("searchbox", { name: "ชื่อนักเรียน หรือเลขที่ออเดอร์" }).fill("ทดสอบ stud");
@@ -179,7 +182,7 @@ test("teacher cancels an order (with a confirm step): stock and points come back
     await page.keyboard.press("Enter");
     await expect(page.getByText("ไม่พบรายการที่ตรงกับคำค้น")).toBeVisible();
     // the cancelled order leaves the default (pending) list once the page refreshes, so look at every status
-    await page.goto(`/staff/orders?status=all&q=${orderNumber(orderId)}`);
+    await page.goto(`/staff/orders?status=all&q=${hexPrefix(orderId)}`);
     await expect(page.getByTestId("staff-order")).toHaveCount(1);
     const row = staffOrder(page, orderId);
     await row.getByRole("button", { name: "ยกเลิก", exact: true }).click();
@@ -422,18 +425,18 @@ test("staff orders list: default is pending only, oldest first; status, points a
     // default: pending only, longest waiting first
     await page.goto(`/staff/orders?q=${q}`);
     await expect(rows).toHaveCount(2);
-    await expect(rows.nth(0)).toContainText(orderNumber(orderA));
-    await expect(rows.nth(1)).toContainText(orderNumber(orderB));
+    await expect(rows.nth(0)).toContainText(await orderNoOf(orderA));
+    await expect(rows.nth(1)).toContainText(await orderNoOf(orderB));
     // points: more first; buyer: ก before ข
     await page.goto(`/staff/orders?q=${q}&sort=points`);
-    await expect(rows.nth(0)).toContainText(orderNumber(orderA));
+    await expect(rows.nth(0)).toContainText(await orderNoOf(orderA));
     await page.goto(`/staff/orders?q=${q}&sort=buyer`);
-    await expect(rows.nth(0)).toContainText(orderNumber(orderB));
-    await expect(rows.nth(1)).toContainText(orderNumber(orderA));
+    await expect(rows.nth(0)).toContainText(await orderNoOf(orderB));
+    await expect(rows.nth(1)).toContainText(await orderNoOf(orderA));
     // completed shows the completed one; all shows three; ready is empty with the shared no-match copy
     await page.goto(`/staff/orders?q=${q}&status=completed`);
     await expect(rows).toHaveCount(1);
-    await expect(rows.first()).toContainText(orderNumber(orderC));
+    await expect(rows.first()).toContainText(await orderNoOf(orderC));
     await page.goto(`/staff/orders?q=${q}&status=all`);
     await expect(rows).toHaveCount(3);
     await page.goto(`/staff/orders?q=${q}&status=ready`);

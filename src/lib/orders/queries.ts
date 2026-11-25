@@ -12,6 +12,8 @@ import { MY_ORDER_CONFIG, MY_ORDER_SORT_COLUMN, orderSearchFilter, STAFF_ORDER_C
 
 export type OrderSummary = {
   id: string;
+  /** ORD-YYYYMMDD-NNNN (round 6, 0040). */
+  orderNo: string;
   status: string;
   totalPoints: number;
   createdAt: string;
@@ -35,6 +37,7 @@ const one = <T,>(v: One<T>): T | null => (Array.isArray(v) ? (v[0] ?? null) : v)
 
 type OrderRow = {
   id: string;
+  order_no: string;
   status: string;
   total_points: number;
   created_at: string;
@@ -44,7 +47,7 @@ type OrderRow = {
 type ProfileRef = { full_name: string; display_name: string | null };
 
 function summary(r: OrderRow): OrderSummary {
-  return { id: r.id, status: r.status, totalPoints: r.total_points, createdAt: r.created_at, expiresAt: r.expires_at, readyAt: r.ready_at };
+  return { id: r.id, orderNo: r.order_no, status: r.status, totalPoints: r.total_points, createdAt: r.created_at, expiresAt: r.expires_at, readyAt: r.ready_at };
 }
 
 /**
@@ -66,7 +69,7 @@ export async function listMyOrdersPage(
     size: pageSizeOf(MY_ORDER_CONFIG),
     run: (from, to) =>
       filtered(
-        supabase.from("my_order_list").select("id, status, total_points, created_at, expires_at, ready_at", { count: "exact" }).eq("student_id", studentId),
+        supabase.from("my_order_list").select("id, order_no, status, total_points, created_at, expires_at, ready_at", { count: "exact" }).eq("student_id", studentId),
       )
         .order(column, { ascending, nullsFirst: false })
         .order("id", { ascending })
@@ -89,7 +92,7 @@ export async function getOrder(id: string): Promise<OrderDetail | null> {
   const { data, error } = await supabase
     .from("orders")
     .select(
-      "id, status, total_points, created_at, expires_at, ready_at, student_id, completed_at, " +
+      "id, order_no, status, total_points, created_at, expires_at, ready_at, student_id, completed_at, " +
         "student:profiles!orders_student_id_fkey(full_name, display_name), " +
         "order_items(reward_id, qty, unit_cost, reward_name)",
     )
@@ -138,7 +141,7 @@ export async function listStaffOrdersPage(
     page: p.page,
     size: pageSizeOf(STAFF_ORDER_CONFIG),
     run: (from, to) =>
-      filtered(supabase.from("staff_order_list").select("id, status, total_points, created_at, expires_at, ready_at, buyer_name", { count: "exact" }))
+      filtered(supabase.from("staff_order_list").select("id, order_no, status, total_points, created_at, expires_at, ready_at, buyer_name", { count: "exact" }))
         .order(column, { ascending, nullsFirst: false })
         .order("id", { ascending })
         .range(from, to),

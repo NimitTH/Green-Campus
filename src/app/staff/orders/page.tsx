@@ -82,12 +82,12 @@ async function Orders({ searchParams }: { searchParams: SearchParams }) {
 }
 
 function OrderRow({ order, overdue }: { order: StaffOrder; overdue: boolean }) {
-  const label = `ออเดอร์ ${orderNumber(order.id)}`;
+  const label = `ออเดอร์ ${orderNumber(order)}`;
   return (
-    <Card as="li" data-testid="staff-order">
+    <Card as="li" data-testid="staff-order" data-order-id={order.id}>
       <div className="flex items-start justify-between gap-3">
         <Link href={`/orders/${order.id}`} className="font-mono text-lg font-bold tracking-wider text-ink hover:underline max-md:inline-flex max-md:min-h-11 max-md:items-center">
-          {orderNumber(order.id)}
+          {orderNumber(order)}
         </Link>
         <span data-testid="order-status">
           <Badge tone={orderStatusTone(order.status, order.readyAt)}>{orderStatusLabelTh(order.status, order.readyAt)}</Badge>

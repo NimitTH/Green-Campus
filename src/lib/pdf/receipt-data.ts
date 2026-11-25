@@ -9,7 +9,7 @@ import type { ReceiptData } from "./receipt";
  */
 export function toReceiptData(order: OrderDetail): ReceiptData {
   return {
-    orderNo: orderNumber(order.id),
+    orderNo: orderNumber(order),
     createdAt: new Date(order.createdAt),
     studentName: order.studentName?.trim() || "-",
     status: orderStatusLabelTh(order.status, order.readyAt),

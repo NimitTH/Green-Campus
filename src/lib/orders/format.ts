@@ -41,9 +41,9 @@ export function studentDisplayName(displayName: string | null | undefined, fullN
   return displayName?.trim() || fullName?.trim() || "ไม่ระบุชื่อ";
 }
 
-/** เลขที่ออเดอร์: the first 8 characters of the id, uppercased. */
-export function orderNumber(id: string): string {
-  return id.slice(0, 8).toUpperCase();
+/** เลขที่ออเดอร์: the stored ORD-YYYYMMDD-NNNN number (round 6, 0040). */
+export function orderNumber(order: { orderNo: string }): string {
+  return order.orderNo;
 }
 
 /** One blocked line from checkout() (R71). */

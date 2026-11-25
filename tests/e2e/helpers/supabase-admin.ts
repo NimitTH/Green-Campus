@@ -726,3 +726,10 @@ export async function setRole(userId: string, role: Role): Promise<void> {
   const { error } = await admin().from("profiles").update({ role }).eq("id", userId);
   if (error) throw new Error(`e2e: set role failed: ${error.message}`);
 }
+
+/** Round 6: the ORD-YYYYMMDD-NNNN number of an order (service role). */
+export async function orderNoOf(orderId: string): Promise<string> {
+  const { data, error } = await admin().from("orders").select("order_no").eq("id", orderId).single();
+  if (error || !data) throw new Error(`e2e: order ${orderId} not found: ${error?.message}`);
+  return (data as { order_no: string }).order_no;
+}

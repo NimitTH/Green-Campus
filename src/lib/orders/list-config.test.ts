@@ -3,17 +3,18 @@ import { parseListParams } from "@/app/_components/list/list-params";
 import { MY_ORDER_CONFIG, orderSearchFilter, STAFF_ORDER_CONFIG, STAFF_ORDER_SORT_COLUMN, staffOrderFilter, staffOrderSearchFilter } from "./list-config";
 
 describe("orderSearchFilter", () => {
-  it("matches the item names and, for a hex prefix, the order-number range", () => {
+  it("matches the item names, the order number and, for a hex prefix, the old number range", () => {
     expect(orderSearchFilter("a1b")).toBe(
-      'item_names.ilike."%a1b%",and(id.gte.a1b00000-0000-0000-0000-000000000000,id.lte.a1bfffff-ffff-ffff-ffff-ffffffffffff)',
+      'item_names.ilike."%a1b%",order_no.ilike."%a1b%",and(id.gte.a1b00000-0000-0000-0000-000000000000,id.lte.a1bfffff-ffff-ffff-ffff-ffffffffffff)',
     );
   });
-  it("has no number branch when the text is not a hex prefix", () => {
-    expect(orderSearchFilter("สมุด")).toBe('item_names.ilike."%สมุด%"');
+  it("has no old-number branch when the text is not a hex prefix", () => {
+    expect(orderSearchFilter("สมุด")).toBe('item_names.ilike."%สมุด%",order_no.ilike."%สมุด%"');
+    expect(orderSearchFilter("ORD-20261125-0001")).toBe('item_names.ilike."%ORD-20261125-0001%",order_no.ilike."%ORD-20261125-0001%"');
   });
   it("escapes LIKE wildcards and quotes in the item pattern", () => {
     expect(orderSearchFilter('50%_"x')).toBe(
-      String.raw`item_names.ilike."%50\\%\\_\"x%"`,
+      String.raw`item_names.ilike."%50\\%\\_\"x%",order_no.ilike."%50\\%\\_\"x%"`,
     );
   });
 });
@@ -48,9 +49,9 @@ describe("staffOrderFilter", () => {
 describe("staffOrderSearchFilter", () => {
   it("matches both name columns and, for a hex prefix, the number range", () => {
     expect(staffOrderSearchFilter("a1b")).toBe(
-      'buyer_full_name.ilike."%a1b%",buyer_display_name.ilike."%a1b%",and(id.gte.a1b00000-0000-0000-0000-000000000000,id.lte.a1bfffff-ffff-ffff-ffff-ffffffffffff)',
+      'buyer_full_name.ilike."%a1b%",buyer_display_name.ilike."%a1b%",order_no.ilike."%a1b%",and(id.gte.a1b00000-0000-0000-0000-000000000000,id.lte.a1bfffff-ffff-ffff-ffff-ffffffffffff)',
     );
-    expect(staffOrderSearchFilter("สม")).toBe('buyer_full_name.ilike."%สม%",buyer_display_name.ilike."%สม%"');
+    expect(staffOrderSearchFilter("สม")).toBe('buyer_full_name.ilike."%สม%",buyer_display_name.ilike."%สม%",order_no.ilike."%สม%"');
   });
 });
 

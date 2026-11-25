@@ -21,7 +21,8 @@ export const MY_ORDER_SORT_COLUMN: Record<
 
 /** The `.or()` filter for the search text: item names (literal ilike), plus the order-number range when `q` is a hex prefix. */
 export function orderSearchFilter(q: string): string {
-  const parts = [`item_names.ilike.${quoteOrValue(toIlikePattern(q))}`];
+  const pattern = quoteOrValue(toIlikePattern(q));
+  const parts = [`item_names.ilike.${pattern}`, `order_no.ilike.${pattern}`];
   const range = orderIdRange(q);
   if (range) parts.push(`and(id.gte.${range.from},id.lte.${range.to})`);
   return parts.join(",");
@@ -70,7 +71,7 @@ export function staffOrderFilter(status: string | undefined): StaffOrderFilter |
 /** The `.or()` filter for the staff search text: the buyer's full or display name (literal ilike), plus the order-number range when `q` is a hex prefix. */
 export function staffOrderSearchFilter(q: string): string {
   const pattern = quoteOrValue(toIlikePattern(q));
-  const parts = [`buyer_full_name.ilike.${pattern}`, `buyer_display_name.ilike.${pattern}`];
+  const parts = [`buyer_full_name.ilike.${pattern}`, `buyer_display_name.ilike.${pattern}`, `order_no.ilike.${pattern}`];
   const range = orderIdRange(q);
   if (range) parts.push(`and(id.gte.${range.from},id.lte.${range.to})`);
   return parts.join(",");

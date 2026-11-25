@@ -4,6 +4,7 @@ import { toReceiptData } from "./receipt-data";
 
 const base: OrderDetail = {
   id: "a1b2c3d4-1111-4222-8333-444455556666",
+  orderNo: "ORD-20261019-0007",
   status: "pending_pickup",
   totalPoints: 70,
   createdAt: "2026-10-21T03:15:00+00:00",
@@ -21,7 +22,7 @@ const base: OrderDetail = {
 describe("toReceiptData", () => {
   it("maps an order to the receipt fields", () => {
     expect(toReceiptData(base)).toEqual({
-      orderNo: "A1B2C3D4",
+      orderNo: "ORD-20261019-0007",
       createdAt: new Date("2026-10-21T03:15:00Z"),
       studentName: "สมชาย ใจดี",
       status: "รอเตรียมของ",

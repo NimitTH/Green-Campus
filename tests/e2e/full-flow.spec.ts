@@ -10,6 +10,7 @@ import {
   deleteRewardsByName,
   deleteUsers,
   type TestUser,
+  orderNoOf,
 } from "./helpers/supabase-admin";
 import { bangkokInputValue, fillDateTime } from "./helpers/time";
 
@@ -19,7 +20,8 @@ import { bangkokInputValue, fillDateTime } from "./helpers/time";
 // -> receipt PDF -> the teacher marks ready and confirms the pickup (รับแล้ว) -> leaderboard -> summary PDF.
 
 const isPdf = (bytes: Buffer) => bytes.subarray(0, 4).toString("latin1") === "%PDF";
-const orderNumber = (id: string) => id.slice(0, 8).toUpperCase();
+// round 6: the old 8-hex prefix still finds an order in search; receipts carry ORD-YYYYMMDD-NNNN (orderNoOf)
+const hexPrefix = (id: string) => id.slice(0, 8).toUpperCase();
 
 async function unreadCount(page: Page): Promise<number> {
   const bell = page.getByRole("link", { name: /^แจ้งเตือน/ });
@@ -120,12 +122,12 @@ test("demo script: register, join, weigh code, submit, approve (live bell), rede
 
     // 7. the receipt PDF
     const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("link", { name: "ดาวน์โหลดใบเสร็จ" }).click()]);
-    expect(download.suggestedFilename()).toBe(`receipt-${orderNumber(orderId)}.pdf`);
+    expect(download.suggestedFilename()).toBe(`receipt-${await orderNoOf(orderId)}.pdf`);
     expect(isPdf(await readFile(await download.path()))).toBe(true);
 
     // 8. the teacher marks it ready, then confirms the pickup; the student sees รับแล้ว
-    await staff.goto(`/staff/orders?status=all&q=${orderNumber(orderId)}`);
-    const staffOrder = staff.getByTestId("staff-order").filter({ hasText: orderNumber(orderId) });
+    await staff.goto(`/staff/orders?status=all&q=${hexPrefix(orderId)}`);
+    const staffOrder = staff.locator(`[data-testid="staff-order"][data-order-id="${orderId}"]`);
     await staffOrder.getByRole("button", { name: "เตรียมของเสร็จแล้ว" }).click();
     await expect(staffOrder.getByTestId("order-status")).toHaveText("พร้อมรับ");
     await staffOrder.getByRole("button", { name: "ยืนยันรับแล้ว" }).click();

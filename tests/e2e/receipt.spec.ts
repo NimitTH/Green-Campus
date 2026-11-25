@@ -11,6 +11,7 @@ import {
   makeOrderDue,
   signedInClient,
   type TestUser,
+  orderNoOf,
 } from "./helpers/supabase-admin";
 
 // Plan Task 14 (R88, R89): the receipt PDF route and the download button on /orders/[id].
@@ -19,7 +20,6 @@ function uniqueSuffix(projectName: string): string {
   return `${projectName}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-const orderNumber = (id: string) => id.slice(0, 8).toUpperCase();
 const isPdf = (bytes: Buffer) => bytes.subarray(0, 4).toString("latin1") === "%PDF";
 
 test("receipt: the owner downloads a PDF; other students 404, anonymous 401, staff 200", async ({ page, browser, baseURL }, testInfo) => {
@@ -43,14 +43,14 @@ test("receipt: the owner downloads a PDF; other students 404, anonymous 401, sta
     const link = page.getByRole("link", { name: "ดาวน์โหลดใบเสร็จ" });
     await expect(link).toHaveAttribute("href", url);
     const [download] = await Promise.all([page.waitForEvent("download"), link.click()]);
-    expect(download.suggestedFilename()).toBe(`receipt-${orderNumber(orderId)}.pdf`);
+    expect(download.suggestedFilename()).toBe(`receipt-${await orderNoOf(orderId)}.pdf`);
     const path = await download.path();
     expect(isPdf(await readFile(path))).toBe(true);
 
     const own = await page.request.get(url);
     expect(own.status()).toBe(200);
     expect(own.headers()["content-type"]).toBe("application/pdf");
-    expect(own.headers()["content-disposition"]).toBe(`attachment; filename="receipt-${orderNumber(orderId)}.pdf"`);
+    expect(own.headers()["content-disposition"]).toBe(`attachment; filename="receipt-${await orderNoOf(orderId)}.pdf"`);
     expect(own.headers()["cache-control"]).toBe("private, no-store");
     expect(isPdf(await own.body())).toBe(true);
 

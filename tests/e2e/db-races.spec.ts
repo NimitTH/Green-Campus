@@ -11,6 +11,7 @@ import {
   ledgerBalance,
   listLedgerForOrder,
   listOrders,
+  orderNoOf,
   type TestUser,
 } from "./helpers/supabase-admin";
 
@@ -209,6 +210,46 @@ test("(b) stock 1, two students check out at once: one order, stock 0, the other
     expect((await listOrders(s1.id)).length + (await listOrders(s2.id)).length).toBe(1);
     expect(await ledgerBalance(s2.id)).toBe(10);
     await expectConsistent(name, 1, [s1, s2], 10);
+  } finally {
+    await deleteUsers([s1, s2]);
+    await deleteRewardsByName([name]);
+  }
+});
+
+// Round 6 (old-site features 3): two checkouts on the same Bangkok day at once get consecutive, different numbers.
+// A holds the day's counter row (uncommitted); B queues on it and takes the next number once A commits.
+test("(b2) two students check out at once: both orders get different ORD- numbers", async () => {
+  const suffix = uniqueSuffix();
+  const name = `race-no ${suffix}`;
+  let s1: TestUser | undefined;
+  let s2: TestUser | undefined;
+  try {
+    s1 = await createConfirmedUser("student", `race-no1-${suffix}`);
+    s2 = await createConfirmedUser("student", `race-no2-${suffix}`);
+    await grantPoints(s1.id, 10);
+    await grantPoints(s2.id, 10);
+    const rewardId = await createRewardRow(name, 10, 5);
+    await putInCart(s1.id, rewardId, 1);
+    await putInCart(s2.id, rewardId, 1);
+
+    await beginAs(a, s1.id);
+    const first = result(await start(a, "select public.checkout() as r"));
+    expect(first.ok).toBe(true);
+    await beginAs(b, s2.id);
+    const second = start(b, "select public.checkout() as r");
+    await waitForLock(monitor, b.pid); // B queues on the reward row or the day's counter row
+    await a.client.query("commit");
+    const settled = await second;
+    await endTx(b, settled);
+    const r = result(settled);
+    expect(r.ok).toBe(true);
+
+    const n1 = await orderNoOf(first.order_id!);
+    const n2 = await orderNoOf(r.order_id!);
+    expect(n1).toMatch(/^ORD-[0-9]{8}-[0-9]{4,}$/);
+    expect(n2).toMatch(/^ORD-[0-9]{8}-[0-9]{4,}$/);
+    expect(n2).not.toBe(n1);
+    if (n1.slice(0, 12) === n2.slice(0, 12)) expect(Number(n2.slice(13))).toBe(Number(n1.slice(13)) + 1);
   } finally {
     await deleteUsers([s1, s2]);
     await deleteRewardsByName([name]);

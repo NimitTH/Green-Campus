@@ -36,8 +36,8 @@ describe("isOrderReady", () => {
 });
 
 describe("orderNumber", () => {
-  it("is the first 8 characters, uppercased", () => {
-    expect(orderNumber("a1b2c3d4-0000-4000-8000-000000000000")).toBe("A1B2C3D4");
+  it("is the stored ORD-YYYYMMDD-NNNN number (round 6)", () => {
+    expect(orderNumber({ orderNo: "ORD-20261125-0001" })).toBe("ORD-20261125-0001");
   });
 });
 

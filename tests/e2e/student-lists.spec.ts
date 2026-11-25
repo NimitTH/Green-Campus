@@ -14,6 +14,7 @@ import {
   setActivityCover,
   signedInClient,
   type TestUser,
+  orderNoOf,
 } from "./helpers/supabase-admin";
 
 // Redesign 4 Task 4: search, sort and pagination on /orders; search, sort, pagination and the card/list view on /rewards.
@@ -91,11 +92,16 @@ test("/orders: search by reward name and by order number, no-match, pagination",
     await page.getByRole("searchbox", { name: "ค้นหาสินค้าหรือเลขที่ออเดอร์" }).press("Enter");
     await expect(page).toHaveURL(/q=/);
     await expect(page.getByTestId("order-row")).toHaveCount(1);
-    await expect(page.getByTestId("order-row")).toContainText(alphaOrder.slice(0, 8).toUpperCase());
+    const alphaNo = await orderNoOf(alphaOrder);
+    await expect(page.getByTestId("order-row")).toContainText(alphaNo);
 
+    // round 6: the full ORD- number finds the order; the old 8-hex prefix still does too
+    await page.goto(`/orders?q=${encodeURIComponent(alphaNo)}`);
+    await expect(page.getByTestId("order-row")).toHaveCount(1);
+    await expect(page.getByTestId("order-row")).toContainText(alphaNo);
     await page.goto(`/orders?q=${alphaOrder.slice(0, 8)}`);
     await expect(page.getByTestId("order-row")).toHaveCount(1);
-    await expect(page.getByTestId("order-row")).toContainText(alphaOrder.slice(0, 8).toUpperCase());
+    await expect(page.getByTestId("order-row")).toContainText(alphaNo);
 
     await page.goto(`/orders?q=${encodeURIComponent("ไม่มีของนี้ " + suffix)}`);
     await expect(page.getByText("ไม่พบรายการที่ตรงกับคำค้น")).toBeVisible();
@@ -104,7 +110,7 @@ test("/orders: search by reward name and by order number, no-match, pagination",
     await page.goto("/orders?page=999");
     await expect(page.getByTestId("order-row")).toHaveCount(2);
     await page.goto("/orders?dir=asc");
-    await expect(page.getByTestId("order-row").first()).toContainText(alphaOrder.slice(0, 8).toUpperCase());
+    await expect(page.getByTestId("order-row").first()).toContainText(alphaNo);
   } finally {
     await deleteUsers([student]);
     await deleteRewardsByName([alpha, beta]);

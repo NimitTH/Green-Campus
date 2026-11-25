@@ -67,7 +67,7 @@ async function Orders({ searchParams }: { searchParams: SearchParams }) {
     <>
       <ul className="space-y-3">
         {orders.map((o) => (
-          <li key={o.id} data-testid="order-row">
+          <li key={o.id} data-testid="order-row" data-order-id={o.id}>
             <Link
               href={`/orders/${o.id}`}
               className="block rounded-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
@@ -75,7 +75,7 @@ async function Orders({ searchParams }: { searchParams: SearchParams }) {
               <Card className="transition-colors hover:border-accent">
                 <div className="flex items-start justify-between gap-3">
                   <p className="font-semibold">
-                    เลขที่ <span className="font-mono">{orderNumber(o.id)}</span>
+                    เลขที่ <span className="font-mono">{orderNumber(o)}</span>
                   </p>
                   <span data-testid="order-status">
                     <Badge tone={orderStatusTone(o.status, o.readyAt)}>{orderStatusLabelTh(o.status, o.readyAt)}</Badge>
