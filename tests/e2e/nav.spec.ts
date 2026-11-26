@@ -429,23 +429,20 @@ test("login page: description, forgot link on the password label row, eye toggle
   await expect(pw).toHaveAttribute("type", "password");
 
   await expect(page.getByText("หรือ", { exact: true }).filter({ visible: true })).toBeVisible();
-  await page.getByRole("button", { name: "เข้าสู่ระบบด้วย Google" }).filter({ visible: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: "ยังไม่เปิดให้ใช้งาน" })).toBeVisible();
-  await expect(page).toHaveURL(/\/login$/);
+  // Google sign-in is on in e2e (playwright.config.ts); its behaviour is in google-signin.spec.ts
+  await expect(page.getByRole("button", { name: "เข้าสู่ระบบด้วย Google" }).filter({ visible: true })).toBeVisible();
 
   await expect(page.getByText("ยังไม่มีบัญชี?").filter({ visible: true })).toBeVisible();
   await page.getByRole("link", { name: "สมัครสมาชิก", exact: true }).filter({ visible: true }).last().click();
   await expect(page).toHaveURL(/\/register$/);
 });
 
-test("register page: description, two eye toggles, Google placeholder, link back to login", async ({ page }) => {
+test("register page: description, two eye toggles, Google button, link back to login", async ({ page }) => {
   await page.goto("/register");
   await expect(page.getByText("สมัครสมาชิกเพื่อเริ่มสะสมแต้มจากกิจกรรมรักษ์โลก").filter({ visible: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "แสดงรหัสผ่าน" }).filter({ visible: true })).toHaveCount(2);
   await expect(page.getByText("หรือ", { exact: true }).filter({ visible: true })).toBeVisible();
-  await page.getByRole("button", { name: "สมัครสมาชิกด้วย Google" }).filter({ visible: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: "ยังไม่เปิดให้ใช้งาน" })).toBeVisible();
-  await expect(page).toHaveURL(/\/register$/);
+  await expect(page.getByRole("button", { name: "สมัครสมาชิกด้วย Google" }).filter({ visible: true })).toBeVisible();
 
   await expect(page.getByText("มีบัญชีแล้ว?").filter({ visible: true })).toBeVisible();
   await page.locator("main").getByRole("link", { name: "เข้าสู่ระบบ", exact: true }).filter({ visible: true }).click();

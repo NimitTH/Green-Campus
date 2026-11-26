@@ -49,7 +49,8 @@ export default defineConfig({
     // prod mode always builds the current code (never reuses a stale server on 3100)
     reuseExistingServer: !process.env.CI && !PROD,
     // A dev server started by hand needs the same value: CRON_SECRET=e2e-cron-secret npm run dev.
-    env: process.env.CI ? {} : { CRON_SECRET },
+    // Google sign-in buttons on (tests/e2e/google-signin.spec.ts intercepts the Supabase authorize request).
+    env: process.env.CI ? { NEXT_PUBLIC_GOOGLE_AUTH: "on" } : { CRON_SECRET, NEXT_PUBLIC_GOOGLE_AUTH: "on" },
     timeout: PROD ? 600_000 : 180_000,
   },
 });

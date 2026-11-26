@@ -87,6 +87,7 @@ where table_schema = 'storage' and table_name = 'objects' and column_name in ('a
 | `NEXT_PUBLIC_SITE_URL` | Production: `https://<โดเมน>` · **Preview: ไม่ต้องตั้ง** | build-time, ใช้ในลิงก์อีเมล |
 | `SUPABASE_SECRET_KEY` | secret key | server only ห้ามขึ้นต้นด้วย `NEXT_PUBLIC_` |
 | `CRON_SECRET` | ค่าสุ่ม `openssl rand -hex 32` | server only |
+| `NEXT_PUBLIC_GOOGLE_AUTH` | `on` เมื่อเปิด Google ใน Supabase แล้วเท่านั้น (ดู [google-signin.md](google-signin.md)) | build-time |
 
 - ตัวแปร `NEXT_PUBLIC_*` ถูกฝังตอน build: แก้ค่าแล้วต้อง **Redeploy** ค่าใหม่จึงมีผล
 - `NEXT_PUBLIC_SITE_URL` ของ **Preview ให้เว้นไว้**: Preview แต่ละครั้งได้ URL ใหม่ ค่าที่ฝังตอน build จะชี้ผิดที่ (หรือชี้ไป production)
