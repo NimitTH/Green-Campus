@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isSuspendedAt } from "@/lib/auth/dal";
-import { OAUTH_NEXT_COOKIE, googleCallbackTarget } from "@/lib/auth/google";
+import { OAUTH_NEXT_COOKIE, googleCallbackTarget, isBanError } from "@/lib/auth/google";
 import { createServerClient } from "@/lib/supabase/server";
 
 // Sign in with Google (docs/superpowers/specs/2026-11-26-google-signin-design.md): Google -> Supabase -> here with
@@ -10,11 +10,14 @@ export async function GET(request: NextRequest) {
   const { origin, searchParams } = request.nextUrl;
   const code = searchParams.get("code");
   let exchanged = false;
-  let suspended = false;
+  // Suspending a student also bans them in Auth, so Supabase usually refuses them itself: ?error_code=user_banned
+  // here, or a user_banned exchange error. Both are a suspension, not a failed Google sign-in.
+  let suspended = isBanError(searchParams.get("error_code"));
 
-  if (code) {
+  if (code && !suspended) {
     const supabase = await createServerClient();
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error && isBanError(error.code)) suspended = true;
     if (!error && data.user) {
       exchanged = true;
       const { data: status } = await supabase

@@ -13,9 +13,20 @@ export function isGoogleAuthEnabled(flag: string | undefined): boolean {
   return flag === "on";
 }
 
-/** Where /auth/callback/google sends the user: the same rules as password sign-in. */
+/**
+ * True for Supabase's code for an Auth-banned user (suspending a student also bans them in Auth), whether it comes
+ * back on the callback query (?error_code=) or from the code exchange.
+ */
+export function isBanError(code: string | null | undefined): boolean {
+  return code === "user_banned";
+}
+
+/**
+ * Where /auth/callback/google sends the user: the same rules as password sign-in. A suspension wins even when
+ * Supabase refused the sign-in before any session existed (a banned user), so the user sees why.
+ */
 export function googleCallbackTarget(input: { exchanged: boolean; suspended: boolean; next: string | undefined }): string {
-  if (!input.exchanged) return "/login?error=google";
   if (input.suspended) return "/login?error=suspended";
+  if (!input.exchanged) return "/login?error=google";
   return safeNextPath(input.next);
 }

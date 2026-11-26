@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GOOGLE_CALLBACK_PATH, OAUTH_NEXT_COOKIE, OAUTH_NEXT_MAX_AGE, googleCallbackTarget, isGoogleAuthEnabled } from "./google";
+import { GOOGLE_CALLBACK_PATH, OAUTH_NEXT_COOKIE, OAUTH_NEXT_MAX_AGE, googleCallbackTarget, isBanError, isGoogleAuthEnabled } from "./google";
 import { GOOGLE_FAILED_MESSAGE, loginErrorMessage } from "./messages";
 
 describe("googleCallbackTarget", () => {
@@ -36,5 +36,15 @@ describe("loginErrorMessage google", () => {
   it("has its own message, not the e-mail link one", () => {
     expect(GOOGLE_FAILED_MESSAGE).toBe("เข้าสู่ระบบด้วย Google ไม่สำเร็จ ลองอีกครั้ง");
     expect(loginErrorMessage("google")).toBe(GOOGLE_FAILED_MESSAGE);
+  });
+});
+
+describe("banned users (final review I1)", () => {
+  it("a ban reported before the exchange still shows the suspended message", () => {
+    expect(googleCallbackTarget({ exchanged: false, suspended: true, next: "/rewards" })).toBe("/login?error=suspended");
+  });
+  it("recognises the Supabase ban code from the callback query or the exchange error", () => {
+    expect(isBanError("user_banned")).toBe(true);
+    for (const code of [null, undefined, "", "access_denied", "bad_code_verifier"]) expect(isBanError(code)).toBe(false);
   });
 });

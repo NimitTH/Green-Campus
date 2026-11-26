@@ -39,3 +39,11 @@ test("a bad code also lands on the login page with the Google message", async ({
   await page.goto("/auth/callback/google?code=not-a-real-code");
   await expect(page).toHaveURL((url) => url.pathname === "/login" && url.searchParams.get("error") === "google");
 });
+
+// Final review I1: a suspended student is banned in Auth, so Supabase refuses the Google sign-in itself and returns
+// error_code=user_banned; the page must say the account is suspended, not "try again".
+test("a banned (suspended) account returning from Google sees the suspended message", async ({ page }) => {
+  await page.goto("/auth/callback/google?error=access_denied&error_code=user_banned&error_description=User+is+banned");
+  await expect(page).toHaveURL((url) => url.pathname === "/login" && url.searchParams.get("error") === "suspended");
+  await expect(page.getByText("บัญชีนี้ถูกระงับ ติดต่อครูหรือผู้ดูแล").filter({ visible: true })).toBeVisible();
+});
